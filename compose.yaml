@@ -1,0 +1,136 @@
+services:
+  nginx:
+    container_name: iip_nginx
+    image: nginx:latest
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    restart: unless-stopped
+    networks:
+      - iip_frontend_net
+      - iip_backend_net
+    ports:
+      - "${PORT_AUTH}:${PORT_AUTH}"
+      - "${PORT_CORE}:${PORT_CORE}"
+      - "${PORT_FILES}:${PORT_FILES}"
+      - "${PORT_IA_AGENT}:${PORT_IA_AGENT}"
+      - "${PORT_FRNT}:${PORT_FRNT}"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../certs:/etc/nginx/ssl:ro
+
+  db:
+    container_name: iip_db_auth
+    image: postgres:18-bookworm
+    env_file: ./.env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - iip_db_net
+      - pgadmin_net
+    volumes:
+      - postgresql:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # api_stats:
+  #   container_name: iip_stats
+  #   image: labcapital/apps:Stats
+  #   env_file: ./.env
+  #   labels:
+  #     - "com.centurylinklabs.watchtower.enable=true"
+  #   environment:
+  #     PORT: "${PORT_FRNT}"
+  #   expose:
+  #     - "${PORT_FRNT}"
+  #   networks:
+  #     - iip_frontend_net
+  #     - iip_backend_net
+  #   depends_on:
+  #     - api_auth
+
+  api_auth:
+    container_name: iip_api_auth
+    image: labcapital/apps:Auth
+    env_file: ./.env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - iip_db_net
+      - iip_backend_net
+      - iip_frontend_net
+    expose:
+      - "${PORT_AUTH}"
+    volumes:
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ./alembic/versions:/api/alembic/versions
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api_core:
+    container_name: iip_api_core
+    image: labcapital/apps:Core
+    env_file: ./.env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - iip_db_net
+      - iip_backend_net
+      - iip_frontend_net
+    expose:
+      - "${PORT_CORE}"
+    volumes:
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+
+  api_files:
+    container_name: iip_api_files
+    image: labcapital/apps:Files
+    env_file: ./.env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - iip_db_net
+      - iip_backend_net
+      - iip_frontend_net
+    volumes:
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+
+  api_ia_agent:
+    container_name: iip_api_ia_agent
+    image: labcapital/apps:IA_Agent
+    env_file: ./.env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - iip_db_net
+      - iip_backend_net
+      - iip_frontend_net
+    expose:
+      - "${PORT_IA_AGENT}"
+    volumes:
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+
+networks:
+  iip_db_net:
+    driver: bridge
+    name: iip_db_network
+
+  iip_backend_net:
+    driver: bridge
+    name: iip_backend_network
+
+  iip_frontend_net:
+    driver: bridge
+    name: iip_frontend_network
+
+  pgadmin_net:
+    name: pgadmin_network
+    external: true
+
+volumes:
+  postgresql:
+    name: stats_vol_pg
