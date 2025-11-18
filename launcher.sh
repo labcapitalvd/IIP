@@ -19,6 +19,11 @@ case "$MODE" in
     --setup)
         MSG="${1:-default}"
         echo "🐘 Starting database container..."
+        mkdir -p ../secrets
+        if [ ! -f ../secrets/jwt_private.pem ]; then
+            openssl genpkey -algorithm ED25519 -out ../secrets/jwt_private.pem
+            openssl pkey -in ../secrets/jwt_private.pem -pubout -out ../secrets/jwt_public.pem
+        fi
         docker compose up -d db
         echo "⏳ Waiting for database readiness (max 60s)..."
         TIMEOUT=60

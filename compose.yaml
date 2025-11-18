@@ -64,8 +64,7 @@ services:
     expose:
       - "${PORT_AUTH}"
     volumes:
-      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
-      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ../secrets:/run/secrets:ro
       - ./alembic/versions:/api/alembic/versions
     depends_on:
       db:
@@ -84,7 +83,7 @@ services:
     expose:
       - "${PORT_CORE}"
     volumes:
-      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ../secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
 
   api_files:
     container_name: iip_api_files
@@ -97,7 +96,7 @@ services:
       - iip_backend_net
       - iip_frontend_net
     volumes:
-      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ../secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
 
   api_ia_agent:
     container_name: iip_api_ia_agent
@@ -112,7 +111,7 @@ services:
     expose:
       - "${PORT_IA_AGENT}"
     volumes:
-      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ../secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
 
 networks:
   iip_db_net:
