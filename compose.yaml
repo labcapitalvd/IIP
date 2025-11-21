@@ -15,7 +15,7 @@ services:
       # - "${PORT_STAT}:${PORT_STAT}"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ../certs:/etc/nginx/ssl:ro
+      - ../Secrets/certs:/etc/nginx/ssl:ro
 
   db:
     container_name: iip_db_auth
@@ -49,6 +49,15 @@ services:
   #     - iip_backend_net
   #   depends_on:
   #     - api_auth
+  
+  persister:
+    container_name: iip_persister
+    image: labcapital/apps:IIP-Persister
+    env_file: ./.env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - iip_db_net
 
   api_auth:
     container_name: iip_api_auth
@@ -63,7 +72,7 @@ services:
     expose:
       - "${PORT_AUTH}"
     volumes:
-      - ../secrets:/run/secrets:ro
+      - ../Secrets/jwt:/run/secrets:ro
       - ./alembic/versions:/api/alembic/versions
     depends_on:
       db:
@@ -82,7 +91,7 @@ services:
     expose:
       - "${PORT_CORE}"
     volumes:
-      - ../secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ../Secrets/jwt/jwt_public.pem:/run/secrets/jwt_public.pem:ro
 
   api_ia_agent:
     container_name: iip_api_ia_agent
@@ -97,7 +106,7 @@ services:
     expose:
       - "${PORT_IA_AGENT}"
     volumes:
-      - ../secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+      - ../Secrets/jwt/jwt_public.pem:/run/secrets/jwt_public.pem:ro
 
 networks:
   iip_db_net:

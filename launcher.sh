@@ -19,10 +19,10 @@ case "$MODE" in
     --setup)
         MSG="${1:-default}"
         echo "🐘 Starting database container..."
-        mkdir -p ../secrets
-        if [ ! -f ../secrets/jwt_private.pem ]; then
-            openssl genpkey -algorithm ED25519 -out ../secrets/jwt_private.pem
-            openssl pkey -in ../secrets/jwt_private.pem -pubout -out ../secrets/jwt_public.pem
+        mkdir -p ../Secrets/jwt
+        if [ ! -f ../Secrets/jwt/jwt_private.pem ]; then
+            openssl genpkey -algorithm ED25519 -out ../Secrets/jwt/jwt_private.pem
+            openssl pkey -in ../Secrets/jwt/jwt_private.pem -pubout -out ../Secrets/jwt/jwt_public.pem
         fi
         docker compose up -d db
         echo "⏳ Waiting for database readiness (max 60s)..."
@@ -38,14 +38,11 @@ case "$MODE" in
         done
         echo "✅ Database is ready!"
         echo "1️⃣  Creating schemas..."
-        docker compose run --rm api_auth sh -c "cd /api && python -m seed.seed_schema"
+        docker compose run --rm persister sh -c "cd /api/schemer  && python schemer.py"
         echo "2️⃣  Applying migrations (upgrade head)..."
-        docker compose run --rm api_auth sh -c "cd /api && alembic upgrade head"
+        docker compose run --rm persister sh -c "cd /api/migrator  && alembic upgrade head"
         echo "3️⃣  Seeding tables..."
-        docker compose run --rm api_auth sh -c "cd /api/seed && python seed_tables.py"
-        docker compose run --rm api_core sh -c "cd /api/seed && python seed_tables.py"
-        docker compose run --rm api_files sh -c "cd /api/seed && python seed_tables.py"
-        docker compose run --rm api_ia_agent sh -c "cd /api/seed && python seed_tables.py"
+        docker compose run --rm persister sh -c "cd /api/seeder && python seeder.py"
         echo "✅ Starting services..."
         docker compose up -d
         ;;
@@ -90,9 +87,9 @@ case "$MODE" in
     
     --create-keys)
         echo "1️⃣  Creating JWT keys..."
-        mkdir -p secrets
-        openssl genpkey -algorithm Ed25519 -out ./secrets/jwt_private.pem
-        openssl pkey -in ./secrets/jwt_private.pem -pubout -out ./secrets/jwt_public.pem
+        mkdir -p Secrets
+        openssl genpkey -algorithm Ed25519 -out ./Secrets/jwt/jwt_private.pem
+        openssl pkey -in ./Secrets/jwt/jwt_private.pem -pubout -out ./Secrets/jwt/jwt_public.pem
         ;;
 
     --upgrade)
