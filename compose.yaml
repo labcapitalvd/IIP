@@ -73,7 +73,6 @@ services:
       - "${PORT_AUTH}"
     volumes:
       - ../Secrets/jwt:/run/secrets:ro
-      - ./alembic/versions:/api/alembic/versions
     depends_on:
       db:
         condition: service_healthy
