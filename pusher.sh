@@ -1,4 +1,4 @@
-# !usr/bin/env bash
+#!/usr/bin/env bash
 
 docker push labcapital/apps:IIP-Auth
 docker push labcapital/apps:IIP-Core

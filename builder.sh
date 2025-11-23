@@ -1,4 +1,4 @@
-# !usr/bin/env bash
+#!/usr/bin/env bash
 
 cd ../IIP-Auth && docker compose build
 cd ../IIP-Core && docker compose build
