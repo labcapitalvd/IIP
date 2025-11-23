@@ -7,8 +7,7 @@ services:
       - https_public
       - https_private
     networks:
-      - iip_frontend_net
-      - iip_backend_net
+      - iip_nginx
     ports:
       - "${PORT_AUTH}:${PORT_AUTH}"
       - "${PORT_CORE}:${PORT_CORE}"
@@ -27,6 +26,7 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     networks:
       - iip_db_net
+      - pgadmin_net
     volumes:
       - postgresql:/var/lib/postgresql
     healthcheck:
@@ -40,6 +40,7 @@ services:
     image: labcapital/apps:IIP-Persister
     env_file: ./.env
     secrets:
+      - postgres_password
       - users_file
     networks:
       - iip_db_net
@@ -55,7 +56,7 @@ services:
   #   expose:
   #     - "${PORT_STAT}"
   #   networks:
-  #     - iip_frontend_net
+  #     - iip_nginx
   #     - iip_backend_net
   #   depends_on:
   #     - api_auth
@@ -70,8 +71,7 @@ services:
       - fernet_key
     networks:
       - iip_db_net
-      - iip_backend_net
-      - iip_frontend_net
+      - iip_nginx
     depends_on:
       db:
         condition: service_healthy
@@ -84,8 +84,7 @@ services:
       - jwt_public_key
     networks:
       - iip_db_net
-      - iip_backend_net
-      - iip_frontend_net
+      - iip_nginx
 
   api_ia_agent:
     container_name: iip_api_ia_agent
@@ -95,21 +94,16 @@ services:
       - jwt_public_key
     networks:
       - iip_db_net
-      - iip_backend_net
-      - iip_frontend_net
+      - iip_nginx
 
 networks:
   iip_db_net:
     driver: bridge
     name: iip_db_network
 
-  iip_backend_net:
+  iip_nginx:
     driver: bridge
-    name: iip_backend_network
-
-  iip_frontend_net:
-    driver: bridge
-    name: iip_frontend_network
+    name: iip_nginx_network
 
   pgadmin_net:
     name: pgadmin_network
