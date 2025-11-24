@@ -2,6 +2,7 @@ services:
   nginx:
     container_name: iip_nginx
     image: nginx:latest
+    env_file: ./.env
     restart: unless-stopped
     secrets:
       - https_public
@@ -12,7 +13,7 @@ services:
       - "${PORT_AUTH}:${PORT_AUTH}"
       - "${PORT_CORE}:${PORT_CORE}"
       - "${PORT_IA_AGENT}:${PORT_IA_AGENT}"
-      # - "${PORT_STAT}:${PORT_STAT}"
+      - "${PORT_STATS}:3000"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
 
@@ -46,19 +47,12 @@ services:
     networks:
       - iip_db_net
 
-  # api_stats:
+  # stats:
   #   container_name: iip_stats
-  #   image: labcapital/apps:Stats
+  #   image: labcapital/apps:IIP-Stats
   #   env_file: ./.env
-  #   labels:
-  #     - "com.centurylinklabs.watchtower.enable=true"
-  #   environment:
-  #     PORT: "${PORT_STAT}"
-  #   expose:
-  #     - "${PORT_STAT}"
   #   networks:
   #     - iip_nginx
-  #     - iip_backend_net
   #   depends_on:
   #     - api_auth
 
