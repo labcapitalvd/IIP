@@ -2,4 +2,4 @@
 cd ../IIP-Persistence && docker compose build "$@"
 cd ../IIP-Core && docker compose build "$@"
 cd ../IIP-IA-Agent && docker compose build "$@"
-# cd ../IIP-Stats && docker compose --profile prod build "$@"
+cd ../IIP-Stats && docker compose --profile prod build "$@"

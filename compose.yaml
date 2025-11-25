@@ -47,14 +47,12 @@ services:
     networks:
       - iip_db_net
 
-  # stats:
-  #   container_name: iip_stats
-  #   image: labcapital/apps:IIP-Stats
-  #   env_file: ./.env
-  #   networks:
-  #     - iip_nginx
-  #   depends_on:
-  #     - api_auth
+  stats:
+    container_name: iip_stats
+    image: labcapital/apps:IIP-Stats
+    env_file: ./.env
+    networks:
+      - iip_nginx
 
   api_auth:
     container_name: iip_api_auth
