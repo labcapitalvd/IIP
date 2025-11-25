@@ -58,7 +58,7 @@ services:
 
   api_auth:
     container_name: iip_api_auth
-    image: labcapital/apps:IIP-Auth
+    image: labcapital/apps:Auth
     env_file: ./.env
     secrets:
       - jwt_private_key
