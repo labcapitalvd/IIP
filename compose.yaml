@@ -47,7 +47,7 @@ services:
     networks:
       - iip_db_net
 
-  stats:
+  front_stats:
     container_name: iip_stats
     image: labcapital/apps:IIP-Stats
     env_file: ./.env
