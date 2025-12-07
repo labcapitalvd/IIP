@@ -16,3 +16,4 @@ backups/
 # Secrets
 *.env
 secrets/
+Secrets/
