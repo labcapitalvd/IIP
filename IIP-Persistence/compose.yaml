@@ -1,0 +1,12 @@
+services:  
+  persister:
+    image: labcapital/apps:IIP-Persister
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - github_token
+
+secrets:
+  github_token:
+    file: ../Secrets/github_token

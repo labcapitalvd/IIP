@@ -1,0 +1,8 @@
+stats/node_modules
+stats/.svelte-kit
+stats/build
+randgen
+
+__pycache__
+
+.venv

@@ -1,0 +1,83 @@
+"""Poblado de actors"""
+import os
+import logging
+import pandas as pd
+import uuid
+import requests
+from io import StringIO
+
+from sqlalchemy.dialects.postgresql import UUID as UUIDType
+
+from shared_db import sync_engine
+
+from shared_models.targets import TargetTable as TargetTableBase
+from models.targets import TargetTable as TargetTableApp
+
+from shared_db import merge_enums
+
+TargetTable = merge_enums(
+    "TargetTable",
+    TargetTableBase,
+    TargetTableApp
+)
+
+
+LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
+    "debug",
+    "info",
+    "warning",
+    "error",
+    "critical",
+)
+logger = logging.getLogger("seed/entities")
+logger.setLevel(LOGLEVEL)
+
+
+TABLE = TargetTable.ACTORS.table
+SCHEMA = TargetTable.ACTORS.schema
+ORIGIN_URL = "https://raw.githubusercontent.com/LABCapital-VD/IIP-Cuadernos-Jupyter/main/Gesti%C3%B3n/Migraci%C3%B3n%20a%20DB/output/01_entidades.csv"
+
+GITHUB_TOKEN_FILE = "/run/secrets/github_token"
+if not os.path.exists(GITHUB_TOKEN_FILE):
+    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
+with open(GITHUB_TOKEN_FILE, "r") as f:
+    GITHUB_TOKEN = f.read().strip()
+
+headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+r = requests.get(ORIGIN_URL, headers=headers)
+r.raise_for_status()  # fail if not 200
+
+
+def upgrade() -> None:
+
+    df = pd.read_csv(StringIO(r.text), sep="|")
+    
+    rename_map = {
+        "sector_id": "actor_segment_id",
+    }
+    
+    df = df.rename(columns=rename_map)
+
+    df["id"] = df["id"].apply(lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None)
+    if "actor_segment_id" in df.columns:
+        df["actor_segment_id"] = df["actor_segment_id"].apply(
+            lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None
+        )
+
+    query = f'SELECT id FROM "{SCHEMA}"."{TABLE}"'
+    existing_ids = pd.read_sql(query, sync_engine)["id"].tolist()
+
+    df_to_insert = df[~df["id"].isin(existing_ids)]
+
+    if not df_to_insert.empty:
+        df_to_insert.to_sql(
+            TABLE,
+            sync_engine,
+            schema=SCHEMA,
+            if_exists="append",
+            index=False,
+            dtype={"id": UUIDType(), "actor_segment_id": UUIDType()},  # type: ignore[arg-type]
+        )
+        logger.info(f"Inserted {len(df_to_insert)} new rows into {SCHEMA}.{TABLE}")
+    else:
+        logger.info(f"No new rows to insert for {SCHEMA}.{TABLE}")

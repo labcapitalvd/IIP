@@ -1,0 +1,38 @@
+[project]
+name = "visualizador-iip"
+version = "0.1.0"
+description = "Pyproject para desarrollo de todo el proyecto. SOLO DEV, NO PRODUCCIÓN"
+requires-python = ">=3.14"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "fastapi>=0.120.2",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.3",
+    "requests>=2.32.5",
+    "shared_db",
+    "shared_models",
+    "shared_schemas",
+    "shared_utils",
+    "sqlalchemy>=2.0.44",
+    "uvicorn>=0.38.0",
+]
+
+[tool.uv.sources]
+shared_db = { workspace = true }
+shared_models = { workspace = true }
+shared_schemas = { workspace = true }
+shared_utils = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "../IIP-Commons/packages/shared_db",
+    "../IIP-Commons/packages/shared_models",
+    "../IIP-Commons/packages/shared_schemas",
+    "../IIP-Commons/packages/shared_utils"
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.0",
+    "ty>=0.0.1a22",
+]

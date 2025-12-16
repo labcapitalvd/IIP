@@ -1,0 +1,12 @@
+services:
+  api_ia_agent:
+    image: labcapital/apps:IIP-IA-Agent
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - github_token
+
+secrets:
+  github_token:
+    file: ../Secrets/github_token

@@ -1,0 +1,12 @@
+services:
+  api_core:
+    image: labcapital/apps:IIP-Core
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - github_token
+
+secrets:
+  github_token:
+    file: ../Secrets/github_token

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+.venv/
+.ruff_cache/
+*.lock
+
+# Migration
+api/src/alembic/versions/*
+
+# Auditing
+logs/
+
+# Backup
+backups/
+
+# Secrets
+*.env
+secrets/
+Secrets/

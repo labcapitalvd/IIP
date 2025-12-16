@@ -1,0 +1,45 @@
+[project]
+name = "visualizador-iip"
+version = "0.1.0"
+description = "Pyproject para desarrollo de todo el proyecto. SOLO DEV, NO PRODUCCIÓN"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiofiles>=24.1.0",
+    "cryptography>=45.0.6",
+    "fastapi>=0.116.1",
+    "passlib[bcrypt]>=1.7.4",
+    "pydantic[email]>=2.11.7",
+    "python-jose>=3.5.0",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.42",
+    "uvicorn>=0.35.0",
+    "alembic>=1.16.4",
+    "pandas>=2.3.1",
+    "openpyxl>=3.1.5",
+    "numpy>=2.3.3",
+    "psycopg[binary]>=3.2.9",
+    "psycopg2-binary>=2.9.10",
+    "asyncpg>=0.30.0",
+    "bcrypt>=4.3.0",
+    "argon2-cffi>=25.1.0",
+    "requests>=2.32.5",
+    "shared_db",
+    "shared_models",
+    "shared_schemas",
+    "shared_utils",
+]
+
+[tool.uv.sources]
+shared_db = { workspace = true }
+shared_models = { workspace = true }
+shared_schemas = { workspace = true }
+shared_utils = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "../Packages/packages/shared_db",
+    "../Packages/packages/shared_models",
+    "../Packages/packages/shared_schemas",
+    "../Packages/packages/shared_utils"
+]

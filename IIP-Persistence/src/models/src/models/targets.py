@@ -1,0 +1,42 @@
+from shared_db import BaseTargetTable
+
+class TargetTable(BaseTargetTable):
+    ACTOR_SEGMENTS = ("actor_segments", "actors")
+    ACTORS = ("actors", "actors")
+    LINK_USER_ACTOR = ("user_actor_links", "links")
+
+    FIELD_TYPES = ("field_types", "reference")
+    FORMS = ("forms", "forms")
+    SECTION_TYPES = ("section_types", "forms")
+    SECTIONS = ("sections", "forms")
+    INFORMATIONS = ("information", "forms")
+    QUESTIONS = ("questions", "forms")
+    CARD_TEMPLATES = ("card_templates", "forms")
+    FIELD_GROUPS = ("field_groups", "forms")
+    FIELDS = ("fields", "forms")
+    FIELD_CHOICES = ("field_choices", "forms")
+
+    RELATIONAL_OPERATORS = ("relational_operators", "reference")
+    VALIDATION_TYPES = ("validation_types", "reference")
+    SECTION_DEPENDENCIES = ("section_dependencies", "rules")
+    FIELD_DEPENDENCIES = ("field_dependencies", "rules")
+    FIELD_RULES = ("field_rules", "rules")
+
+    SUBMISSION_STATUS_TYPES = ("submission_status_types", "reference")
+    SUBMISSIONS = ("submissions", "submissions")
+    ASSIGNMENTS = ("assignments", "grading")
+    CRITERIA = ("criteria", "grading")
+    GRADES = ("grades", "grading")
+    RESULTS = ("results", "grading")
+
+    ANSWERS_CARD_ENTRY = ("answers_card_entry", "submissions")
+    ANSWERS = ("answers", "submissions")
+    ANSWERS_BOOLEAN = ("answers_boolean", "submissions")
+    ANSWERS_DATE = ("answers_date", "submissions")
+    ANSWERS_FILE = ("answers_file", "submissions")
+    ANSWERS_MULTI_CHOICE = ("answers_multi_choice", "submissions")
+    ANSWERS_NUMERIC = ("answers_numeric", "submissions")
+    ANSWERS_SINGLE_CHOICE = ("answers_single_choice", "submissions")
+    ANSWERS_TEXT = ("answers_texts", "submissions")
+    LINK_USER_SUBMISSION = ("user_submission_links", "links")
+    LINK_CHOICE_MULTICHOICE = ("choice_multichoice_links", "links")
