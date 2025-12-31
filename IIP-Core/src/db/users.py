@@ -2,12 +2,14 @@ import os
 from typing import Optional
 from uuid import UUID
 
-from shared_models import User, UserTier
-from shared_utils.logging import get_logger
-from shared_utils import HashUtils
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from shared_models import User, UserTier
+from shared_utils.logger import get_logger
+from shared_utils import HashUtils
+
 
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_HASHER_PASS = os.environ["JWT_HASHER_PASS"]
@@ -66,7 +68,7 @@ class UsersDb:
             user = User(
                 username=username,
                 email=email,
-                password_hash=HashUtils.hash_string(passwd),
+                password_hash=HashUtils.hash_password(passwd),
                 is_active=True,
                 tier_id=tier.id,
             )
@@ -107,7 +109,7 @@ class UsersDb:
             if new_email is not None:
                 user.email = new_email
             if new_password is not None:
-                user.password_hash = HashUtils.hash_string(new_password)
+                user.password_hash = HashUtils.hash_password(new_password)
 
             await self.db.commit()
             await self.db.refresh(user)
@@ -139,7 +141,7 @@ class UsersDb:
                 return False
 
             # Check password
-            if not HashUtils.verify_hash(passwd, user.password_hash):
+            if not HashUtils.verify_password(passwd, user.password_hash):
                 return False
 
             # Delete

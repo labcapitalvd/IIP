@@ -4,6 +4,10 @@ from fastapi import APIRouter, Depends, Query, Body, Path, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from shared_db import get_session
+from shared_schemas import ResponseMessage
+from shared_utils import TokenContext
+
 from handlers.files import FileHandler
 from schemas.files import (
     RequestFile,
@@ -14,9 +18,6 @@ from schemas.files import (
 )
 from utils.allowed_types import FileTypeEnum
 
-from shared_db import get_session
-from shared_schemas import ResponseMessage
-from shared_utils.auth.auth import TokenContext
 
 router = APIRouter(tags=["Archivos"], prefix="/files")
 

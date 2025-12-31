@@ -6,14 +6,13 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from models.relationships import *
 from shared_schemas import (
     CustomError,
     ItemError,
     add_routers_with_custom_errors,
     custom_error_handler,
 )
-from shared_utils.logging import get_logger
+from shared_utils.logger import get_logger
 
 from routers.actor_segments import router as router_actor_segments
 from routers.actors import router as router_actors

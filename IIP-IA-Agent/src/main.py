@@ -12,7 +12,7 @@ from shared_schemas import (
     add_routers_with_custom_errors,
     custom_error_handler,
 )
-from shared_utils.logging import get_logger
+from shared_utils.logger import get_logger
 
 
 VERSION = "0.1.0"

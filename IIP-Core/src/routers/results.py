@@ -3,13 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared_utils.auth.auth import TokenContext
+from shared_db import get_session
+from shared_utils import TokenContext
 
 from handlers.results import ResultHandler
-
 from schemas.results import RequestResult
 
-from shared_db import get_session
 
 router = APIRouter(tags=["Resultados"], prefix="/results")
 

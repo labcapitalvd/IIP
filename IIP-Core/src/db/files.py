@@ -7,10 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import NoResultFound, IntegrityError
 
-from utils.allowed_types import FileTypeEnum
-
 from shared_models import File, FileType
 
+from utils.allowed_types import FileTypeEnum
 
 class FileDb:
     def __init__(self, db: AsyncSession):

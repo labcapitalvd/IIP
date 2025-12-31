@@ -3,14 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared_utils.auth.auth import TokenContext
+from shared_db import get_session
+from shared_utils import TokenContext
 
 from handlers.actor_segments import ActorSegmentHandler
 
 from schemas.actor_segments import RequestActorSegment
 from schemas.actor_segments import ResponseActorSegment, ResponseActorSegments
 
-from shared_db import get_session
 
 router = APIRouter(tags=["Segmentos"], prefix="/segments")
 

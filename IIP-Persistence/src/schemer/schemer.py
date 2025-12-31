@@ -3,7 +3,7 @@ from sqlalchemy.schema import CreateSchema
 
 from shared_db import SessionSync, merge_enums
 from shared_models.targets import TargetTable as TargetTableBase
-from shared_utils.logging import get_logger
+from shared_utils.logger import get_logger
 
 from models.targets import TargetTable as TargetTableApp
 

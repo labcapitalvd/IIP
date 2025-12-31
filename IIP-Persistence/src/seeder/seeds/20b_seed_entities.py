@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID as UUIDType
 
 from shared_db import merge_enums, sync_engine
 from shared_models.targets import TargetTable as TargetTableBase
-from shared_utils.logging import get_logger
+from shared_utils.logger import get_logger
 
 from models.targets import TargetTable as TargetTableApp
 
