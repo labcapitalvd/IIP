@@ -13,7 +13,7 @@ from shared_schemas import (
     add_routers_with_custom_errors,
     custom_error_handler,
 )
-from shared_utils import get_logger
+from shared_utils.logging import get_logger
 
 from routers.actor_segments import router as router_actor_segments
 from routers.actors import router as router_actors

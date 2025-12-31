@@ -8,7 +8,8 @@ from uuid import uuid7
 
 from shared_db import SessionSync
 from shared_models import User, UserTier
-from shared_utils import get_logger, HashUtils, TextUtils
+from shared_utils.logging import get_logger
+from shared_utils import HashUtils, TextUtils
 
 
 logger = get_logger("seed/users")
@@ -52,7 +53,7 @@ def upgrade() -> None:
                 tier_id=tier_id,
                 username=u["username"],
                 email=u["email"],
-                password_hash=HashUtils.hash_string(
+                password_hash=HashUtils.hash_password(
                     TextUtils().sanitize_text(u["password"])
                 ),
                 is_active=True,

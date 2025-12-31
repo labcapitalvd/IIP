@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared_utils.auth.auth import TokenContext
+from shared_utils import TokenContext
 
 from handlers.forms import FormHandler
 

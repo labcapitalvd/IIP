@@ -3,7 +3,7 @@
 from enum import Enum
 
 from shared_db import SessionSync
-from shared_utils import get_logger
+from shared_utils.logging import get_logger
 
 from models import ValidationType
 
