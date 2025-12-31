@@ -1,22 +1,14 @@
 """Poblado de submission status types"""
-import os
-import logging
+
 from enum import Enum
 
 from shared_db import SessionSync
+from shared_utils import get_logger
 
 from models import SubmissionStatusType
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/submission_status_types")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/submission_status_types")
 
 
 class Types(Enum):
@@ -54,6 +46,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

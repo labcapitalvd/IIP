@@ -1,23 +1,16 @@
 """Poblado de questions desde hierarchy.json"""
 
-import requests
 import os
-import logging
 
+import requests
 from shared_db import SessionSync
+from shared_utils import get_logger
 
 from models import Form, Question
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("SeedQuestions")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("SeedQuestions")
+
 
 
 ORIGIN_URL = "https://raw.githubusercontent.com/LABCapital-VD/IIP-Cuadernos-Jupyter/main/Gestión/Estructura%20IIP/output/hierarchy.json"

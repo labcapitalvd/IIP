@@ -1,24 +1,13 @@
 """Poblado de roles"""
-import os
+
 from enum import Enum
 
-import logging
-
 from shared_db import SessionSync
-
 from shared_models import Role
+from shared_utils import get_logger
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-
-logger = logging.getLogger("seed/roles")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/roles")
 
 
 class Types(Enum):
@@ -49,6 +38,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

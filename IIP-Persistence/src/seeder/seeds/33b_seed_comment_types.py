@@ -1,22 +1,13 @@
 """Poblado de comment types"""
-import os
-import logging
+
 from enum import Enum
 
 from shared_db import SessionSync
-
 from shared_models import CommentType
+from shared_utils import get_logger
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/comment_types")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/comment_types")
 
 
 class Types(str, Enum):
@@ -45,6 +36,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

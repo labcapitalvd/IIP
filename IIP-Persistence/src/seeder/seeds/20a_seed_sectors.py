@@ -1,36 +1,25 @@
 """Poblado de actor_segments"""
+
 import os
-import logging
-import pandas as pd
 import uuid
-import requests
 from io import StringIO
 
+import pandas as pd
+import requests
 from sqlalchemy.dialects.postgresql import UUID as UUIDType
 
-from shared_db import sync_engine
-
+from shared_db import merge_enums, sync_engine
 from shared_models.targets import TargetTable as TargetTableBase
+from shared_utils import get_logger
+
 from models.targets import TargetTable as TargetTableApp
 
-from shared_db import merge_enums
 
-TargetTable = merge_enums(
-    "TargetTable",
-    TargetTableBase,
-    TargetTableApp
-)
+TargetTable = merge_enums("TargetTable", TargetTableBase, TargetTableApp)
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/sectors")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/sectors")
+
 
 
 TABLE = TargetTable.ACTOR_SEGMENTS.table
@@ -42,15 +31,13 @@ if not os.path.exists(GITHUB_TOKEN_FILE):
     raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
 with open(GITHUB_TOKEN_FILE, "r") as f:
     GITHUB_TOKEN = f.read().strip()
-    
+
 headers = {"Authorization": f"token {GITHUB_TOKEN}"}
 r = requests.get(ORIGIN_URL, headers=headers)
 r.raise_for_status()  # fail if not 200
 
 
 def upgrade() -> None:
-    
-
     df = pd.read_csv(StringIO(r.text), sep="|")
 
     df["id"] = df["id"].apply(lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None)

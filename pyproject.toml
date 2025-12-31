@@ -1,5 +1,5 @@
 [project]
-name = "visualizador-iip"
+name = "IIP-dev"
 version = "0.1.0"
 description = "Pyproject para desarrollo de todo el proyecto. SOLO DEV, NO PRODUCCIÓN"
 readme = "README.md"
@@ -28,6 +28,7 @@ dependencies = [
     "shared_models",
     "shared_schemas",
     "shared_utils",
+    "models"
 ]
 
 [tool.uv.sources]
@@ -35,11 +36,13 @@ shared_db = { workspace = true }
 shared_models = { workspace = true }
 shared_schemas = { workspace = true }
 shared_utils = { workspace = true }
+models = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "../Packages/packages/shared_db",
-    "../Packages/packages/shared_models",
-    "../Packages/packages/shared_schemas",
-    "../Packages/packages/shared_utils"
+    "../Commons/Packages/shared_db",
+    "../Commons/Packages/shared_models",
+    "../Commons/Packages/shared_schemas",
+    "../Commons/Packages/shared_utils",
+    "IIP-Persistence/src/models"
 ]

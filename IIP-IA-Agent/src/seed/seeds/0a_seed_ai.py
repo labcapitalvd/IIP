@@ -1,18 +1,9 @@
 """Poblado de questions desde hierarchy.json"""
-import os
-import logging
 
+from shared_utils import get_logger
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
+logger = get_logger("SeedQuestions")
 
-logger = logging.getLogger("SeedQuestions")
-logger.setLevel(LOGLEVEL)
 
 def upgrade() -> None:
     pass

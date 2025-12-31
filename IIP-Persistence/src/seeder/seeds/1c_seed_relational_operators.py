@@ -1,22 +1,14 @@
 """Poblado de relational operators"""
-import os
-import logging
+
 from enum import Enum
 
 from shared_db import SessionSync
+from shared_utils import get_logger
 
 from models import RelationalOperator
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/relational_operators")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/relational_operators")
 
 
 class Types(Enum):
@@ -52,6 +44,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

@@ -1,14 +1,12 @@
-import os
-import logging
-
-from sqlalchemy.schema import CreateSchema
 from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.schema import CreateSchema
 
-from shared_db import SessionSync
+from shared_db import SessionSync, merge_enums
 from shared_models.targets import TargetTable as TargetTableBase
+from shared_utils import get_logger
+
 from models.targets import TargetTable as TargetTableApp
 
-from shared_db import merge_enums
 
 TargetTable = merge_enums(
     "TargetTable",
@@ -17,15 +15,8 @@ TargetTable = merge_enums(
 )
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/schema")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/schema")
+
 
 
 def main():
@@ -70,13 +61,14 @@ def main():
     logger.info(f"Created ({len(created)}): {created}")
     logger.info(f"Skipped ({len(skipped)}): {skipped}")
     logger.info(f"Failed  ({len(failed)}): {failed}")
-    
+
     print("---- Schema Creation Summary ----")
     print(f"Created ({len(created)}): {created}")
     print(f"Skipped ({len(skipped)}): {skipped}")
     print(f"Failed  ({len(failed)}): {failed}")
 
     return created, skipped, failed
+
 
 if __name__ == "__main__":
     main()

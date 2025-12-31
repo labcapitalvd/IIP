@@ -1,39 +1,30 @@
 import os
-import logging
-
-from typing import Literal
-from fastapi import FastAPI
-
 from contextlib import asynccontextmanager
+from typing import Literal
 
-from fastapi import Request
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.exceptions import RequestValidationError
-
 from shared_schemas import (
-    ItemError,
     CustomError,
-    custom_error_handler,
+    ItemError,
     add_routers_with_custom_errors,
+    custom_error_handler,
 )
+from shared_utils import get_logger
+
 
 VERSION = "0.1.0"
 PRODUCTION_MODE = os.environ["PRODUCTION_MODE"].lower() in ("1", "true", "yes")
 COOKIES_SECURE = False if not PRODUCTION_MODE else True
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
+
 
 PUBLIC = os.getenv("PUBLIC_ORIGINS", "*")
 NODE = os.environ["NODE_ORIGINS"]
 
-logger = logging.getLogger("api/main")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("api/main")
+
 
 if not PRODUCTION_MODE:
     PUBLIC_ORIGINS = ["*"]

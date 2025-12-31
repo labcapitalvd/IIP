@@ -1,19 +1,12 @@
-import os
-import logging
 import importlib.util
+import os
 import traceback
 
+from shared_utils import get_logger
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
 
-logger = logging.getLogger("seed/tables")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/tables")
+
 
 
 def main():

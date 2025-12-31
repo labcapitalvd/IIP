@@ -2,27 +2,16 @@
 
 import os
 import tomllib
-from uuid import UUID, uuid7
 from datetime import datetime, timezone
 from decimal import Decimal
-
-import logging
+from uuid import uuid7
 
 from shared_db import SessionSync
-from shared_utils import HashUtils, TextUtils
-
 from shared_models import User, UserTier
+from shared_utils import get_logger, HashUtils, TextUtils
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/users")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/users")
 
 
 USERS_FILE = "/run/secrets/users_file"
@@ -42,7 +31,7 @@ def upgrade() -> None:
         if not root_tier or not admin_tier:
             logger.error("One tier not found in DB")
             raise RuntimeError("One tier not found in DB")
-            
+
         tier_map = {
             "root": root_tier.id,
             "admin": admin_tier.id,

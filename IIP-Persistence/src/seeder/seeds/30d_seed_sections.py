@@ -1,24 +1,15 @@
 """Poblado de sections"""
 
-import requests
 import os
 
-import logging
-
+import requests
 from shared_db import SessionSync
+from shared_utils import get_logger
 
-from models import Section, Form, SectionType
+from models import Form, Section, SectionType
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/sections")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/sections")
 
 
 ORIGIN_URL = "https://raw.githubusercontent.com/LABCapital-VD/IIP-Cuadernos-Jupyter/main/Gesti%C3%B3n/Estructura%20IIP/output/hierarchy.json"
@@ -106,6 +97,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

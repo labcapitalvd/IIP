@@ -1,28 +1,18 @@
 import os
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
 
-from sqlalchemy import select, or_
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
-
-import logging
-
-from shared_utils import HashUtils
 from shared_models import User, UserTier
+from shared_utils import get_logger, HashUtils
+from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_HASHER_PASS = os.environ["JWT_HASHER_PASS"]
 
-logger = logging.getLogger("api/db")
-logger.setLevel(LOGLEVEL)
+
+logger = get_logger("api/db")
 
 
 class UsersDb:

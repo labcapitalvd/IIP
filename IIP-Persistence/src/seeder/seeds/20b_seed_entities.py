@@ -1,36 +1,25 @@
 """Poblado de actors"""
+
 import os
-import logging
-import pandas as pd
 import uuid
-import requests
 from io import StringIO
 
+import pandas as pd
+import requests
 from sqlalchemy.dialects.postgresql import UUID as UUIDType
 
-from shared_db import sync_engine
-
+from shared_db import merge_enums, sync_engine
 from shared_models.targets import TargetTable as TargetTableBase
+from shared_utils import get_logger
+
 from models.targets import TargetTable as TargetTableApp
 
-from shared_db import merge_enums
 
-TargetTable = merge_enums(
-    "TargetTable",
-    TargetTableBase,
-    TargetTableApp
-)
+TargetTable = merge_enums("TargetTable", TargetTableBase, TargetTableApp)
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/entities")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/entities")
+
 
 
 TABLE = TargetTable.ACTORS.table
@@ -49,13 +38,12 @@ r.raise_for_status()  # fail if not 200
 
 
 def upgrade() -> None:
-
     df = pd.read_csv(StringIO(r.text), sep="|")
-    
+
     rename_map = {
         "sector_id": "actor_segment_id",
     }
-    
+
     df = df.rename(columns=rename_map)
 
     df["id"] = df["id"].apply(lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None)

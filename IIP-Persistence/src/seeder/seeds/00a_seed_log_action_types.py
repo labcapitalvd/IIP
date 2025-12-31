@@ -1,22 +1,13 @@
 """Poblado de log action types"""
-import os
-import logging
+
 from enum import Enum
 
 from shared_db import SessionSync
-
 from shared_models import LogActionType
+from shared_utils import get_logger
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/log_action_types")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/log_action_types")
 
 
 class Types(Enum):
@@ -47,6 +38,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

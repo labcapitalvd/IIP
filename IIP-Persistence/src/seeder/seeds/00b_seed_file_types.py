@@ -1,23 +1,14 @@
 """Poblado de file types"""
-import os
-import logging
-from enum import Enum
+
 from decimal import Decimal
+from enum import Enum
 
 from shared_db import SessionSync
-
 from shared_models import FileType
+from shared_utils import get_logger
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/file_types")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/file_types")
 
 
 class FileTypeEnum(Enum):
@@ -138,6 +129,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

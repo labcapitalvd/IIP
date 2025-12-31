@@ -1,26 +1,15 @@
 """Poblado de user tiers"""
-import os
-from datetime import datetime, timezone
-from enum import Enum
-from decimal import Decimal
 
-import logging
+from datetime import datetime, timezone
+from decimal import Decimal
+from enum import Enum
 
 from shared_db import SessionSync
-
 from shared_models import UserTier
+from shared_utils import get_logger
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-
-logger = logging.getLogger("seed/user_tiers")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/user_tiers")
 
 
 class Types(Enum):
@@ -60,6 +49,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-

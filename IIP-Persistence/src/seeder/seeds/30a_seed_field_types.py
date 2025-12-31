@@ -1,22 +1,14 @@
 """Poblado de field types"""
-import os
-import logging
+
 from enum import Enum
 
 from shared_db import SessionSync
+from shared_utils import get_logger
 
 from models import FieldType
 
 
-LOGLEVEL = os.environ["LOGLEVEL"].lower() in (
-    "debug",
-    "info",
-    "warning",
-    "error",
-    "critical",
-)
-logger = logging.getLogger("seed/field_types")
-logger.setLevel(LOGLEVEL)
+logger = get_logger("seed/field_types")
 
 
 class Types(Enum):
@@ -48,6 +40,3 @@ def upgrade() -> None:
                 )
             )
         session.commit()
-
-
-
