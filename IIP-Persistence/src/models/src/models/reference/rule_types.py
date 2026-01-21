@@ -14,8 +14,8 @@ TargetTable = merge_enums(
 )
 
 
-class ValidationType(Base):
-    """Validation type for field rules. aka minimum length, maximum length, regex, etc."""
+class RuleType(Base):
+    """Rule type for field rules. aka minimum length, maximum length, regex, etc."""
     __tablename__ = TargetTable.VALIDATION_TYPES.table
     __table_args__ = {"schema": TargetTable.VALIDATION_TYPES.schema}
 

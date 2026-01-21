@@ -2,7 +2,7 @@
 name = "iip-auth"
 version = "0.1.0"
 description = "Pyproject para dev de auth."
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "aiofiles>=25.1.0",
     "alembic>=1.17.1",
