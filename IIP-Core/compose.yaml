@@ -5,8 +5,11 @@ services:
       context: .
       dockerfile: Dockerfile
       secrets:
-        - github_token
+        - github_token_commons
+        - github_token_iip
 
 secrets:
-  github_token:
-    file: ../Secrets/github_token
+  github_token_commons:
+    environment: GITHUB_TOKEN_COMMONS
+  github_token_iip:
+    environment: GITHUB_TOKEN_IIP

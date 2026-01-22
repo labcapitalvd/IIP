@@ -44,7 +44,7 @@ services:
       - jwt_private_key
       - jwt_public_key
       - postgres_password
-      - github_token
+      - github_token_commons
       - users_file
     networks:
       - iip_db_net
@@ -116,8 +116,8 @@ volumes:
 secrets:
   fernet_password:
     file: ../Secrets/fernet_password
-  github_token:
-    file: ../Secrets/github_token
+  github_token_commons:
+    environment: GITHUB_TOKEN_COMMONS
   jwt_public_key:
     file: ../Secrets/jwt_public.pem
   jwt_private_key:

@@ -27,15 +27,15 @@ RUN --mount=type=secret,id=github_token_commons \
 # -----------------------------
 ARG CACHEBUST=1
 # Fetch/install each package
-RUN --mount=type=secret,id=github_token \
+RUN --mount=type=secret,id=github_token_commons \
     /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_db.zip
-RUN --mount=type=secret,id=github_token \
+RUN --mount=type=secret,id=github_token_commons \
     /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_models.zip
-RUN --mount=type=secret,id=github_token \
+RUN --mount=type=secret,id=github_token_commons \
     /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_schemas.zip
-RUN --mount=type=secret,id=github_token \
+RUN --mount=type=secret,id=github_token_commons \
     /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_utils.zip
-RUN --mount=type=secret,id=github_token \
+RUN --mount=type=secret,id=github_token_iip \
     /usr/local/bin/fetch.sh LABCapital-IIP/IIP-Persistence models.zip
 
 COPY src/pyproject.toml ./pyproject.toml
