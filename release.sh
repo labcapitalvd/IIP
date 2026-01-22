@@ -34,7 +34,7 @@ fi
 echo "🚀 Uploading $VERSION to GitHub..."
 ghr -t "$GITHUB_TOKEN_IIP" \
     -u LABCapital-IIP \
-    -r Commons \
+    -r IIP \
     -replace \
     "$VERSION" "$TMP_DIR/"
 
