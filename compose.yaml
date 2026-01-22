@@ -116,21 +116,21 @@ volumes:
 
 secrets:
   fernet_password:
-    file: ../Secrets/fernet_password
+    environment: FERNET_PASSWORD
   github_token_commons:
     environment: GITHUB_TOKEN_COMMONS
   github_token_iip:
     environment: GITHUB_TOKEN_IIP
   jwt_public_key:
-    file: ../Secrets/jwt_public.pem
+    file: ./Secrets/jwt_public.pem
   jwt_private_key:
-    file: ../Secrets/jwt_private.pem
+    file: ./Secrets/jwt_private.pem
   postgres_password:
-    file: ../Secrets/postgres_password
+    environment: POSTGRES_PASSWORD
   users_file:
-    file: ../Secrets/users.toml
+    file: ./Secrets/users.toml
   https_public:
-    file: ../Secrets/vd-cert.crt
+    file: ./Secrets/vd-cert.crt
   https_private:
-    file: ../Secrets/vd-cert.key
+    file: ./Secrets/vd-cert.key
   
