@@ -22,9 +22,6 @@ RUN --mount=type=secret,id=github_token_commons \
     -o /usr/local/bin/fetch.sh && \
     chmod +x /usr/local/bin/fetch.sh
 
-# -----------------------------
-# 3. Config virtual environment
-# -----------------------------
 ARG CACHEBUST=1
 # Fetch/install each package
 RUN --mount=type=secret,id=github_token_commons \
@@ -38,6 +35,9 @@ RUN --mount=type=secret,id=github_token_commons \
 RUN --mount=type=secret,id=github_token_iip \
     /usr/local/bin/fetch.sh LABCapital-IIP/IIP-Persistence models.zip
 
+# -----------------------------
+# 3. Config virtual environment
+# -----------------------------
 COPY src/pyproject.toml ./pyproject.toml
 RUN pip install --no-cache-dir -e .
 
