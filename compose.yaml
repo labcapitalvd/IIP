@@ -115,6 +115,8 @@ volumes:
     name: stats_vol_pg
 
 secrets:
+  postgres_password:
+    environment: POSTGRES_PASSWORD
   fernet_password:
     environment: FERNET_PASSWORD
   github_token_commons:
@@ -125,8 +127,6 @@ secrets:
     file: ./Secrets/jwt_public.pem
   jwt_private_key:
     file: ./Secrets/jwt_private.pem
-  postgres_password:
-    environment: POSTGRES_PASSWORD
   users_file:
     file: ./Secrets/users.toml
   https_public:

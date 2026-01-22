@@ -63,7 +63,7 @@ case "$MODE" in
     # ===========================================
     --backup)
         TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-        BACKUP_DIR="./backups"
+        BACKUP_DIR="./Backups"
         mkdir -p "$BACKUP_DIR"
 
         BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
