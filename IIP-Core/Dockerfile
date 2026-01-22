@@ -14,10 +14,11 @@ RUN apt-get update && apt-get install -y \
 # -----------------------------
 # 2. Install shared packages from GitHub
 # -----------------------------
-RUN --mount=type=secret,id=github_token \
-    GITHUB_TOKEN=$(cat /run/secrets/github_token) && \
-    curl -L -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-    https://raw.githubusercontent.com/LABCapital-VD/Commons/main/Packages/shared_utils/fetch.sh \
+RUN --mount=type=secret,id=github_token_commons \
+    export GITHUB_TOKEN_COMMONS=$(cat /run/secrets/github_token_commons) && \
+    curl -L -H "Authorization: token ${GITHUB_TOKEN_COMMONS}" \
+    -H "Accept: application/vnd.github.v3.raw" \
+    "https://api.github.com/repos/LABCapital-VD/Commons/contents/Packages/shared_utils/fetch.sh?ref=main" \
     -o /usr/local/bin/fetch.sh && \
     chmod +x /usr/local/bin/fetch.sh
 
