@@ -45,5 +45,5 @@ members = [
     "../Commons/Packages/shared_models",
     "../Commons/Packages/shared_schemas",
     "../Commons/Packages/shared_utils",
-    "IIP-Persistence/src/models"
+    "Persistence/src/models"
 ]
