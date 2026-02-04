@@ -4,7 +4,7 @@ import os
 import tomllib
 from datetime import datetime, timezone
 from decimal import Decimal
-from uuid-utils import uuid7
+from uuid_utils import uuid7
 
 from shared_db import SessionSync
 from shared_models import User, UserTier
