@@ -9,3 +9,5 @@ __pycache__/
 *.sql
 Secrets/
 .aider*
+flake.*
+.direnv
