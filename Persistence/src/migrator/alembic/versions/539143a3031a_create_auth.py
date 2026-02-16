@@ -55,7 +55,7 @@ def upgrade() -> None:
     sa.Column('jti', sa.UUID(), nullable=False),
     sa.Column('refresh_hash', sa.String(length=255), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('revoked', sa.Boolean(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
     sa.PrimaryKeyConstraint('id'),
