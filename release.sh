@@ -21,7 +21,7 @@ trap 'rm -rf "$TMP_DIR"; echo "🧹 Cleaned up $TMP_DIR"' EXIT
 
 # 3. Create the zips inside the tmp directory
 echo "🗜️  Zipping packages..."
-(cd IIP-Persistence/src/models && zip -rq "$TMP_DIR/models.zip" .)
+(cd Persistence/src/models && zip -rq "$TMP_DIR/models.zip" .)
 
 # 4. Verification of Token
 if [ -z "$GITHUB_TOKEN_IIP" ]; then
