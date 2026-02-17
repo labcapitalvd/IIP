@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 # -----------------------------
 # 2. Install shared packages from GitHub
 # -----------------------------
+ARG FETCHER=1
 RUN --mount=type=secret,id=github_token_commons \
     export GITHUB_TOKEN_COMMONS=$(cat /run/secrets/github_token_commons) && \
     curl -L -H "Authorization: token ${GITHUB_TOKEN_COMMONS}" \
@@ -22,22 +23,22 @@ RUN --mount=type=secret,id=github_token_commons \
     -o /usr/local/bin/fetch.sh && \
     chmod +x /usr/local/bin/fetch.sh
 
-ARG CACHEBUST=1
-# Fetch/install each package
-RUN --mount=type=secret,id=github_token_commons \
-    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_db.zip
-RUN --mount=type=secret,id=github_token_commons \
-    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_models.zip
-RUN --mount=type=secret,id=github_token_commons \
-    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_schemas.zip
-RUN --mount=type=secret,id=github_token_commons \
-    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_utils.zip
-RUN --mount=type=secret,id=github_token_iip \
-    /usr/local/bin/fetch.sh LABCapital-IIP/IIP-Persistence models.zip
-
 # -----------------------------
 # 3. Config virtual environment
 # -----------------------------
+ARG PACKAGES=1
+# Fetch/install each package
+RUN --mount=type=secret,id=github_token_commons \
+    TOKEN=$(cat /run/secrets/github_token_commons) && \
+    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_db.zip "$TOKEN" && \
+    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_models.zip "$TOKEN" && \
+    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_schemas.zip "$TOKEN" && \
+    /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_utils.zip "$TOKEN"
+
+RUN --mount=type=secret,id=github_token_iip \
+    TOKEN=$(cat /run/secrets/github_token_iip) && \
+    /usr/local/bin/fetch.sh LABCapital-IIP/IIP-Persistence models.zip "$TOKEN"
+
 COPY src/pyproject.toml ./pyproject.toml
 RUN pip install --no-cache-dir -e .
 

@@ -7,7 +7,7 @@ else
     CACHEBUST=1
 fi
 
-cd ./Persistence && docker compose build --build-arg CACHEBUST=$CACHEBUST "$@"
-cd ./Core && docker compose build --build-arg CACHEBUST=$CACHEBUST "$@"
-cd ./IA-Agent && docker compose build --build-arg CACHEBUST=$CACHEBUST "$@"
-cd ./Stats && docker compose --profile prod build --build-arg CACHEBUST=$CACHEBUST "$@"
+cd ./Persistence && docker compose build --build-arg FETCHER=$FETCHER "$@" --build-arg PACKAGES=$PACKAGES "$@"
+cd ./Core && docker compose build --build-arg FETCHER=$FETCHER "$@" --build-arg PACKAGES=$PACKAGES "$@"
+cd ./IA-Agent && docker compose build --build-arg FETCHER=$FETCHER "$@" --build-arg PACKAGES=$PACKAGES "$@"
+cd ./Stats && docker compose --profile prod build --build-arg FETCHER=$FETCHER "$@" --build-arg PACKAGES=$PACKAGES "$@"
