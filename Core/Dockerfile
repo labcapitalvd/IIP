@@ -27,7 +27,6 @@ RUN --mount=type=secret,id=github_token_commons \
 # 3. Config virtual environment
 # -----------------------------
 ARG PACKAGES=1
-# Fetch/install each package
 RUN --mount=type=secret,id=github_token_commons \
     TOKEN=$(cat /run/secrets/github_token_commons) && \
     /usr/local/bin/fetch.sh LABCapital-VD/Commons shared_db.zip "$TOKEN" && \
@@ -45,6 +44,7 @@ RUN pip install --no-cache-dir .
 # -----------------------------
 # 4. Copy app
 # -----------------------------
+ARG APPLICATION=1
 COPY src/main.py ./main.py
 COPY src/db ./db
 COPY src/handlers ./handlers

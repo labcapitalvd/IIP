@@ -13,27 +13,38 @@ else
   PACKAGES=1
 fi
 
+if [[ "$1" == "application" ]]; then
+  APPLICATION=$(date +%s)
+  shift
+else
+  APPLICATION=1
+fi
+
 (
   cd Persistence && docker compose build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@"
+    --build-arg PACKAGES="$PACKAGES" "$@" \
+    --build-arg APPLICATION="$APPLICATION" "$@"
 )
 
 (
   cd Core && docker compose build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@"
+    --build-arg PACKAGES="$PACKAGES" "$@" \
+    --build-arg APPLICATION="$APPLICATION" "$@"
 )
 
 (
   cd IA-Agent && docker compose build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@"
+    --build-arg PACKAGES="$PACKAGES" "$@" \
+    --build-arg APPLICATION="$APPLICATION" "$@"
 )
 
 (
   cd Stats && docker compose \
     --profile prod build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@"
+    --build-arg PACKAGES="$PACKAGES" "$@" \
+    --build-arg APPLICATION="$APPLICATION" "$@"
 )
