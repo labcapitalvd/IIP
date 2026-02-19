@@ -32,7 +32,7 @@ class FieldRule(Base):
         ondelete="CASCADE"
     )
     validation_rule_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.VALIDATION_TYPES.fq_name}.id",
+        target=f"{TargetTable.RULE_TYPES.fq_name}.id",
         ondelete="CASCADE"
     )
 
@@ -42,8 +42,8 @@ class FieldRule(Base):
     
     updated_at: Mapped[datetime] = column_updated_at()
 
-    rule: Mapped["ValidationType"] = relationship(
-        "ValidationType",
+    rule: Mapped["RuleType"] = relationship(
+        "RuleType",
         back_populates="field_rule",
         uselist=False
     )

@@ -5,7 +5,7 @@ from enum import Enum
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import ValidationType
+from models import RuleType
 
 
 logger = get_logger("seed/field_validation_rules")
@@ -29,11 +29,11 @@ class Types(Enum):
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = session.query(ValidationType).filter_by(label=type.label).first()
+            exists = session.query(RuleType).filter_by(label=type.label).first()
             if exists:
                 continue  # Skip this one
             session.add(
-                ValidationType(
+                RuleType(
                     label=type,
                     description=type.description,
                 )
