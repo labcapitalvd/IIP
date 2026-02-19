@@ -1,0 +1,23 @@
+# Possible tiers are:
+
+# root = (500 Mib, 100 Mib, 500 requests, 5 priority_level)
+# admin = (100 Mib, 50 Mib, 300 requests, 4 priority_level)
+# premium = (50 Mib, 20 Mib, 120 requests, 3 priority_level)
+# standard = (10 Mib, 10 Mib, 60 requests, 2 priority_level)
+# guest = (5 Mib, 5 Mib, 30 requests, 1 priority_level)
+
+# Values represent max_file_size, storage_quota, max_requests_per_minute, priority_level
+
+[[users]]
+# Admin root account
+username = "root"
+email = "root@example.com"
+tier = "root"
+password = "averysafepassword"
+
+[[users]]
+# Internal bot/service user
+username = "innoveai"
+email = "ai@example.com"
+tier = "admin"
+password = "averysafeanotherpass"
