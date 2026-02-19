@@ -8,14 +8,11 @@ from schemas.forms import (
     ResponseForms,
 )
 
-from shared_utils import TextUtils
-
 
 class FormHandler:
     def __init__(self, db: AsyncSession, current_user: UUID):
         self.db = db
 
-        self.textutils = TextUtils()
         self.form_editionondb = FormDb(self.db)
 
     async def FormRead(self, id: UUID, detailed: bool = False) -> ResponseForm:

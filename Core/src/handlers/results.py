@@ -6,8 +6,6 @@ import numpy as np
 
 from db.actors import ActorDb
 
-from shared_utils import TextUtils
-
 
 def load_results_excel(path: str = "./handlers/resultados_2025.xlsx") -> pd.DataFrame:
     """Safely load the Excel file and sanitize for JSON serialization."""
@@ -27,7 +25,6 @@ class ResultHandler:
     def __init__(self, db: AsyncSession, current_user: UUID):
         self.db = db
 
-        self.textutils = TextUtils()
         self.actorondb = ActorDb(self.db)
 
     async def ResultRead(self, id: UUID, detailed: bool = False):

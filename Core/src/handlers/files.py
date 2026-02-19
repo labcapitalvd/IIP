@@ -14,7 +14,7 @@ from utils.allowed_types import FileTypeEnum
 
 from shared_schemas import ItemError, CustomError
 from shared_schemas import ResponseMessage
-from shared_utils import TextUtils, FileDisk
+from shared_utils import save_file, rename_file, delete_file, check_file_type, determine_subpath
 
 BASE_UPLOAD_DIR = os.environ["BASE_UPLOAD_DIR"]
 os.makedirs(BASE_UPLOAD_DIR, exist_ok=True)
@@ -26,10 +26,7 @@ class FileHandler:
         self.basepath = BASE_UPLOAD_DIR
         self.user = current_user
 
-        self.fileutils = FileUtils()
-        self.textutils = TextUtils()
         self.fileondb = FileDb(self.db)
-        self.fileondisk = FileDisk()
 
     async def FileCreate(
         self, file: UploadFile, allowed_types: List[FileTypeEnum]
@@ -45,10 +42,10 @@ class FileHandler:
                 ]
             )
 
-        filetype = self.fileutils.check_file_type(file.content_type, allowed_types)
+        filetype = check_file_type(file.content_type, allowed_types)
         ft = await self.fileondb.get_filetype(filetype)
-        subpath = self.fileutils.determine_subpath(filetype)
-        filename = self.fileutils.sanitize_filename(
+        subpath = determine_subpath(filetype)
+        filename = sanitize_filename(
             file.filename, extension=filetype.extension
         )
         filehash, filesize = self.fileutils.generate_file_hash(file)
@@ -57,7 +54,7 @@ class FileHandler:
 
         existing_file = await self.fileondb.check_duplicity(self.user.id, filehash)
         if existing_file:
-            await self.fileondisk.rename_file(
+            await rename_file(
                 user_id=self.user.id,
                 old_filename=existing_file.filename,
                 new_filename=filename,
@@ -77,7 +74,7 @@ class FileHandler:
             filesize=filesize,
         )
         file.file.seek(0)
-        await self.fileondisk.save_file(self.user.id, file, filename, media.filepath)
+        await save_file(self.user.id, file, filename, media.filepath)
         return ResponseFile(id=media.id)
 
     async def FileRename(self, id: UUID, new_filename: str) -> ResponseFile:
@@ -87,7 +84,7 @@ class FileHandler:
         if media.filename == filename:
             return ResponseFile(id=media.id)
 
-        await self.fileondisk.rename_file(
+        await rename_file(
             user_id=self.user.id,
             old_filename=media.filename,
             new_filename=filename,
@@ -119,5 +116,5 @@ class FileHandler:
         filename = media.filename
 
         await self.fileondb.delete_file_entry(id=id, owner=self.user.id)
-        await self.fileondisk.delete_file(self.user.id, filename, filepath)
+        await delete_file(self.user.id, filename, filepath)
         return ResponseMessage(message="Archivo eliminado correctamente")

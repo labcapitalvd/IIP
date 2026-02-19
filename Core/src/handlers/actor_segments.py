@@ -7,14 +7,11 @@ from db.actor_segments import ActorSegmentDb
 from schemas.actor_segments import ResponseActorSegment, ResponseActorSegments
 from schemas.actors import ResponseActor
 
-from shared_utils import TextUtils
-
 
 class ActorSegmentHandler:
     def __init__(self, db: AsyncSession, current_user: UUID):
         self.db = db
 
-        self.textutils = TextUtils()
         self.actor_segmentondb = ActorSegmentDb(self.db)
 
     async def ActorSegmentRead(self, id: UUID, detailed: bool = False) -> ResponseActorSegment:

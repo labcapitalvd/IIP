@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared_models import User, UserTier
 from shared_utils.logger import get_logger
-from shared_utils import HashUtils
+from shared_utils import hash_password, verify_password
 
 
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -68,7 +68,7 @@ class UsersDb:
             user = User(
                 username=username,
                 email=email,
-                password_hash=HashUtils.hash_password(passwd),
+                password_hash=hash_password(passwd),
                 is_active=True,
                 tier_id=tier.id,
             )
@@ -109,7 +109,7 @@ class UsersDb:
             if new_email is not None:
                 user.email = new_email
             if new_password is not None:
-                user.password_hash = HashUtils.hash_password(new_password)
+                user.password_hash = hash_password(new_password)
 
             await self.db.commit()
             await self.db.refresh(user)
@@ -141,7 +141,7 @@ class UsersDb:
                 return False
 
             # Check password
-            if not HashUtils.verify_password(passwd, user.password_hash):
+            if not verify_password(passwd, user.password_hash):
                 return False
 
             # Delete

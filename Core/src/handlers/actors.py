@@ -9,14 +9,11 @@ from schemas.actors import (
     ResponseActors,
 )
 
-from shared_utils import TextUtils
-
 
 class ActorHandler:
     def __init__(self, db: AsyncSession, current_user: UUID):
         self.db = db
 
-        self.textutils = TextUtils()
         self.actorondb = ActorDb(self.db)
 
     async def ActorRead(self, id: UUID, detailed: bool = False) -> ResponseActor:
