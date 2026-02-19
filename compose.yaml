@@ -63,8 +63,8 @@ services:
     secrets:
       - jwt_private_key
       - jwt_public_key
-      - fernet_password
       - postgres_password
+      - fernet_password
     networks:
       - iip_db_net
       - iip_nginx
@@ -79,8 +79,8 @@ services:
     secrets:
       - jwt_private_key
       - jwt_public_key
-      - fernet_password
       - postgres_password
+      - fernet_password
     networks:
       - iip_db_net
       - iip_nginx
@@ -92,8 +92,8 @@ services:
     secrets:
       - jwt_private_key
       - jwt_public_key
-      - fernet_password
       - postgres_password
+      - fernet_password
     networks:
       - iip_db_net
       - iip_nginx
