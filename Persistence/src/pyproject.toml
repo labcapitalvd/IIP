@@ -10,4 +10,5 @@ dependencies = [
     "pandas>=2.3.3",
     "requests>=2.32.5",
     "sqlalchemy>=2.0.44",
+    "uuid-utils>=0.14.0",
 ]
