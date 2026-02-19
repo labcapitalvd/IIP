@@ -16,8 +16,8 @@ TargetTable = merge_enums(
 
 class RuleType(Base):
     """Rule type for field rules. aka minimum length, maximum length, regex, etc."""
-    __tablename__ = TargetTable.VALIDATION_TYPES.table
-    __table_args__ = {"schema": TargetTable.VALIDATION_TYPES.schema}
+    __tablename__ = TargetTable.RULE_TYPES.table
+    __table_args__ = {"schema": TargetTable.RULE_TYPES.schema}
 
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()

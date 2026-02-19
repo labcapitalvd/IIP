@@ -43,6 +43,7 @@ services:
       - jwt_private_key
       - jwt_public_key
       - postgres_password
+      - fernet_password
       - github_token_commons
       - github_token_iip
       - users_file

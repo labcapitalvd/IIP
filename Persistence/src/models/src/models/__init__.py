@@ -16,7 +16,7 @@ from .forms.fields import Field
 from .forms.field_choices import FieldChoice
 
 from .reference.relational_operators import RelationalOperator
-from .reference.validation_types import ValidationType
+from .reference.rule_types import RuleType
 from .rules.section_dependencies import SectionDependency
 from .rules.field_dependencies import FieldDependency
 from .rules.field_rules import FieldRule
@@ -56,7 +56,7 @@ __all__ = [
     "FieldChoice",
     
     "RelationalOperator",
-    "ValidationType",
+    "RuleType",
     "SectionDependency",
     "FieldDependency",
     "FieldRule",

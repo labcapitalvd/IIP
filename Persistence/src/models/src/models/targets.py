@@ -17,7 +17,7 @@ class TargetTable(BaseTargetTable):
     FIELD_CHOICES = ("field_choices", "forms")
 
     RELATIONAL_OPERATORS = ("relational_operators", "reference")
-    VALIDATION_TYPES = ("validation_types", "reference")
+    RULE_TYPES = ("rule_types", "reference")
     SECTION_DEPENDENCIES = ("section_dependencies", "rules")
     FIELD_DEPENDENCIES = ("field_dependencies", "rules")
     FIELD_RULES = ("field_rules", "rules")
