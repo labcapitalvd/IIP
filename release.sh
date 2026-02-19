@@ -5,9 +5,9 @@ set -e
 
 # 1. Check if a version argument was provided (e.g., ./release.sh v1.2.4)
 if [ -z "$1" ]; then
-    echo "❌ Error: No version provided."
-    echo "Usage: ./release.sh v1.x.x"
-    exit 1
+  echo "❌ Error: No version provided."
+  echo "Usage: ./release.sh v1.x.x"
+  exit 1
 fi
 
 VERSION=$1
@@ -25,30 +25,17 @@ echo "🗜️  Zipping packages..."
 
 # 4. Verification of Token
 if [ -z "$GITHUB_TOKEN_IIP" ]; then
-    echo "❌ Error: GITHUB_TOKEN is not set."
-    echo "Make sure you ran 'direnv allow' or have the secret in your env."
-    exit 1
+  echo "❌ Error: GITHUB_TOKEN is not set."
+  echo "Make sure you ran 'direnv allow' or have the secret in your env."
+  exit 1
 fi
 
 # 5. Run ghr to upload to GitHub
 echo "🚀 Uploading $VERSION to GitHub..."
 ghr -t "$GITHUB_TOKEN_IIP" \
-    -u LABCapital-IIP \
-    -r IIP \
-    -replace \
-    "$VERSION" "$TMP_DIR/"
+  -u LABCapital-IIP \
+  -r IIP \
+  -replace \
+  "$VERSION" "$TMP_DIR/"
 
 echo "✅ Release $VERSION successful!"
-
-
-
-
-
-
-
-
-
-
-
-
-
