@@ -16,7 +16,7 @@ set -e
 : "${PUBLIC_ORIGINS:?Environment variable PUBLIC_ORIGINS is required}"
 
 # CORS FRONTEND ONLY
-: "${NODE_ORIGINS:?Environment variable NODE_ORIGINS is required}"
+: "${PRIVATE_ORIGINS:?Environment variable PRIVATE_ORIGINS is required}"
 
 # echo "================================================="
 # echo "  DIAGNOSTIC: PYTHON ENVIRONMENT CHECK"
