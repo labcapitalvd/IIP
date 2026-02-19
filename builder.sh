@@ -13,7 +13,7 @@ else
   PACKAGES=1
 fi
 
-if [[ "$1" == "application" ]]; then
+if [[ "$1" == "applications" ]]; then
   APPLICATION=$(date +%s)
   shift
 else
