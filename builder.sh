@@ -16,28 +16,24 @@ fi
 (
   cd Persistence && docker compose build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@" &&
-    docker push labcapital/apps:IIP-Persister
+    --build-arg PACKAGES="$PACKAGES" "$@"
 )
 
 (
   cd Core && docker compose build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@" &&
-    docker push labcapital/apps:IIP-Core
+    --build-arg PACKAGES="$PACKAGES" "$@"
 )
 
 (
   cd IA-Agent && docker compose build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@" &&
-    docker push labcapital/apps:IIP-IA-Agent
+    --build-arg PACKAGES="$PACKAGES" "$@"
 )
 
 (
   cd Stats && docker compose \
     --profile prod build \
     --build-arg FETCHER="$FETCHER" "$@" \
-    --build-arg PACKAGES="$PACKAGES" "$@" &&
-    docker push labcapital/apps:IIP-Stats
+    --build-arg PACKAGES="$PACKAGES" "$@"
 )
