@@ -4,13 +4,13 @@ import os
 import tomllib
 from datetime import datetime, timezone
 from decimal import Decimal
-from uuid_utils import uuid7
+from uuid import UUID
 
 from shared_db import SessionSync
 from shared_models import User, UserTier
-from shared_utils.logger import get_logger
 from shared_utils import hash_password, sanitize_text
-
+from shared_utils.logger import get_logger
+from uuid_utils import uuid7
 
 logger = get_logger("seed/users")
 
@@ -49,8 +49,8 @@ def upgrade() -> None:
                 continue
 
             user_obj = User(
-                id=uuid7(),
-                tier_id=tier_id,
+                id=UUID(str(uuid7())),
+                tier_id=UUID(str(tier_id)),
                 username=u["username"],
                 email=u["email"],
                 password_hash=hash_password(sanitize_text(u["password"])),

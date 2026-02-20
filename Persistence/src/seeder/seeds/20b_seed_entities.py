@@ -6,7 +6,7 @@ from io import StringIO
 
 import pandas as pd
 import requests
-from sqlalchemy.dialects.postgresql import UUID as UUIDType
+from sqlalchemy import UUID as UUIDType
 
 from shared_db import merge_enums, sync_engine
 from shared_models.targets import TargetTable as TargetTableBase
