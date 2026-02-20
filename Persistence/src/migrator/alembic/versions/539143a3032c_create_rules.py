@@ -61,13 +61,13 @@ def upgrade() -> None:
     )
     op.create_table('field_rules',
     sa.Column('field_id', sa.UUID(), nullable=False),
-    sa.Column('validation_rule_id', sa.UUID(), nullable=False),
+    sa.Column('rule_type_id', sa.UUID(), nullable=False),
     sa.Column('rule_value', sa.String(length=255), nullable=False),
     sa.Column('error_message', sa.String(length=255), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['field_id'], ['forms.fields.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['validation_rule_id'], ['reference.validation_types.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['rule_type_id'], ['reference.rule_types.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='rules'
     )

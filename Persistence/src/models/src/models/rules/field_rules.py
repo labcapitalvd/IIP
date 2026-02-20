@@ -31,7 +31,7 @@ class FieldRule(Base):
         target=f"{TargetTable.FIELDS.fq_name}.id",
         ondelete="CASCADE"
     )
-    validation_rule_id: Mapped[UUID] = column_fk(
+    rule_type_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.RULE_TYPES.fq_name}.id",
         ondelete="CASCADE"
     )
