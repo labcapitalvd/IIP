@@ -10,10 +10,10 @@ services:
     networks:
       - iip_nginx
     ports:
-      - "${PORT_AUTH}:${PORT_AUTH}"
-      - "${PORT_CORE}:${PORT_CORE}"
-      - "${PORT_IA_AGENT}:${PORT_IA_AGENT}"
-      - "${PORT_STATS}:${PORT_STATS}"
+      - "127.0.0.1:${PORT_AUTH}:${PORT_AUTH}"
+      - "127.0.0.1:${PORT_CORE}:${PORT_CORE}"
+      - "127.0.0.1:${PORT_IA_AGENT}:${PORT_IA_AGENT}"
+      - "127.0.0.1:${PORT_STATS}:${PORT_STATS}"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
 

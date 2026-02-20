@@ -46,10 +46,12 @@ RUN pip install --no-cache-dir .
 # -----------------------------
 ARG APPLICATION=1
 COPY src/main.py ./main.py
-COPY src/db ./db
-COPY src/handlers ./handlers
+COPY src/application ./application
+COPY src/domain ./domain
+COPY src/infrastructure ./infrastructure
 COPY src/routers ./routers
 COPY src/schemas ./schemas
+COPY src/utils ./utils
 
 # -----------------------------
 # 5. setup entrypoint

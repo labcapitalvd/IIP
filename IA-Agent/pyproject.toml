@@ -7,4 +7,5 @@ dependencies = [
     "fastapi>=0.120.2",
     "uvicorn>=0.38.0",
     "aiofiles>=25.1.0",
+    "uuid-utils>=0.14.0",
 ]
