@@ -47,6 +47,7 @@ services:
       - fernet_password
       - github_token_commons
       - github_token_iip
+      - github_token_seeds
       - users_file
     networks:
       - iip_db_net
@@ -126,6 +127,8 @@ secrets:
     environment: GITHUB_TOKEN_COMMONS
   github_token_iip:
     environment: GITHUB_TOKEN_IIP
+  github_token_seeds:
+    environment: GITHUB_TOKEN_SEEDS
   jwt_public_key:
     file: ./Secrets/jwt_public.pem
   jwt_private_key:
