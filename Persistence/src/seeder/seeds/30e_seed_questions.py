@@ -13,7 +13,7 @@ logger = get_logger("SeedQuestions")
 
 
 
-ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/hierarchy.json"
+ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Estructura IIP/output/hierarchy.json"
 
 GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
 if not os.path.exists(GITHUB_TOKEN_FILE):
