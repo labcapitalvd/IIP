@@ -1,0 +1,332 @@
+🐘 Starting database container...
+ Container iip_db Running 
+⏳ Waiting for database readiness (max 60s)...
+✅ Database is ready!
+1️⃣  Creating schemas...
+ Container iip-persister-run-0d04f3483e2a Creating 
+ Container iip-persister-run-0d04f3483e2a Created 
+Merged TargetTable members:
+LOG_ACTION_TYPES log_action_types reference
+FILE_TYPES file_types reference
+ROLES roles reference
+USER_TIERS user_tiers reference
+USERS users auth
+LOGS logs audit
+REFRESH_SESSIONS refresh_sessions auth
+USER_DETAILS user_details auth
+FILES files files
+USER_PROFILES user_profiles auth
+LINK_USER_FILE user_file_links links
+COMMENT_TYPES comment_types reference
+NOTIFICATION_TYPES notification_types reference
+COMMENTS comments interactions
+NOTIFICATIONS notifications interactions
+ACTOR_SEGMENTS actor_segments actors
+ACTORS actors actors
+LINK_USER_ACTOR user_actor_links links
+FIELD_TYPES field_types reference
+FORMS forms forms
+SECTION_TYPES section_types forms
+SECTIONS sections forms
+INFORMATIONS information forms
+QUESTIONS questions forms
+CARD_TEMPLATES card_templates forms
+FIELD_GROUPS field_groups forms
+FIELDS fields forms
+FIELD_CHOICES field_choices forms
+RELATIONAL_OPERATORS relational_operators reference
+RULE_TYPES rule_types reference
+SECTION_DEPENDENCIES section_dependencies rules
+FIELD_DEPENDENCIES field_dependencies rules
+FIELD_RULES field_rules rules
+SUBMISSION_STATUS_TYPES submission_status_types reference
+SUBMISSIONS submissions submissions
+ASSIGNMENTS assignments grading
+CRITERIA criteria grading
+GRADES grades grading
+RESULTS results grading
+ANSWERS_CARD_ENTRY answers_card_entry submissions
+ANSWERS answers submissions
+ANSWERS_BOOLEAN answers_boolean submissions
+ANSWERS_DATE answers_date submissions
+ANSWERS_FILE answers_file submissions
+ANSWERS_MULTI_CHOICE answers_multi_choice submissions
+ANSWERS_NUMERIC answers_numeric submissions
+ANSWERS_SINGLE_CHOICE answers_single_choice submissions
+ANSWERS_TEXT answers_texts submissions
+LINK_USER_SUBMISSION user_submission_links links
+LINK_CHOICE_MULTICHOICE choice_multichoice_links links
+---- Schema Creation Summary ----
+Created (11): ['audit', 'interactions', 'reference', 'forms', 'files', 'grading', 'rules', 'actors', 'auth', 'submissions', 'links']
+Skipped (0): []
+Failed  (0): []
+2️⃣  Applying migrations (upgrade head)...
+ Container iip-persister-run-c91f9f45b115 Creating 
+ Container iip-persister-run-c91f9f45b115 Created 
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 539143a3030a, 'system'
+INFO  [alembic.runtime.migration] Running upgrade 539143a3030a -> 539143a3031a, 'auth'
+INFO  [alembic.runtime.migration] Running upgrade 539143a3031a -> 539143a3032a, 'actors'
+INFO  [alembic.runtime.migration] Running upgrade 539143a3032a -> 539143a3032b, 'forms'
+INFO  [alembic.runtime.migration] Running upgrade 539143a3032b -> 539143a3032c, 'rules'
+INFO  [alembic.runtime.migration] Running upgrade 539143a3032c -> 539143a3032d, 'grading'
+INFO  [alembic.runtime.migration] Running upgrade 539143a3032d -> 539143a3032e, 'submissions'
+INFO  [alembic.runtime.migration] Running upgrade 539143a3032e -> 539143a3033a, 'interactions'
+
+Loaded Models:
+ActivityLog       Comment           CommentType       
+File              FileType          LogActionType     
+Notification      NotificationType  RefreshSession    
+Role              User              UserDetails       
+UserFileLink      UserProfile       UserTier          
+
+Tables Found in Metadata:
+audit.logs                    auth.refresh_sessions         auth.user_details             
+auth.user_profiles            auth.users                    files.files                   
+interactions.comments         interactions.notifications    links.user_file_links         
+reference.comment_types       reference.file_types          reference.log_action_types    
+reference.notification_types  reference.roles               reference.user_tiers          
+3️⃣  Seeding tables...
+ Container iip-persister-run-b44043fa7c12 Creating 
+ Container iip-persister-run-b44043fa7c12 Created 
+Error in 1b_seed_field_validation_rules: ProgrammingError - (psycopg.errors.UndefinedTable) relation "reference.rule_types" does not exist
+LINE 2: FROM reference.rule_types 
+             ^
+[SQL: SELECT reference.rule_types.label AS reference_rule_types_label, reference.rule_types.description AS reference_rule_types_description, reference.rule_types.id AS reference_rule_types_id 
+FROM reference.rule_types 
+WHERE reference.rule_types.label = %(label_1)s::VARCHAR 
+ LIMIT %(param_1)s::INTEGER]
+[parameters: {'label_1': 'MIN_LENGTH', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedTable: relation "reference.rule_types" does not exist
+LINE 2: FROM reference.rule_types 
+             ^
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/api/seeder/seeder.py", line 39, in main
+    mod.upgrade()
+    ~~~~~~~~~~~^^
+  File "/api/seeder/seeds/1b_seed_field_validation_rules.py", line 32, in upgrade
+    exists = session.query(RuleType).filter_by(label=type.label).first()
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/query.py", line 2759, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.14/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.ProgrammingError: (psycopg.errors.UndefinedTable) relation "reference.rule_types" does not exist
+LINE 2: FROM reference.rule_types 
+             ^
+[SQL: SELECT reference.rule_types.label AS reference_rule_types_label, reference.rule_types.description AS reference_rule_types_description, reference.rule_types.id AS reference_rule_types_id 
+FROM reference.rule_types 
+WHERE reference.rule_types.label = %(label_1)s::VARCHAR 
+ LIMIT %(param_1)s::INTEGER]
+[parameters: {'label_1': 'MIN_LENGTH', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Error in 20a_seed_sectors: FileNotFoundError - GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Traceback (most recent call last):
+  File "/api/seeder/seeder.py", line 36, in main
+    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "/api/seeder/seeds/20a_seed_sectors.py", line 31, in <module>
+    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
+FileNotFoundError: GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Error in 20b_seed_entities: FileNotFoundError - GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Traceback (most recent call last):
+  File "/api/seeder/seeder.py", line 36, in main
+    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "/api/seeder/seeds/20b_seed_entities.py", line 31, in <module>
+    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
+FileNotFoundError: GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Error in 30b_seed_forms: FileNotFoundError - GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Traceback (most recent call last):
+  File "/api/seeder/seeder.py", line 36, in main
+    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "/api/seeder/seeds/30b_seed_forms.py", line 30, in <module>
+    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
+FileNotFoundError: GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Error in 30d_seed_sections: FileNotFoundError - GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Traceback (most recent call last):
+  File "/api/seeder/seeder.py", line 36, in main
+    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "/api/seeder/seeds/30d_seed_sections.py", line 19, in <module>
+    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
+FileNotFoundError: GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Error in 30e_seed_questions: FileNotFoundError - GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Traceback (most recent call last):
+  File "/api/seeder/seeder.py", line 36, in main
+    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "/api/seeder/seeds/30e_seed_questions.py", line 20, in <module>
+    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
+FileNotFoundError: GITHUB_TOKEN_FILE file not found at /run/secrets/github_token
+Merged TargetTable members:
+LOG_ACTION_TYPES log_action_types reference
+FILE_TYPES file_types reference
+ROLES roles reference
+USER_TIERS user_tiers reference
+USERS users auth
+LOGS logs audit
+REFRESH_SESSIONS refresh_sessions auth
+USER_DETAILS user_details auth
+FILES files files
+USER_PROFILES user_profiles auth
+LINK_USER_FILE user_file_links links
+COMMENT_TYPES comment_types reference
+NOTIFICATION_TYPES notification_types reference
+COMMENTS comments interactions
+NOTIFICATIONS notifications interactions
+ACTOR_SEGMENTS actor_segments actors
+ACTORS actors actors
+LINK_USER_ACTOR user_actor_links links
+FIELD_TYPES field_types reference
+FORMS forms forms
+SECTION_TYPES section_types forms
+SECTIONS sections forms
+INFORMATIONS information forms
+QUESTIONS questions forms
+CARD_TEMPLATES card_templates forms
+FIELD_GROUPS field_groups forms
+FIELDS fields forms
+FIELD_CHOICES field_choices forms
+RELATIONAL_OPERATORS relational_operators reference
+RULE_TYPES rule_types reference
+SECTION_DEPENDENCIES section_dependencies rules
+FIELD_DEPENDENCIES field_dependencies rules
+FIELD_RULES field_rules rules
+SUBMISSION_STATUS_TYPES submission_status_types reference
+SUBMISSIONS submissions submissions
+ASSIGNMENTS assignments grading
+CRITERIA criteria grading
+GRADES grades grading
+RESULTS results grading
+ANSWERS_CARD_ENTRY answers_card_entry submissions
+ANSWERS answers submissions
+ANSWERS_BOOLEAN answers_boolean submissions
+ANSWERS_DATE answers_date submissions
+ANSWERS_FILE answers_file submissions
+ANSWERS_MULTI_CHOICE answers_multi_choice submissions
+ANSWERS_NUMERIC answers_numeric submissions
+ANSWERS_SINGLE_CHOICE answers_single_choice submissions
+ANSWERS_TEXT answers_texts submissions
+LINK_USER_SUBMISSION user_submission_links links
+LINK_CHOICE_MULTICHOICE choice_multichoice_links links
+✅ Starting services...
+ Container iip_api_ia_agent Running 
+ Container iip_stats Running 
+ Container iip_nginx Running 
+ Container iip_api_core Running 
+ Container iip_db Running 
+ Container iip_api_auth Running 
+ Container iip_db Waiting 
+ Container iip_persister Starting 
+ Container iip_db Healthy 
+ Container iip_persister Started 

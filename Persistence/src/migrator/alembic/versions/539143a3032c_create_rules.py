@@ -28,7 +28,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='reference'
     )
-    op.create_table('validation_types',
+    op.create_table('rule_types',
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
