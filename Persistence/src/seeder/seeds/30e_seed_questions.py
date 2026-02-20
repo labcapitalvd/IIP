@@ -21,7 +21,10 @@ if not os.path.exists(GITHUB_TOKEN_FILE):
 with open(GITHUB_TOKEN_FILE, "r") as f:
     GITHUB_TOKEN = f.read().strip()
 
-headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+headers = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github.v3.raw"
+}
 r = requests.get(ORIGIN_URL, headers=headers)
 r.raise_for_status()  # fail if not 200
 hierarchy = r.json()
