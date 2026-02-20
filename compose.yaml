@@ -27,6 +27,7 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     networks:
       - iip_db_net
+      - pgadmin_net
     volumes:
       - postgresql:/var/lib/postgresql
     healthcheck:
@@ -107,6 +108,10 @@ networks:
   iip_nginx:
     driver: bridge
     name: iip_nginx_network
+
+  pgadmin_net:
+    name: pgadmin_network
+    external: true
 
 volumes:
   postgresql:
