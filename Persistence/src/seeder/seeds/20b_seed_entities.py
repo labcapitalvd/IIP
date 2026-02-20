@@ -26,7 +26,7 @@ TABLE = TargetTable.ACTORS.table
 SCHEMA = TargetTable.ACTORS.schema
 ORIGIN_URL = "https://raw.githubusercontent.com/LABCapital-VD/IIP-Cuadernos-Jupyter/main/Gesti%C3%B3n/Migraci%C3%B3n%20a%20DB/output/01_entidades.csv"
 
-GITHUB_TOKEN_FILE = "/run/secrets/github_token"
+GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
 if not os.path.exists(GITHUB_TOKEN_FILE):
     raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
 with open(GITHUB_TOKEN_FILE, "r") as f:
