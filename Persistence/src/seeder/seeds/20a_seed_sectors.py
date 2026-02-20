@@ -24,7 +24,7 @@ logger = get_logger("seed/sectors")
 
 TABLE = TargetTable.ACTOR_SEGMENTS.table
 SCHEMA = TargetTable.ACTOR_SEGMENTS.schema
-ORIGIN_URL = "https://raw.githubusercontent.com/LABCapital-VD/IIP-Cuadernos-Jupyter/main/Gesti%C3%B3n/Migraci%C3%B3n%20a%20DB/output/00_sectores.csv"
+ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/00_sectores.csv"
 
 GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
 if not os.path.exists(GITHUB_TOKEN_FILE):

@@ -12,7 +12,7 @@ from models import Form, Section, SectionType
 logger = get_logger("seed/sections")
 
 
-ORIGIN_URL = "https://raw.githubusercontent.com/LABCapital-VD/IIP-Cuadernos-Jupyter/main/Gesti%C3%B3n/Estructura%20IIP/output/hierarchy.json"
+ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/hierarchy.json"
 
 GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
 if not os.path.exists(GITHUB_TOKEN_FILE):
