@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -114,39 +115,6 @@ Tenga en cuenta que algunos endpoints están protegidos por autenticación y aut
 ##############################################################################################
 # MIDDLEWARE
 ##############################################################################################
-@api.exception_handler(BaseDomainError)
-async def domain_exception_handler(request: Request, exc: BaseDomainError):
-    """
-    Global handler for all business logic errors.
-    Automatically picks up status_code and message from your classes.
-    """
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "status": "error",
-            "code": type(exc).__name__,
-            "message": exc.message,
-        },
-    )
-
-
-@api.exception_handler(Exception)
-async def universal_exception_handler(request: Request, exc: Exception):
-    # Log the full traceback so you can fix the bug later
-    logger.error(f"Unhandled error: {str(exc)}", exc_info=True)
-
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error_code": "InternalServerError",
-            "detail": "An unexpected error occurred. Our team has been notified.",
-        },
-    )
-
-
-##############################################################################################
-# MIDDLEWARE
-##############################################################################################
 
 # TrustedHostMiddleware must be added before CORSMiddleware so that CORS is the outer-most
 # layer and handles OPTIONS requests correctly.
@@ -179,29 +147,57 @@ logger.info(f"Client app allow_credentials: {COOKIES_SECURE}")
 logger.info(f"Node app CORS origins: {PRIVATE_ORIGINS}")
 logger.info(f"Node app allow_credentials: {COOKIES_SECURE}")
 
+
+##############################################################################################
+# Exception Handlers
+##############################################################################################
+async def domain_exception_handler(request: Request, exc: BaseDomainError):
+    """
+    Global handler for all business logic errors.
+    Automatically picks up status_code and message from your classes.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "code": type(exc).__name__,
+            "message": exc.message,
+        },
+    )
+
+
+async def universal_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "code": "InternalServerError",
+            "message": "An unexpected error occurred. Our team has been notified.",
+        },
+    )
+
+
 ##############################################################################################
 # Montaje de frontend en la aplicación principal
 ##############################################################################################
-
-api.mount("/private", api_private)
-api.mount("/public", api_public)
-
-##############################################################################################
-# Montaje de frontend en la aplicación principal
-##############################################################################################
-public_routers = [router_results]
+public_routers = []
 
 private_routers = []
 
 all_routers = public_routers + private_routers
 
-add_routers_with_custom_errors(api_private, all_routers)
-for route in api_private.routes:
-    logger.info(f"Public route mounted: {route}")
+# Register routers to the Public API
+for r in public_routers:
+    api_public.include_router(r)
 
-add_routers_with_custom_errors(api_public, public_routers)
-for route in api_public.routes:
-    logger.info(f"Node route mounted: {route}")
+# Register routers to the Private API (if any)
+for r in private_routers:
+    api_private.include_router(r)
+
+for app_instance in [api, api_private, api_public]:
+    app_instance.add_exception_handler(BaseDomainError, domain_exception_handler)
+    app_instance.add_exception_handler(Exception, universal_exception_handler)
 
 
 ##############################################################################################
