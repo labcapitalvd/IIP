@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from shared_models.relationships import *
-from shared_utils import configure_logging, get_logger
+from shared_utils import configure_logging, get_logger, BaseDomainError
 
 from routers.results import router as router_results
 
@@ -125,6 +125,20 @@ async def domain_exception_handler(request: Request, exc: BaseDomainError):
         content={
             "error_code": type(exc).__name__,
             "detail": exc.message,
+        },
+    )
+
+
+@api.exception_handler(Exception)
+async def universal_exception_handler(request: Request, exc: Exception):
+    # Log the full traceback so you can fix the bug later
+    logger.error(f"Unhandled error: {str(exc)}", exc_info=True)
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error_code": "InternalServerError",
+            "detail": "An unexpected error occurred. Our team has been notified.",
         },
     )
 
