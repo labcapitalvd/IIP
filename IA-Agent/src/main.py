@@ -121,8 +121,9 @@ async def domain_exception_handler(request: Request, exc: BaseDomainError):
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error_code": type(exc).__name__,
-            "detail": exc.message,
+            "status": "error",
+            "code": type(exc).__name__,
+            "message": exc.message,
         },
     )
 
