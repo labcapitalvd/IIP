@@ -1,7 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
-from typing import TYPE_CHECKING
 
 from shared_db import (
     Base,

@@ -1,6 +1,3 @@
-from typing import TYPE_CHECKING
-from enum import Enum
-
 from shared_db import TableInfo
 from shared_models.targets import CoreTargetTable
 
@@ -45,4 +42,3 @@ class TargetTable(CoreTargetTable):
     ANSWERS_TEXT = TableInfo("answers_texts", "submissions")
     LINK_USER_SUBMISSION = TableInfo("user_submission_links", "links")
     LINK_CHOICE_MULTICHOICE = TableInfo("choice_multichoice_links", "links")
-
