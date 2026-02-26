@@ -41,9 +41,9 @@ models = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "../Commons/Packages/shared_db",
-    "../Commons/Packages/shared_models",
-    "../Commons/Packages/shared_schemas",
-    "../Commons/Packages/shared_utils",
+    "../../Personal/Commons/Packages/shared_db",
+    "../../Personal/Commons/Packages/shared_models",
+    "../../Personal/Commons/Packages/shared_schemas",
+    "../../Personal/Commons/Packages/shared_utils",
     "Persistence/src/models"
 ]
