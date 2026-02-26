@@ -33,7 +33,7 @@ fi
 # 5. Run ghr to upload to GitHub
 echo "🚀 Uploading $VERSION to GitHub..."
 ghr -t "$GITHUB_TOKEN_IIP" \
-  -u LABCapital-IIP \
+  -u labcapitalvd \
   -r IIP \
   -replace \
   "$VERSION" "$TMP_DIR/"
