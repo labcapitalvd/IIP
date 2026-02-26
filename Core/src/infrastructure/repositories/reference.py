@@ -1,17 +1,16 @@
-from uuid import UUID
 from typing import cast
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from models import (
     FieldType,
-    SectionType,
     RelationalOperator,
+    RuleType,
+    SectionType,
     SubmissionStatusType,
 )
-from models.reference.rule_types import RuleType
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 
 class FieldTypeRepository:
