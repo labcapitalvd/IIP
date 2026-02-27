@@ -7,7 +7,6 @@ from shared_utils.logger import get_logger
 
 from models import FieldType
 
-
 logger = get_logger("seed/field_types")
 
 
