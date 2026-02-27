@@ -26,13 +26,13 @@ class CardTemplateRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, template: CardTemplate) -> None:
+    def add(self, entry: CardTemplate) -> None:
         session = cast(Session, self.session)
-        session.add(template)
+        session.add(entry)
 
-    def delete(self, template: CardTemplate) -> None:
+    def delete(self, entry: CardTemplate) -> None:
         session = cast(Session, self.session)
-        session.delete(template)
+        session.delete(entry)
 
 
 class FieldChoiceRepository:
@@ -44,13 +44,13 @@ class FieldChoiceRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, choice: FieldChoice) -> None:
+    def add(self, entry: FieldChoice) -> None:
         session = cast(Session, self.session)
-        session.add(choice)
+        session.add(entry)
 
-    def delete(self, choice: FieldChoice) -> None:
+    def delete(self, entry: FieldChoice) -> None:
         session = cast(Session, self.session)
-        session.delete(choice)
+        session.delete(entry)
 
 
 class FieldGroupRepository:
@@ -62,13 +62,13 @@ class FieldGroupRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, group: FieldGroup) -> None:
+    def add(self, entry: FieldGroup) -> None:
         session = cast(Session, self.session)
-        session.add(group)
+        session.add(entry)
 
-    def delete(self, group: FieldGroup) -> None:
+    def delete(self, entry: FieldGroup) -> None:
         session = cast(Session, self.session)
-        session.delete(group)
+        session.delete(entry)
 
 
 class FieldRepository:
@@ -80,13 +80,13 @@ class FieldRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, field: Field) -> None:
+    def add(self, entry: Field) -> None:
         session = cast(Session, self.session)
-        session.add(field)
+        session.add(entry)
 
-    def delete(self, field: Field) -> None:
+    def delete(self, entry: Field) -> None:
         session = cast(Session, self.session)
-        session.delete(field)
+        session.delete(entry)
 
 
 class FormRepository:
@@ -98,13 +98,13 @@ class FormRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, form: Form) -> None:
+    def add(self, entry: Form) -> None:
         session = cast(Session, self.session)
-        session.add(form)
+        session.add(entry)
 
-    def delete(self, form: Form) -> None:
+    def delete(self, entry: Form) -> None:
         session = cast(Session, self.session)
-        session.delete(form)
+        session.delete(entry)
 
 
 class InfoRepository:
@@ -116,13 +116,13 @@ class InfoRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, info: Info) -> None:
+    def add(self, entry: Info) -> None:
         session = cast(Session, self.session)
-        session.add(info)
+        session.add(entry)
 
-    def delete(self, info: Info) -> None:
+    def delete(self, entry: Info) -> None:
         session = cast(Session, self.session)
-        session.delete(info)
+        session.delete(entry)
 
 
 class QuestionRepository:
@@ -134,13 +134,13 @@ class QuestionRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, question: Question) -> None:
+    def add(self, entry: Question) -> None:
         session = cast(Session, self.session)
-        session.add(question)
+        session.add(entry)
 
-    def delete(self, question: Question) -> None:
+    def delete(self, entry: Question) -> None:
         session = cast(Session, self.session)
-        session.delete(question)
+        session.delete(entry)
 
 
 class SectionRepository:
@@ -152,13 +152,13 @@ class SectionRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, section: Section) -> None:
+    def add(self, entry: Section) -> None:
         session = cast(Session, self.session)
-        session.add(section)
+        session.add(entry)
 
-    def delete(self, section: Section) -> None:
+    def delete(self, entry: Section) -> None:
         session = cast(Session, self.session)
-        session.delete(section)
+        session.delete(entry)
 
 
 class SectionTypeRepository:
@@ -170,10 +170,10 @@ class SectionTypeRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, section: SectionType) -> None:
+    def add(self, entry: SectionType) -> None:
         session = cast(Session, self.session)
-        session.add(section)
+        session.add(entry)
 
-    def delete(self, section: SectionType) -> None:
+    def delete(self, entry: SectionType) -> None:
         session = cast(Session, self.session)
-        session.delete(section)
+        session.delete(entry)

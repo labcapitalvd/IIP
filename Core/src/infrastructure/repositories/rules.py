@@ -21,13 +21,13 @@ class FieldDependencyRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, dependency: FieldDependency) -> None:
+    def add(self, entry: FieldDependency) -> None:
         session = cast(Session, self.session)
-        session.add(dependency)
+        session.add(entry)
 
-    def delete(self, dependency: FieldDependency) -> None:
+    def delete(self, entry: FieldDependency) -> None:
         session = cast(Session, self.session)
-        session.delete(dependency)
+        session.delete(entry)
 
 
 class FieldRuleRepository:
@@ -39,13 +39,13 @@ class FieldRuleRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, rule: FieldRule) -> None:
+    def add(self, entry: FieldRule) -> None:
         session = cast(Session, self.session)
-        session.add(rule)
+        session.add(entry)
 
-    def delete(self, rule: FieldRule) -> None:
+    def delete(self, entry: FieldRule) -> None:
         session = cast(Session, self.session)
-        session.delete(rule)
+        session.delete(entry)
 
 
 class SectionDependencyRepository:
@@ -57,10 +57,10 @@ class SectionDependencyRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, dependency: SectionDependency) -> None:
+    def add(self, entry: SectionDependency) -> None:
         session = cast(Session, self.session)
-        session.add(dependency)
+        session.add(entry)
 
-    def delete(self, dependency: SectionDependency) -> None:
+    def delete(self, entry: SectionDependency) -> None:
         session = cast(Session, self.session)
-        session.delete(dependency)
+        session.delete(entry)

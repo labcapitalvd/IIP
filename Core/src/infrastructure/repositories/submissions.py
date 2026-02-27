@@ -27,13 +27,13 @@ class AnswerRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, answer: Answer) -> None:
+    def add(self, entry: Answer) -> None:
         session = cast(Session, self.session)
-        session.add(answer)
+        session.add(entry)
 
-    def delete(self, answer: Answer) -> None:
+    def delete(self, entry: Answer) -> None:
         session = cast(Session, self.session)
-        session.delete(answer)
+        session.delete(entry)
 
 
 class AnswerBooleanRepository:
@@ -45,13 +45,13 @@ class AnswerBooleanRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, answer: AnswerBoolean) -> None:
+    def add(self, entry: AnswerBoolean) -> None:
         session = cast(Session, self.session)
-        session.add(answer)
+        session.add(entry)
 
-    def delete(self, answer: AnswerBoolean) -> None:
+    def delete(self, entry: AnswerBoolean) -> None:
         session = cast(Session, self.session)
-        session.delete(answer)
+        session.delete(entry)
 
 
 class AnswerCardEntryRepository:
@@ -189,10 +189,10 @@ class SubmissionRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, submission: Submission) -> None:
+    def add(self, entry: Submission) -> None:
         session = cast(Session, self.session)
-        session.add(submission)
+        session.add(entry)
 
-    def delete(self, submission: Submission) -> None:
+    def delete(self, entry: Submission) -> None:
         session = cast(Session, self.session)
-        session.delete(submission)
+        session.delete(entry)

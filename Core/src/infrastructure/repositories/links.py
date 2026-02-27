@@ -23,13 +23,13 @@ class MultiChoiceOptionLinkRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, link: MultiChoiceOptionLink) -> None:
+    def add(self, entry: MultiChoiceOptionLink) -> None:
         session = cast(Session, self.session)
-        session.add(link)
+        session.add(entry)
 
-    def delete(self, link: MultiChoiceOptionLink) -> None:
+    def delete(self, entry: MultiChoiceOptionLink) -> None:
         session = cast(Session, self.session)
-        session.delete(link)
+        session.delete(entry)
 
 
 class UserActorLinkRepository:
@@ -41,13 +41,13 @@ class UserActorLinkRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, link: UserActorLink) -> None:
+    def add(self, entry: UserActorLink) -> None:
         session = cast(Session, self.session)
-        session.add(link)
+        session.add(entry)
 
-    def delete(self, link: UserActorLink) -> None:
+    def delete(self, entry: UserActorLink) -> None:
         session = cast(Session, self.session)
-        session.delete(link)
+        session.delete(entry)
 
 
 class UserSubmissionLinkRepository:
@@ -59,10 +59,10 @@ class UserSubmissionLinkRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, link: UserSubmissionLink) -> None:
+    def add(self, entry: UserSubmissionLink) -> None:
         session = cast(Session, self.session)
-        session.add(link)
+        session.add(entry)
 
-    def delete(self, link: UserSubmissionLink) -> None:
+    def delete(self, entry: UserSubmissionLink) -> None:
         session = cast(Session, self.session)
-        session.delete(link)
+        session.delete(entry)

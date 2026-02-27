@@ -20,13 +20,13 @@ class CriteriaRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, criteria: Criteria) -> None:
+    def add(self, entry: Criteria) -> None:
         session = cast(Session, self.session)
-        session.add(criteria)
+        session.add(entry)
 
-    def delete(self, criteria: Criteria) -> None:
+    def delete(self, entry: Criteria) -> None:
         session = cast(Session, self.session)
-        session.delete(criteria)
+        session.delete(entry)
 
 
 class GradeRepository:
@@ -38,13 +38,13 @@ class GradeRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, grade: Grade) -> None:
+    def add(self, entry: Grade) -> None:
         session = cast(Session, self.session)
-        session.add(grade)
+        session.add(entry)
 
-    def delete(self, grade: Grade) -> None:
+    def delete(self, entry: Grade) -> None:
         session = cast(Session, self.session)
-        session.delete(grade)
+        session.delete(entry)
 
 
 class ResultRepository:
@@ -56,10 +56,10 @@ class ResultRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, result: Result) -> None:
+    def add(self, entry: Result) -> None:
         session = cast(Session, self.session)
-        session.add(result)
+        session.add(entry)
 
-    def delete(self, result: Result) -> None:
+    def delete(self, entry: Result) -> None:
         session = cast(Session, self.session)
-        session.delete(result)
+        session.delete(entry)
