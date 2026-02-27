@@ -53,35 +53,35 @@ class Answer(Base):
     submission: Mapped["Submission"] = relationship(
         "Submission", back_populates="answers"
     )
-    card_entry: Mapped["CardEntry"] = relationship(
+    card_entry: Mapped["AnswerCardEntry"] = relationship(
         "CardEntry", back_populates="answers"
     )
-    bool_answer: Mapped["BooleanAnswer"] = relationship(
+    bool_answer: Mapped["AnswerBoolean"] = relationship(
         "BooleanAnswer", back_populates="answer", uselist=False
     )
-    date_answer: Mapped["DateAnswer"] = relationship(
+    date_answer: Mapped["AnswerDate"] = relationship(
         "DateAnswer", back_populates="answer", uselist=False
     )
-    file_answer: Mapped["FileAnswer"] = relationship(
+    file_answer: Mapped["AnswerFile"] = relationship(
         "FileAnswer", back_populates="answer", uselist=False
     )
-    multi_choice_answer: Mapped["MultiChoiceAnswer"] = relationship(
+    multi_choice_answer: Mapped["AnswerMultiChoice"] = relationship(
         "MultiChoiceAnswer", back_populates="answer", uselist=False
     )
-    number_answer: Mapped["NumberAnswer"] = relationship(
+    number_answer: Mapped["AnswerNumeric"] = relationship(
         "NumberAnswer", back_populates="answer", uselist=False
     )
-    single_choice_answer: Mapped["SingleChoiceAnswer"] = relationship(
+    single_choice_answer: Mapped["AnswerSingleChoice"] = relationship(
         "SingleChoiceAnswer", back_populates="answer", uselist=False
     )
-    text_answer: Mapped["TextAnswer"] = relationship(
+    text_answer: Mapped["AnswerText"] = relationship(
         "TextAnswer", back_populates="answer", uselist=False
     )
 
     field: Mapped["Field"] = relationship("Field", back_populates="answers")
 
 
-class BooleanAnswer(Base):
+class AnswerBoolean(Base):
     __tablename__ = TargetTable.ANSWERS_BOOLEAN.table
     __table_args__ = {"schema": TargetTable.ANSWERS_BOOLEAN.schema}
 
@@ -96,7 +96,7 @@ class BooleanAnswer(Base):
     )  # adjust name for each type
 
 
-class CardEntry(Base):
+class AnswerCardEntry(Base):
     __tablename__ = TargetTable.ANSWERS_CARD_ENTRY.table
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
 
@@ -130,7 +130,7 @@ class CardEntry(Base):
     )
 
 
-class DateAnswer(Base):
+class AnswerDate(Base):
     __tablename__ = TargetTable.ANSWERS_DATE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_DATE.schema}
 
@@ -143,7 +143,7 @@ class DateAnswer(Base):
     answer: Mapped["Answer"] = relationship("Answer", back_populates="date_answer")
 
 
-class FileAnswer(Base):
+class AnswerFile(Base):
     __tablename__ = TargetTable.ANSWERS_FILE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_FILE.schema}
 
@@ -160,7 +160,7 @@ class FileAnswer(Base):
     answer: Mapped["Answer"] = relationship("Answer", back_populates="file_answer")
 
 
-class MultiChoiceAnswer(Base):
+class AnswerMultiChoice(Base):
     __tablename__ = TargetTable.ANSWERS_MULTI_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_MULTI_CHOICE.schema}
 
@@ -176,7 +176,7 @@ class MultiChoiceAnswer(Base):
     )  # adjust name for each type
 
 
-class NumberAnswer(Base):
+class AnswerNumeric(Base):
     __tablename__ = TargetTable.ANSWERS_NUMERIC.table
     __table_args__ = {"schema": TargetTable.ANSWERS_NUMERIC.schema}
 
@@ -191,7 +191,7 @@ class NumberAnswer(Base):
     )  # adjust name for each type
 
 
-class SingleChoiceAnswer(Base):
+class AnswerSingleChoice(Base):
     __tablename__ = TargetTable.ANSWERS_SINGLE_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_SINGLE_CHOICE.schema}
 
@@ -208,7 +208,7 @@ class SingleChoiceAnswer(Base):
     )  # adjust name for each type
 
 
-class TextAnswer(Base):
+class AnswerText(Base):
     __tablename__ = TargetTable.ANSWERS_TEXT.table
     __table_args__ = {"schema": TargetTable.ANSWERS_TEXT.schema}
 
@@ -247,7 +247,7 @@ class Submission(Base):
     user_links: Mapped["UserSubmissionLink"] = relationship(
         "UserSubmissionLink", back_populates="submission"
     )
-    card_entries: Mapped["CardEntry"] = relationship(
+    card_entries: Mapped["AnswerCardEntry"] = relationship(
         "CardEntry", back_populates="submission"
     )
     answers: Mapped["Answer"] = relationship("Answer", back_populates="submission")
