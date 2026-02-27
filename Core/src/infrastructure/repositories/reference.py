@@ -31,24 +31,6 @@ class FieldTypeRepository:
         session.delete(item)
 
 
-class SectionTypeRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> SectionType | None:
-        stmt = select(SectionType).where(SectionType.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, item: SectionType) -> None:
-        session = cast(Session, self.session)
-        session.add(item)
-
-    def delete(self, item: SectionType) -> None:
-        session = cast(Session, self.session)
-        session.delete(item)
-
-
 class RelationalOperatorRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -67,24 +49,6 @@ class RelationalOperatorRepository:
         session.delete(item)
 
 
-class SubmissionStatusTypeRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> SubmissionStatusType | None:
-        stmt = select(SubmissionStatusType).where(SubmissionStatusType.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, item: SubmissionStatusType) -> None:
-        session = cast(Session, self.session)
-        session.add(item)
-
-    def delete(self, item: SubmissionStatusType) -> None:
-        session = cast(Session, self.session)
-        session.delete(item)
-
-
 class RuleTypeRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -99,5 +63,23 @@ class RuleTypeRepository:
         session.add(item)
 
     def delete(self, item: RuleType) -> None:
+        session = cast(Session, self.session)
+        session.delete(item)
+
+
+class SubmissionStatusTypeRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> SubmissionStatusType | None:
+        stmt = select(SubmissionStatusType).where(SubmissionStatusType.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, item: SubmissionStatusType) -> None:
+        session = cast(Session, self.session)
+        session.add(item)
+
+    def delete(self, item: SubmissionStatusType) -> None:
         session = cast(Session, self.session)
         session.delete(item)

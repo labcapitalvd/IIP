@@ -1,34 +1,21 @@
-from uuid import UUID
 from typing import cast
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from models import (
-    Submission,
     Answer,
-    CardEntry,
-    UserSubmissionLink,
+    AnswerBoolean,
+    AnswerCardEntry,
+    AnswerDate,
+    AnswerFile,
+    AnswerMultiChoice,
+    AnswerNumeric,
+    AnswerSingleChoice,
+    AnswerText,
+    Submission,
 )
-
-
-class SubmissionRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> Submission | None:
-        stmt = select(Submission).where(Submission.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, submission: Submission) -> None:
-        session = cast(Session, self.session)
-        session.add(submission)
-
-    def delete(self, submission: Submission) -> None:
-        session = cast(Session, self.session)
-        session.delete(submission)
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 
 class AnswerRepository:
@@ -49,32 +36,163 @@ class AnswerRepository:
         session.delete(answer)
 
 
-class CardEntryRepository:
+class AnswerBooleanRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, id: UUID) -> CardEntry | None:
-        stmt = select(CardEntry).where(CardEntry.id == id)
+    async def get_by_id(self, id: UUID) -> AnswerBoolean | None:
+        stmt = select(AnswerBoolean).where(AnswerBoolean.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: CardEntry) -> None:
+    def add(self, answer: AnswerBoolean) -> None:
+        session = cast(Session, self.session)
+        session.add(answer)
+
+    def delete(self, answer: AnswerBoolean) -> None:
+        session = cast(Session, self.session)
+        session.delete(answer)
+
+
+class AnswerCardEntryRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> AnswerCardEntry | None:
+        stmt = select(AnswerCardEntry).where(AnswerCardEntry.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, entry: AnswerCardEntry) -> None:
         session = cast(Session, self.session)
         session.add(entry)
 
-    def delete(self, entry: CardEntry) -> None:
+    def delete(self, entry: AnswerCardEntry) -> None:
         session = cast(Session, self.session)
         session.delete(entry)
 
 
-class UserSubmissionLinkRepository:
+class AnswerDateRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def add(self, link: UserSubmissionLink) -> None:
-        session = cast(Session, self.session)
-        session.add(link)
+    async def get_by_id(self, id: UUID) -> AnswerDate | None:
+        stmt = select(AnswerDate).where(AnswerDate.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def delete(self, link: UserSubmissionLink) -> None:
+    def add(self, entry: AnswerDate) -> None:
         session = cast(Session, self.session)
-        session.delete(link)
+        session.add(entry)
+
+    def delete(self, entry: AnswerDate) -> None:
+        session = cast(Session, self.session)
+        session.delete(entry)
+
+
+class AnswerFileRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> AnswerFile | None:
+        stmt = select(AnswerFile).where(AnswerFile.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, entry: AnswerFile) -> None:
+        session = cast(Session, self.session)
+        session.add(entry)
+
+    def delete(self, entry: AnswerFile) -> None:
+        session = cast(Session, self.session)
+        session.delete(entry)
+
+
+class AnswerMultiChoiceRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> AnswerMultiChoice | None:
+        stmt = select(AnswerMultiChoice).where(AnswerMultiChoice.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, entry: AnswerMultiChoice) -> None:
+        session = cast(Session, self.session)
+        session.add(entry)
+
+    def delete(self, entry: AnswerMultiChoice) -> None:
+        session = cast(Session, self.session)
+        session.delete(entry)
+
+
+class AnswerNumericRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> AnswerNumeric | None:
+        stmt = select(AnswerNumeric).where(AnswerNumeric.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, entry: AnswerNumeric) -> None:
+        session = cast(Session, self.session)
+        session.add(entry)
+
+    def delete(self, entry: AnswerNumeric) -> None:
+        session = cast(Session, self.session)
+        session.delete(entry)
+
+
+class AnswerSingleChoiceRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> AnswerSingleChoice | None:
+        stmt = select(AnswerSingleChoice).where(AnswerSingleChoice.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, entry: AnswerSingleChoice) -> None:
+        session = cast(Session, self.session)
+        session.add(entry)
+
+    def delete(self, entry: AnswerSingleChoice) -> None:
+        session = cast(Session, self.session)
+        session.delete(entry)
+
+
+class AnswerTextRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> AnswerText | None:
+        stmt = select(AnswerText).where(AnswerText.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, entry: AnswerText) -> None:
+        session = cast(Session, self.session)
+        session.add(entry)
+
+    def delete(self, entry: AnswerText) -> None:
+        session = cast(Session, self.session)
+        session.delete(entry)
+
+
+class SubmissionRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> Submission | None:
+        stmt = select(Submission).where(Submission.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, submission: Submission) -> None:
+        session = cast(Session, self.session)
+        session.add(submission)
+
+    def delete(self, submission: Submission) -> None:
+        session = cast(Session, self.session)
+        session.delete(submission)

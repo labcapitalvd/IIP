@@ -1,15 +1,32 @@
-from uuid import UUID
 from typing import cast
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from models import (
+    Criteria,
     Grade,
     Result,
-    Criteria,
 )
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
+
+
+class CriteriaRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> Criteria | None:
+        stmt = select(Criteria).where(Criteria.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, criteria: Criteria) -> None:
+        session = cast(Session, self.session)
+        session.add(criteria)
+
+    def delete(self, criteria: Criteria) -> None:
+        session = cast(Session, self.session)
+        session.delete(criteria)
 
 
 class GradeRepository:
@@ -46,21 +63,3 @@ class ResultRepository:
     def delete(self, result: Result) -> None:
         session = cast(Session, self.session)
         session.delete(result)
-
-
-class CriteriaRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> Criteria | None:
-        stmt = select(Criteria).where(Criteria.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, criteria: Criteria) -> None:
-        session = cast(Session, self.session)
-        session.add(criteria)
-
-    def delete(self, criteria: Criteria) -> None:
-        session = cast(Session, self.session)
-        session.delete(criteria)

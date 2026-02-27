@@ -10,82 +10,11 @@ from models import (
     Info,
     Question,
     Section,
+    SectionType,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
-
-
-class FormRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> Form | None:
-        stmt = select(Form).where(Form.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, form: Form) -> None:
-        session = cast(Session, self.session)
-        session.add(form)
-
-    def delete(self, form: Form) -> None:
-        session = cast(Session, self.session)
-        session.delete(form)
-
-
-class SectionRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> Section | None:
-        stmt = select(Section).where(Section.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, section: Section) -> None:
-        session = cast(Session, self.session)
-        session.add(section)
-
-    def delete(self, section: Section) -> None:
-        session = cast(Session, self.session)
-        session.delete(section)
-
-
-class QuestionRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> Question | None:
-        stmt = select(Question).where(Question.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, question: Question) -> None:
-        session = cast(Session, self.session)
-        session.add(question)
-
-    def delete(self, question: Question) -> None:
-        session = cast(Session, self.session)
-        session.delete(question)
-
-
-class FieldRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> Field | None:
-        stmt = select(Field).where(Field.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, field: Field) -> None:
-        session = cast(Session, self.session)
-        session.add(field)
-
-    def delete(self, field: Field) -> None:
-        session = cast(Session, self.session)
-        session.delete(field)
 
 
 class CardTemplateRepository:
@@ -106,22 +35,22 @@ class CardTemplateRepository:
         session.delete(template)
 
 
-class InfoRepository:
+class FieldChoiceRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, id: UUID) -> Info | None:
-        stmt = select(Info).where(Info.id == id)
+    async def get_by_id(self, id: UUID) -> FieldChoice | None:
+        stmt = select(FieldChoice).where(FieldChoice.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, info: Info) -> None:
+    def add(self, choice: FieldChoice) -> None:
         session = cast(Session, self.session)
-        session.add(info)
+        session.add(choice)
 
-    def delete(self, info: Info) -> None:
+    def delete(self, choice: FieldChoice) -> None:
         session = cast(Session, self.session)
-        session.delete(info)
+        session.delete(choice)
 
 
 class FieldGroupRepository:
@@ -142,19 +71,109 @@ class FieldGroupRepository:
         session.delete(group)
 
 
-class FieldChoiceRepository:
+class FieldRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, id: UUID) -> FieldChoice | None:
-        stmt = select(FieldChoice).where(FieldChoice.id == id)
+    async def get_by_id(self, id: UUID) -> Field | None:
+        stmt = select(Field).where(Field.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, choice: FieldChoice) -> None:
+    def add(self, field: Field) -> None:
         session = cast(Session, self.session)
-        session.add(choice)
+        session.add(field)
 
-    def delete(self, choice: FieldChoice) -> None:
+    def delete(self, field: Field) -> None:
         session = cast(Session, self.session)
-        session.delete(choice)
+        session.delete(field)
+
+
+class FormRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> Form | None:
+        stmt = select(Form).where(Form.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, form: Form) -> None:
+        session = cast(Session, self.session)
+        session.add(form)
+
+    def delete(self, form: Form) -> None:
+        session = cast(Session, self.session)
+        session.delete(form)
+
+
+class InfoRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> Info | None:
+        stmt = select(Info).where(Info.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, info: Info) -> None:
+        session = cast(Session, self.session)
+        session.add(info)
+
+    def delete(self, info: Info) -> None:
+        session = cast(Session, self.session)
+        session.delete(info)
+
+
+class QuestionRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> Question | None:
+        stmt = select(Question).where(Question.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, question: Question) -> None:
+        session = cast(Session, self.session)
+        session.add(question)
+
+    def delete(self, question: Question) -> None:
+        session = cast(Session, self.session)
+        session.delete(question)
+
+
+class SectionRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> Section | None:
+        stmt = select(Section).where(Section.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, section: Section) -> None:
+        session = cast(Session, self.session)
+        session.add(section)
+
+    def delete(self, section: Section) -> None:
+        session = cast(Session, self.session)
+        session.delete(section)
+
+
+class SectionTypeRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> SectionType | None:
+        stmt = select(SectionType).where(SectionType.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, section: SectionType) -> None:
+        session = cast(Session, self.session)
+        session.add(section)
+
+    def delete(self, section: SectionType) -> None:
+        session = cast(Session, self.session)
+        session.delete(section)

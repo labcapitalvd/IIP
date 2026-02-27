@@ -12,24 +12,6 @@ from models import (
 )
 
 
-class FieldRuleRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> FieldRule | None:
-        stmt = select(FieldRule).where(FieldRule.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, rule: FieldRule) -> None:
-        session = cast(Session, self.session)
-        session.add(rule)
-
-    def delete(self, rule: FieldRule) -> None:
-        session = cast(Session, self.session)
-        session.delete(rule)
-
-
 class FieldDependencyRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -46,6 +28,24 @@ class FieldDependencyRepository:
     def delete(self, dependency: FieldDependency) -> None:
         session = cast(Session, self.session)
         session.delete(dependency)
+
+
+class FieldRuleRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, id: UUID) -> FieldRule | None:
+        stmt = select(FieldRule).where(FieldRule.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    def add(self, rule: FieldRule) -> None:
+        session = cast(Session, self.session)
+        session.add(rule)
+
+    def delete(self, rule: FieldRule) -> None:
+        session = cast(Session, self.session)
+        session.delete(rule)
 
 
 class SectionDependencyRepository:
