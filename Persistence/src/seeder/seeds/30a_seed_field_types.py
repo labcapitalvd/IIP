@@ -12,12 +12,14 @@ logger = get_logger("seed/field_types")
 
 
 class Types(Enum):
-    TEXT = "text"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    FILE = "file"
-    SINGLE_CHOICE = "single_choice"
-    MULTI_CHOICE = "multi_choice"
+    BOOLEAN = "AnswerBoolean"
+    CARD = "AnswerCardEntry"
+    DATE = "AnswerDate"
+    FILE = "AnswerFile"
+    MULTI_CHOICE = "AnswerMultiChoice"
+    NUMERIC = "AnswerNumeric"
+    SINGLE_CHOICE = "AnswerSingleChoice"
+    TEXT = "AnswerText"
 
     def __init__(self, description: str):
         self.description = description
