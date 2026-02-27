@@ -5,7 +5,6 @@ from models import (
     FieldType,
     RelationalOperator,
     RuleType,
-    SectionType,
     SubmissionStatusType,
 )
 from sqlalchemy import select
@@ -22,13 +21,13 @@ class FieldTypeRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, item: FieldType) -> None:
+    def add(self, entry: FieldType) -> None:
         session = cast(Session, self.session)
-        session.add(item)
+        session.add(entry)
 
-    def delete(self, item: FieldType) -> None:
+    def delete(self, entry: FieldType) -> None:
         session = cast(Session, self.session)
-        session.delete(item)
+        session.delete(entry)
 
 
 class RelationalOperatorRepository:
@@ -40,13 +39,13 @@ class RelationalOperatorRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, item: RelationalOperator) -> None:
+    def add(self, entry: RelationalOperator) -> None:
         session = cast(Session, self.session)
-        session.add(item)
+        session.add(entry)
 
-    def delete(self, item: RelationalOperator) -> None:
+    def delete(self, entry: RelationalOperator) -> None:
         session = cast(Session, self.session)
-        session.delete(item)
+        session.delete(entry)
 
 
 class RuleTypeRepository:
@@ -58,13 +57,13 @@ class RuleTypeRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, item: RuleType) -> None:
+    def add(self, entry: RuleType) -> None:
         session = cast(Session, self.session)
-        session.add(item)
+        session.add(entry)
 
-    def delete(self, item: RuleType) -> None:
+    def delete(self, entry: RuleType) -> None:
         session = cast(Session, self.session)
-        session.delete(item)
+        session.delete(entry)
 
 
 class SubmissionStatusTypeRepository:
@@ -76,10 +75,10 @@ class SubmissionStatusTypeRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, item: SubmissionStatusType) -> None:
+    def add(self, entry: SubmissionStatusType) -> None:
         session = cast(Session, self.session)
-        session.add(item)
+        session.add(entry)
 
-    def delete(self, item: SubmissionStatusType) -> None:
+    def delete(self, entry: SubmissionStatusType) -> None:
         session = cast(Session, self.session)
-        session.delete(item)
+        session.delete(entry)

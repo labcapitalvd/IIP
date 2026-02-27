@@ -21,13 +21,13 @@ class ActorRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, actor: Actor) -> None:
+    def add(self, entry: Actor) -> None:
         session = cast(Session, self.session)
-        session.add(actor)
+        session.add(entry)
 
-    def delete(self, actor: Actor) -> None:
+    def delete(self, entry: Actor) -> None:
         session = cast(Session, self.session)
-        session.delete(actor)
+        session.delete(entry)
 
 
 class ActorSegmentRepository:
@@ -39,23 +39,23 @@ class ActorSegmentRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, segment: ActorSegment) -> None:
+    def add(self, entry: ActorSegment) -> None:
         session = cast(Session, self.session)
-        session.add(segment)
+        session.add(entry)
 
-    def delete(self, segment: ActorSegment) -> None:
+    def delete(self, entry: ActorSegment) -> None:
         session = cast(Session, self.session)
-        session.delete(segment)
+        session.delete(entry)
 
 
 class UserActorLinkRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def add(self, link: UserActorLink) -> None:
+    def add(self, entry: UserActorLink) -> None:
         session = cast(Session, self.session)
-        session.add(link)
+        session.add(entry)
 
-    def delete(self, link: UserActorLink) -> None:
+    def delete(self, entry: UserActorLink) -> None:
         session = cast(Session, self.session)
-        session.delete(link)
+        session.delete(entry)
