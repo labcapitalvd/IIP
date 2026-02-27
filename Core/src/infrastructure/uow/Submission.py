@@ -1,9 +1,7 @@
 from shared_db import UnitOfWork
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ..repositories import (
     AnswerRepository,
-    CardEntryRepository,
+    AnswerCardEntryRepository,
     FieldRepository,
     FormRepository,
     SubmissionRepository,
@@ -17,12 +15,22 @@ class SubmissionUoW(UnitOfWork):
     Handles user responses, linking answers to submissions.
     """
 
-    def __init__(self, session: AsyncSession):
-        super().__init__(session)
-        self.submissions = SubmissionRepository(session)
-        self.answers = AnswerRepository(session)
-        self.user_links = UserSubmissionLinkRepository(session)
-        self.card_entries = CardEntryRepository(session)
+    submissions: SubmissionRepository
+    answers: AnswerRepository
+    user_links: UserSubmissionLinkRepository
+    card_entries: AnswerCardEntryRepository
+    forms: FormRepository
+    fields: FieldRepository
+
+    async def __aenter__(self):
+        await super().__aenter__()
+        assert self.session is not None
+
+        self.submissions = SubmissionRepository(self.session)
+        self.answers = AnswerRepository(self.session)
+        self.user_links = UserSubmissionLinkRepository(self.session)
+        self.card_entries = AnswerCardEntryRepository(self.session)
         # Read-only access to form structure for validation during submission
-        self.forms = FormRepository(session)
-        self.fields = FieldRepository(session)
+        self.forms = FormRepository(self.session)
+        self.fields = FieldRepository(self.session)
+        return self

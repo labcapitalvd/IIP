@@ -1,6 +1,4 @@
 from shared_db import UnitOfWork
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ..repositories import (
     CriteriaRepository,
     GradeRepository,
@@ -15,10 +13,18 @@ class GradingUoW(UnitOfWork):
     Handles scoring, results calculation, and criteria management.
     """
 
-    def __init__(self, session: AsyncSession):
-        super().__init__(session)
-        self.grades = GradeRepository(session)
-        self.results = ResultRepository(session)
-        self.criteria = CriteriaRepository(session)
+    grades: GradeRepository
+    results: ResultRepository
+    criteria: CriteriaRepository
+    submissions: SubmissionRepository
+
+    async def __aenter__(self):
+        await super().__aenter__()
+        assert self.session is not None
+
+        self.grades = GradeRepository(self.session)
+        self.results = ResultRepository(self.session)
+        self.criteria = CriteriaRepository(self.session)
         # Read-only access to submissions
-        self.submissions = SubmissionRepository(session)
+        self.submissions = SubmissionRepository(self.session)
+        return self

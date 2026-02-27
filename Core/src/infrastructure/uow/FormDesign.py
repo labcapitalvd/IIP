@@ -1,6 +1,4 @@
 from shared_db import UnitOfWork
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ..repositories import (
     CardTemplateRepository,
     FieldChoiceRepository,
@@ -19,13 +17,25 @@ class FormDesignUoW(UnitOfWork):
     Handles creation and modification of form structure (Sections, Fields, Choices).
     """
 
-    def __init__(self, session: AsyncSession):
-        super().__init__(session)
-        self.forms = FormRepository(session)
-        self.sections = SectionRepository(session)
-        self.questions = QuestionRepository(session)
-        self.fields = FieldRepository(session)
-        self.field_groups = FieldGroupRepository(session)
-        self.field_choices = FieldChoiceRepository(session)
-        self.infos = InfoRepository(session)
-        self.card_templates = CardTemplateRepository(session)
+    forms: FormRepository
+    sections: SectionRepository
+    questions: QuestionRepository
+    fields: FieldRepository
+    field_groups: FieldGroupRepository
+    field_choices: FieldChoiceRepository
+    infos: InfoRepository
+    card_templates: CardTemplateRepository
+
+    async def __aenter__(self):
+        await super().__aenter__()
+        assert self.session is not None
+
+        self.forms = FormRepository(self.session)
+        self.sections = SectionRepository(self.session)
+        self.questions = QuestionRepository(self.session)
+        self.fields = FieldRepository(self.session)
+        self.field_groups = FieldGroupRepository(self.session)
+        self.field_choices = FieldChoiceRepository(self.session)
+        self.infos = InfoRepository(self.session)
+        self.card_templates = CardTemplateRepository(self.session)
+        return self

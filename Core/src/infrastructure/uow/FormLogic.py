@@ -1,6 +1,4 @@
 from shared_db import UnitOfWork
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ..repositories import (
     FieldDependencyRepository,
     FieldRepository,
@@ -16,11 +14,20 @@ class FormLogicUoW(UnitOfWork):
     Handles skip logic, dependencies, and validation rules.
     """
 
-    def __init__(self, session: AsyncSession):
-        super().__init__(session)
-        self.field_rules = FieldRuleRepository(session)
-        self.field_dependencies = FieldDependencyRepository(session)
-        self.section_dependencies = SectionDependencyRepository(session)
+    field_rules: FieldRuleRepository
+    field_dependencies: FieldDependencyRepository
+    section_dependencies: SectionDependencyRepository
+    fields: FieldRepository
+    sections: SectionRepository
+
+    async def __aenter__(self):
+        await super().__aenter__()
+        assert self.session is not None
+
+        self.field_rules = FieldRuleRepository(self.session)
+        self.field_dependencies = FieldDependencyRepository(self.session)
+        self.section_dependencies = SectionDependencyRepository(self.session)
         # Read-only access to verify references
-        self.fields = FieldRepository(session)
-        self.sections = SectionRepository(session)
+        self.fields = FieldRepository(self.session)
+        self.sections = SectionRepository(self.session)
+        return self

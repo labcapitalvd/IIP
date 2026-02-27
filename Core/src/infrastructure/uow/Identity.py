@@ -1,6 +1,4 @@
 from shared_db import UnitOfWork
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ..repositories import (
     ActorRepository,
     ActorSegmentRepository,
@@ -14,8 +12,15 @@ class IdentityUoW(UnitOfWork):
     Handles actor management and segmentation.
     """
 
-    def __init__(self, session: AsyncSession):
-        super().__init__(session)
-        self.actors = ActorRepository(session)
-        self.user_actor_links = UserActorLinkRepository(session)
-        self.segments = ActorSegmentRepository(session)
+    actors: ActorRepository
+    user_actor_links: UserActorLinkRepository
+    segments: ActorSegmentRepository
+
+    async def __aenter__(self):
+        await super().__aenter__()
+        assert self.session is not None
+
+        self.actors = ActorRepository(self.session)
+        self.user_actor_links = UserActorLinkRepository(self.session)
+        self.segments = ActorSegmentRepository(self.session)
+        return self
