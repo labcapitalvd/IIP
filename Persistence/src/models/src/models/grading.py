@@ -17,12 +17,20 @@ from sqlalchemy.orm import Mapped
 from models.targets import TargetTable
 
 
-class Criteria(Base):
+class Criterion(Base):
     __tablename__ = TargetTable.CRITERIA.table
     __table_args__ = {"schema": TargetTable.CRITERIA.schema}
 
-    target: Mapped[TargetTable] = column_enum(TargetTable)
-    target_id: Mapped[UUID] = column_uuid()
+    assignment_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ASSIGNMENTS.fq_name}.id",
+        ondelete="CASCADE",
+        nullable=True,
+    )
+    question_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.QUESTIONS.fq_name}.id",
+        ondelete="CASCADE",
+        nullable=True,
+    )
     description: Mapped[str] = column_short_text()
     weight: Mapped[Decimal] = column_decimal()
     display_order: Mapped[int] = column_integer(default=0)
@@ -38,7 +46,7 @@ class Grade(Base):
     submission_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.SUBMISSIONS.fq_name}.id", ondelete="SET NULL"
     )
-    criteria_id: Mapped[UUID] = column_fk(
+    criterion_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.CRITERIA.fq_name}.id", ondelete="SET NULL"
     )
 
