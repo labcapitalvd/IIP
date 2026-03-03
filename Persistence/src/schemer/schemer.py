@@ -1,73 +1,74 @@
-from sqlalchemy.exc import ProgrammingError
-from sqlalchemy.schema import CreateSchema
+import inspect
 
-from shared_db import SessionSync, merge_enums
-from shared_models.targets import TargetTable as TargetTableBase
+from models.targets import TargetTable
+from shared_db import SessionSync, TableInfo
 from shared_utils.logger import get_logger
-
-from models.targets import TargetTable as TargetTableApp
-
-
-TargetTable = merge_enums(
-    "TargetTable",
-    TargetTableBase,
-    TargetTableApp
-)
-
+from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
+from sqlalchemy.schema import CreateSchema
 
 logger = get_logger("seed/schema")
 
 
+def get_all_schemas():
+    """Extracts unique schemas from TargetTable and its parents."""
+    schemas = set()
+    # Iterate through TargetTable and its base classes (CoreTargetTable)
+    for cls in inspect.getmro(TargetTable):
+        for name, value in vars(cls).items():
+            if isinstance(value, TableInfo):
+                schemas.add(value.schema)
+    return schemas
+
 
 def main():
     created = []
-    skipped = []
     failed = []
 
-    with SessionSync() as session:
-        schemas = {table.schema for table in TargetTable}
+    schemas = get_all_schemas()
 
+    with SessionSync() as session:
         for schema in schemas:
             try:
-                logger.info(f"Creating schema '{schema}'…")
+                logger.info(f"Ensuring schema '{schema}' exists…")
+                # if_not_exists=True prevents Postgres from raising 42P06
                 session.execute(CreateSchema(schema, if_not_exists=True))
                 session.commit()
-
-                # If `if_not_exists=True`, PostgreSQL won't error
-                # but SQLAlchemy doesn't tell us explicitly if created or skipped.
-                # However, PostgreSQL returns no error:
                 created.append(schema)
-
-            except ProgrammingError as e:
-                # Detect "schema already exists"
-                # PostgreSQL error code: '42P06'
-                # Example: e.orig.pgcode
-                if hasattr(e.orig, "pgcode") and e.orig.pgcode == "42P06":
-                    logger.info(f"Schema '{schema}' already exists — skipped.")
-                    skipped.append(schema)
-                    session.rollback()
-                else:
-                    logger.error(f"Failed to create schema '{schema}': {e}")
-                    failed.append(schema)
-                    session.rollback()
-
-            except Exception as e:
-                logger.error(f"Unexpected error creating schema '{schema}': {e}")
-                failed.append(schema)
+            except SQLAlchemyError as e:
                 session.rollback()
+                logger.error(f"Failed to ensure schema '{schema}': {e}")
+                failed.append(schema)
+
+
+def main():
+    created = []
+    failed = []
+
+    schemas = get_all_schemas()
+
+    with SessionSync() as session:
+        for schema in schemas:
+            try:
+                logger.info(f"Ensuring schema '{schema}' exists…")
+                # if_not_exists=True prevents Postgres from raising 42P06
+                session.execute(CreateSchema(schema, if_not_exists=True))
+                session.commit()
+                created.append(schema)
+            except SQLAlchemyError as e:
+                session.rollback()
+                logger.error(f"Failed to ensure schema '{schema}': {e}")
+                failed.append(schema)
 
     # Summary
     logger.info("---- Schema Creation Summary ----")
     logger.info(f"Created ({len(created)}): {created}")
-    logger.info(f"Skipped ({len(skipped)}): {skipped}")
     logger.info(f"Failed  ({len(failed)}): {failed}")
 
     print("---- Schema Creation Summary ----")
     print(f"Created ({len(created)}): {created}")
-    print(f"Skipped ({len(skipped)}): {skipped}")
     print(f"Failed  ({len(failed)}): {failed}")
 
-    return created, skipped, failed
+    return created, failed
 
 
 if __name__ == "__main__":
