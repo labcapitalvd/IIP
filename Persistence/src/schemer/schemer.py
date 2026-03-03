@@ -39,26 +39,6 @@ def main():
                 logger.error(f"Failed to ensure schema '{schema}': {e}")
                 failed.append(schema)
 
-
-def main():
-    created = []
-    failed = []
-
-    schemas = get_all_schemas()
-
-    with SessionSync() as session:
-        for schema in schemas:
-            try:
-                logger.info(f"Ensuring schema '{schema}' exists…")
-                # if_not_exists=True prevents Postgres from raising 42P06
-                session.execute(CreateSchema(schema, if_not_exists=True))
-                session.commit()
-                created.append(schema)
-            except SQLAlchemyError as e:
-                session.rollback()
-                logger.error(f"Failed to ensure schema '{schema}': {e}")
-                failed.append(schema)
-
     # Summary
     logger.info("---- Schema Creation Summary ----")
     logger.info(f"Created ({len(created)}): {created}")
