@@ -1,28 +1,12 @@
 """Poblado de roles"""
 
-from enum import Enum
-
 from shared_db import SessionSync
 from shared_models import Role
 from shared_utils.logger import get_logger
 
+from models import RolesEnum as Types
 
 logger = get_logger("seed/roles")
-
-
-class Types(Enum):
-    OWNER = "owner"  # Full control over the submission or actor
-    CONTRIBUTOR = "contributor"  # Can fill/edit forms, upload files, etc.
-    REVIEWER = "reviewer"  # Can comment or suggest changes
-    APPROVER = "approver"  # Can finalize and submit
-    OBSERVER = "observer"  # Read-only access
-
-    def __init__(self, description: str):
-        self.description = description
-
-    @property
-    def label(self):
-        return self.name
 
 
 def upgrade() -> None:
@@ -30,6 +14,7 @@ def upgrade() -> None:
         for type in Types:
             exists = session.query(Role).filter_by(label=type.label).first()
             if exists:
+                logger.info(f"{type} already exists in Role") 
                 continue  # Skip this one
             session.add(
                 Role(
@@ -37,4 +22,5 @@ def upgrade() -> None:
                     description=type.description,
                 )
             )
+            logger.info(f"{type} added to table Role")
         session.commit()

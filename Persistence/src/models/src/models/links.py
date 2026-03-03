@@ -13,7 +13,7 @@ from models.targets import TargetTable
 
 if TYPE_CHECKING:
     from .submissions import (
-        MultiChoiceAnswer,
+        AnswerMultiChoice,
         Submission,
     )
     from .forms import FieldChoice

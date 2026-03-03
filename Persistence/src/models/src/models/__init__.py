@@ -1,5 +1,18 @@
 # Módulo init que carga todos los modelos para simplificar importaciones y prevenir imports circulares.
 
+from .enums import (
+    LogActionTypesEnum,
+    FileTypesEnum,
+    RolesEnum,
+    UserTiersEnum,
+    RuleTypesEnum,
+    RelationalOperatorsEnum,
+    SubmissionStatusesEnum,
+    FieldTypesEnum,
+    NotificationTypesEnum,
+    CommentTypesEnum,
+)
+
 from .actors import Actor, ActorSegment
 from .forms import (
     CardTemplate,
@@ -12,7 +25,7 @@ from .forms import (
     Section,
     SectionType,
 )
-from .grading import Criteria, Grade, Result
+from .grading import Criterion, Grade, Result
 from .links import MultiChoiceOptionLink, UserActorLink, UserSubmissionLink
 from .reference import FieldType, RelationalOperator, RuleType, SubmissionStatusType
 from .rules import FieldDependency, FieldRule, SectionDependency
@@ -30,6 +43,17 @@ from .submissions import (
 )
 
 __all__ = [
+    # Enums
+    "LogActionTypesEnum",
+    "FileTypesEnum",
+    "RolesEnum",
+    "UserTiersEnum",
+    "RuleTypesEnum",
+    "RelationalOperatorsEnum",
+    "SubmissionStatusesEnum",
+    "FieldTypesEnum",
+    "NotificationTypesEnum",
+    "CommentTypesEnum",
     # Actors
     "Actor",
     "ActorSegment",
@@ -44,7 +68,7 @@ __all__ = [
     "Section",
     "SectionType",
     # Grading
-    "Criteria",
+    "Criterion",
     "Grade",
     "Result",
     # Links

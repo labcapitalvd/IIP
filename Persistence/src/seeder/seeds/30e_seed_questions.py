@@ -12,7 +12,6 @@ from models import Form, Question
 logger = get_logger("SeedQuestions")
 
 
-
 ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Estructura IIP/output/hierarchy.json"
 
 GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
@@ -23,7 +22,7 @@ with open(GITHUB_TOKEN_FILE, "r") as f:
 
 headers = {
     "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3.raw"
+    "Accept": "application/vnd.github.v3.raw",
 }
 r = requests.get(ORIGIN_URL, headers=headers)
 r.raise_for_status()  # fail if not 200
@@ -91,6 +90,7 @@ def upgrade() -> None:
         for q in all_questions:
             exists = session.query(Question).filter_by(id=q["id"]).first()
             if exists:
+                logger.info(f"{type} already exists in Question")
                 continue
 
             session.add(
@@ -105,6 +105,6 @@ def upgrade() -> None:
                     is_loop=q["is_loop"],
                 )
             )
+            logger.info(f"{type} added to table Question")
 
         session.commit()
-        logger.info("Questions seeded successfully")

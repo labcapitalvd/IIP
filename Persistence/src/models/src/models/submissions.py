@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
@@ -23,11 +24,10 @@ if TYPE_CHECKING:
     from .links import MultiChoiceOptionLink, UserSubmissionLink
     from .reference import SubmissionStatusType
 
-
 class Answer(Base):
     __tablename__ = TargetTable.ANSWERS.table
     __table_args__ = {"schema": TargetTable.ANSWERS.schema}
-    __mapper_args__ = {"polymorphic_on": "type_id"}
+    __mapper_args__ = {"polymorphic_on": "discriminator"}
 
     submission_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.SUBMISSIONS.fq_name}.id",
@@ -42,7 +42,10 @@ class Answer(Base):
         ondelete="CASCADE",
         nullable=True,
     )
-    type_id: Mapped[UUID] = column_fk(target=f"{TargetTable.FIELD_TYPES.fq_name}.id")
+    # discriminator is required by SQLAlchemy for Joined Table Inheritance because
+    # our Python identities are strings (e.g. "AnswerBoolean") but type_id is a UUID.
+    # It acts as the local type identifier.
+    discriminator: Mapped[str] = column_short_text(length=50, nullable=False)
 
     updated_at: Mapped[datetime] = column_updated_at()
 
@@ -50,12 +53,15 @@ class Answer(Base):
         "Submission", back_populates="answers"
     )
     field: Mapped["Field"] = relationship("Field", back_populates="answers")
+    card_entry: Mapped[Optional["AnswerCardEntry"]] = relationship(
+        "AnswerCardEntry", back_populates="answers"
+    )
 
 
 class AnswerBoolean(Answer):
     __tablename__ = TargetTable.ANSWERS_BOOLEAN.table
     __table_args__ = {"schema": TargetTable.ANSWERS_BOOLEAN.schema}
-    __mapper_args__ = {"polymorphic_identity": "boolean"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.BOOLEAN.value}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -65,15 +71,11 @@ class AnswerBoolean(Answer):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    answer: Mapped["Answer"] = relationship(
-        "Answer", back_populates="bool_answer"
-    )  # adjust name for each type
-
 
 class AnswerCardEntry(Answer):
     __tablename__ = TargetTable.ANSWERS_CARD_ENTRY.table
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
-    __mapper_args__ = {"polymorphic_identity": "AnswerCardEntry"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.CARD.value}
 
     question_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
@@ -108,7 +110,7 @@ class AnswerCardEntry(Answer):
 class AnswerDate(Answer):
     __tablename__ = TargetTable.ANSWERS_DATE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_DATE.schema}
-    __mapper_args__ = {"polymorphic_identity": "AnswerDate"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.DATE.value}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -118,13 +120,11 @@ class AnswerDate(Answer):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    answer: Mapped["Answer"] = relationship("Answer", back_populates="date_answer")
-
 
 class AnswerFile(Answer):
     __tablename__ = TargetTable.ANSWERS_FILE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_FILE.schema}
-    __mapper_args__ = {"polymorphic_identity": "AnswerFile"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.FILE.value}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -139,13 +139,11 @@ class AnswerFile(Answer):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    answer: Mapped["Answer"] = relationship("Answer", back_populates="file_answer")
-
 
 class AnswerMultiChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_MULTI_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_MULTI_CHOICE.schema}
-    __mapper_args__ = {"polymorphic_identity": "AnswerMultiChoice"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.MULTI_CHOICE.value}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -156,15 +154,12 @@ class AnswerMultiChoice(Answer):
     option_links: Mapped[list["MultiChoiceOptionLink"]] = relationship(
         "MultiChoiceOptionLink", back_populates="answer", cascade="all, delete-orphan"
     )
-    answer: Mapped["Answer"] = relationship(
-        "Answer", back_populates="multi_choice_answer"
-    )  # adjust name for each type
 
 
 class AnswerNumeric(Answer):
     __tablename__ = TargetTable.ANSWERS_NUMERIC.table
     __table_args__ = {"schema": TargetTable.ANSWERS_NUMERIC.schema}
-    __mapper_args__ = {"polymorphic_identity": "AnswerNumeric"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.NUMERIC.value}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -174,15 +169,11 @@ class AnswerNumeric(Answer):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    answer: Mapped["Answer"] = relationship(
-        "Answer", back_populates="number_answer"
-    )  # adjust name for each type
-
 
 class AnswerSingleChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_SINGLE_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_SINGLE_CHOICE.schema}
-    __mapper_args__ = {"polymorphic_identity": "AnswerSingleChoice"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.SINGLE_CHOICE.value}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -195,15 +186,12 @@ class AnswerSingleChoice(Answer):
     choice: Mapped["FieldChoice"] = relationship(
         "FieldChoice", back_populates="answer_link"
     )
-    answer: Mapped["Answer"] = relationship(
-        "Answer", back_populates="single_choice_answer"
-    )  # adjust name for each type
 
 
 class AnswerText(Answer):
     __tablename__ = TargetTable.ANSWERS_TEXT.table
     __table_args__ = {"schema": TargetTable.ANSWERS_TEXT.schema}
-    __mapper_args__ = {"polymorphic_identity": "AnswerText"}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.TEXT.value}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -212,10 +200,6 @@ class AnswerText(Answer):
     value: Mapped[str] = column_long_text()
 
     updated_at: Mapped[datetime] = column_updated_at()
-
-    answer: Mapped["Answer"] = relationship(
-        "Answer", back_populates="text_answer"
-    )  # adjust name for each type
 
 
 class Submission(Base):
@@ -242,7 +226,7 @@ class Submission(Base):
     user_links: Mapped["UserSubmissionLink"] = relationship(
         "UserSubmissionLink", back_populates="submission"
     )
-    card_entries: Mapped["AnswerCardEntry"] = relationship(
-        "CardEntry", back_populates="submission"
+    card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
+        "AnswerCardEntry", back_populates="submission"
     )
     answers: Mapped["Answer"] = relationship("Answer", back_populates="submission")

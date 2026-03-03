@@ -8,17 +8,12 @@ import pandas as pd
 import requests
 from sqlalchemy import UUID as UUIDType
 
-from shared_db import merge_enums, sync_engine
-from shared_models.targets import TargetTable as TargetTableBase
+from shared_db import sync_engine
 from shared_utils.logger import get_logger
 
-from models.targets import TargetTable as TargetTableApp
-
-TargetTable = merge_enums("TargetTable", TargetTableBase, TargetTableApp)
-
+from models.targets import TargetTable
 
 logger = get_logger("seed/forms")
-
 
 
 TABLE = TargetTable.FORMS.table
@@ -33,7 +28,7 @@ with open(GITHUB_TOKEN_FILE, "r") as f:
 
 headers = {
     "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3.raw"
+    "Accept": "application/vnd.github.v3.raw",
 }
 r = requests.get(ORIGIN_URL, headers=headers)
 r.raise_for_status()  # fail if not 200

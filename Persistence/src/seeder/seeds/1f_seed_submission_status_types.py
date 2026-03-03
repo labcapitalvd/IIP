@@ -1,34 +1,12 @@
 """Poblado de submission status types"""
 
-from enum import Enum
-
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import SubmissionStatusType
+from models import SubmissionStatusType, SubmissionStatusesEnum as Types
 
 
 logger = get_logger("seed/submission_status_types")
-
-
-class Types(Enum):
-    DRAFT = "draft"
-    SUBMITTED = "submitted"
-    UNDER_REVIEW = "under_review"
-    NEEDS_REVISION = "needs_revision"
-    APPROVED = "approved"
-    GRADED = "graded"
-    REJECTED = "rejected"
-    ASSIGNED = "assigned"
-    PARTIALLY_GRADED = "partially_graded"
-    AUTO_SUBMITTED = "auto_submitted"
-
-    def __init__(self, description: str):
-        self.description = description
-
-    @property
-    def label(self):
-        return self.name
 
 
 def upgrade() -> None:
@@ -38,6 +16,7 @@ def upgrade() -> None:
                 session.query(SubmissionStatusType).filter_by(label=type.label).first()
             )
             if exists:
+                logger.info(f"{type} already exists in SubmissionStatusType")
                 continue  # Skip this one
             session.add(
                 SubmissionStatusType(
@@ -45,4 +24,5 @@ def upgrade() -> None:
                     description=type.description,
                 )
             )
+            logger.info(f"{type} added to table SubmissionStatusType")
         session.commit()

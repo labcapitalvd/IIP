@@ -1,31 +1,11 @@
 """Poblado de field types"""
 
-from enum import Enum
-
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import FieldType
+from models import FieldType, FieldTypesEnum as Types
 
 logger = get_logger("seed/field_types")
-
-
-class Types(Enum):
-    BOOLEAN = "AnswerBoolean"
-    CARD = "AnswerCardEntry"
-    DATE = "AnswerDate"
-    FILE = "AnswerFile"
-    MULTI_CHOICE = "AnswerMultiChoice"
-    NUMERIC = "AnswerNumeric"
-    SINGLE_CHOICE = "AnswerSingleChoice"
-    TEXT = "AnswerText"
-
-    def __init__(self, description: str):
-        self.description = description
-
-    @property
-    def label(self):
-        return self.name  # Use the enum member name itself
 
 
 def upgrade() -> None:
@@ -33,6 +13,7 @@ def upgrade() -> None:
         for tier in Types:
             exists = session.query(FieldType).filter_by(label=tier.label).first()
             if exists:
+                logger.info(f"{type} already exists in FieldType")
                 continue  # Skip this one
             session.add(
                 FieldType(
@@ -40,4 +21,5 @@ def upgrade() -> None:
                     description=tier.description,
                 )
             )
+            logger.info(f"{type} added to table FieldType")
         session.commit()
