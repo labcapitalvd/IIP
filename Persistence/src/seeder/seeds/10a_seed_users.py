@@ -29,7 +29,7 @@ def upgrade() -> None:
         premium_tier = session.query(UserTier).filter_by(label="PREMIUM").first()
         standard_tier = session.query(UserTier).filter_by(label="STANDARD").first()
         guest_tier = session.query(UserTier).filter_by(label="GUEST").first()
-        if not root_tier or not admin_tier:
+        if not root_tier or not admin_tier or not premium_tier or not standard_tier or not guest_tier:
             logger.error("One tier not found in DB")
             raise RuntimeError("One tier not found in DB")
 
@@ -45,7 +45,7 @@ def upgrade() -> None:
             tier_id = tier_map.get(u["username"].lower(), admin_tier.id)
             exists = session.query(User).filter_by(email=u["email"]).first()
             if exists:
-                logger.debug(f"User {u['username']} already exists, skipping")
+                logger.info(f"User {u['username']} already exists, skipping")
                 continue
 
             user_obj = User(
@@ -60,5 +60,5 @@ def upgrade() -> None:
                 media_usage=Decimal(0),
             )
             session.add(user_obj)
-            logger.info(f"Added user {u['username']}")
+            logger.info(f"{u['username']} added to table Role")
         session.commit()

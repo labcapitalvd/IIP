@@ -1,35 +1,14 @@
 """Poblado de user tiers"""
 
 from datetime import datetime, timezone
-from decimal import Decimal
-from enum import Enum
 
 from shared_db import SessionSync
 from shared_models import UserTier
 from shared_utils.logger import get_logger
 
+from models import UserTiersEnum as Types
 
 logger = get_logger("seed/user_tiers")
-
-
-class Types(Enum):
-    ROOT = (Decimal(500 * 1024 * 1024), Decimal(100 * 1024 * 1024 * 1024), 500, 5)
-    ADMIN = (Decimal(100 * 1024 * 1024), Decimal(50 * 1024 * 1024 * 1024), 300, 4)
-    PREMIUM = (Decimal(50 * 1024 * 1024), Decimal(20 * 1024 * 1024 * 1024), 120, 3)
-    STANDARD = (Decimal(10 * 1024 * 1024), Decimal(10 * 1024 * 1024 * 1024), 60, 2)
-    GUEST = (Decimal(5 * 1024 * 1024), Decimal(5 * 1024 * 1024 * 1024), 30, 1)
-
-    def __init__(
-        self, max_file_size, storage_quota, max_requests_per_minute, priority_level
-    ):
-        self.max_file_size = max_file_size
-        self.storage_quota = storage_quota
-        self.max_requests_per_minute = max_requests_per_minute
-        self.priority_level = priority_level
-
-    @property
-    def label(self):
-        return self.name  # Use the enum member name itself
 
 
 def upgrade() -> None:
@@ -37,6 +16,7 @@ def upgrade() -> None:
         for tier in Types:
             exists = session.query(UserTier).filter_by(label=tier.label).first()
             if exists:
+                logger.info(f"{type} already exists in UserTier")
                 continue  # Skip this one
             session.add(
                 UserTier(
@@ -48,4 +28,5 @@ def upgrade() -> None:
                     updated_at=datetime.now(timezone.utc),
                 )
             )
+            logger.info(f"{type} added to table UserTier") 
         session.commit()

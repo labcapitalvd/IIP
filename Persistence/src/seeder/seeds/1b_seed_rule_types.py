@@ -1,29 +1,12 @@
 """Poblado de field validation rules"""
 
-from enum import Enum
-
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import RuleType
+from models import RuleType, RuleTypesEnum as Types
 
 
 logger = get_logger("seed/field_validation_rules")
-
-
-class Types(Enum):
-    MIN_LENGTH = "min_length"
-    MAX_LENGTH = "max_length"
-    REGEX = "regex"
-    MIN_VALUE = "min_value"
-    MAX_VALUE = "max_value"
-
-    def __init__(self, description: str):
-        self.description = description
-
-    @property
-    def label(self):
-        return self.name
 
 
 def upgrade() -> None:
@@ -31,6 +14,7 @@ def upgrade() -> None:
         for type in Types:
             exists = session.query(RuleType).filter_by(label=type.label).first()
             if exists:
+                logger.info(f"{type} already exists in RuleType")
                 continue  # Skip this one
             session.add(
                 RuleType(
@@ -38,4 +22,5 @@ def upgrade() -> None:
                     description=type.description,
                 )
             )
+            logger.info(f"{type} added to table RuleType")
         session.commit()

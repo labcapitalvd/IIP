@@ -22,7 +22,7 @@ with open(GITHUB_TOKEN_FILE, "r") as f:
 
 headers = {
     "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3.raw"
+    "Accept": "application/vnd.github.v3.raw",
 }
 r = requests.get(ORIGIN_URL, headers=headers)
 r.raise_for_status()  # fail if not 200
@@ -87,6 +87,7 @@ def upgrade() -> None:
         for section in full_hier:
             exists = session.query(Section).filter_by(id=section["id"]).first()
             if exists:
+                logger.info(f"{type} already exists in Section")
                 continue  # Skip this one
             session.add(
                 Section(
@@ -99,4 +100,5 @@ def upgrade() -> None:
                     display_order=section["display_order"],
                 )
             )
+            logger.info(f"{type} added to table Section")
         session.commit()
