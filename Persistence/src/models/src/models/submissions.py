@@ -8,13 +8,11 @@ from shared_db import (
     column_bool,
     column_date,
     column_decimal,
-    column_enum,
     column_fk,
     column_integer,
     column_long_text,
     column_short_text,
     column_updated_at,
-    column_uuid,
 )
 from sqlalchemy.orm import Mapped, relationship
 
@@ -26,10 +24,10 @@ if TYPE_CHECKING:
     from .reference import SubmissionStatusType
 
 
-
 class Answer(Base):
     __tablename__ = TargetTable.ANSWERS.table
     __table_args__ = {"schema": TargetTable.ANSWERS.schema}
+    __mapper_args__ = {"polymorphic_on": "type_id"}
 
     submission_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.SUBMISSIONS.fq_name}.id",
@@ -44,48 +42,24 @@ class Answer(Base):
         ondelete="CASCADE",
         nullable=True,
     )
-
-    value_table: Mapped[TargetTable] = column_enum(TargetTable)
-    value_id: Mapped[UUID] = column_uuid()
+    type_id: Mapped[UUID] = column_fk(target=f"{TargetTable.FIELD_TYPES.fq_name}.id")
 
     updated_at: Mapped[datetime] = column_updated_at()
 
     submission: Mapped["Submission"] = relationship(
         "Submission", back_populates="answers"
     )
-    card_entry: Mapped["AnswerCardEntry"] = relationship(
-        "CardEntry", back_populates="answers"
-    )
-    bool_answer: Mapped["AnswerBoolean"] = relationship(
-        "BooleanAnswer", back_populates="answer", uselist=False
-    )
-    date_answer: Mapped["AnswerDate"] = relationship(
-        "DateAnswer", back_populates="answer", uselist=False
-    )
-    file_answer: Mapped["AnswerFile"] = relationship(
-        "FileAnswer", back_populates="answer", uselist=False
-    )
-    multi_choice_answer: Mapped["AnswerMultiChoice"] = relationship(
-        "MultiChoiceAnswer", back_populates="answer", uselist=False
-    )
-    number_answer: Mapped["AnswerNumeric"] = relationship(
-        "NumberAnswer", back_populates="answer", uselist=False
-    )
-    single_choice_answer: Mapped["AnswerSingleChoice"] = relationship(
-        "SingleChoiceAnswer", back_populates="answer", uselist=False
-    )
-    text_answer: Mapped["AnswerText"] = relationship(
-        "TextAnswer", back_populates="answer", uselist=False
-    )
-
     field: Mapped["Field"] = relationship("Field", back_populates="answers")
 
 
-class AnswerBoolean(Base):
+class AnswerBoolean(Answer):
     __tablename__ = TargetTable.ANSWERS_BOOLEAN.table
     __table_args__ = {"schema": TargetTable.ANSWERS_BOOLEAN.schema}
+    __mapper_args__ = {"polymorphic_identity": "boolean"}
 
-    answer_id: Mapped[UUID] = column_fk(target=f"{TargetTable.ANSWERS.fq_name}.id")
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
 
     value: Mapped[bool] = column_bool()
 
@@ -96,9 +70,10 @@ class AnswerBoolean(Base):
     )  # adjust name for each type
 
 
-class AnswerCardEntry(Base):
+class AnswerCardEntry(Answer):
     __tablename__ = TargetTable.ANSWERS_CARD_ENTRY.table
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
+    __mapper_args__ = {"polymorphic_identity": "AnswerCardEntry"}
 
     question_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
@@ -130,11 +105,14 @@ class AnswerCardEntry(Base):
     )
 
 
-class AnswerDate(Base):
+class AnswerDate(Answer):
     __tablename__ = TargetTable.ANSWERS_DATE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_DATE.schema}
+    __mapper_args__ = {"polymorphic_identity": "AnswerDate"}
 
-    answer_id: Mapped[UUID] = column_fk(target=f"{TargetTable.ANSWERS.fq_name}.id")
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
 
     value: Mapped[date] = column_date(nullable=True)
 
@@ -143,11 +121,15 @@ class AnswerDate(Base):
     answer: Mapped["Answer"] = relationship("Answer", back_populates="date_answer")
 
 
-class AnswerFile(Base):
+class AnswerFile(Answer):
     __tablename__ = TargetTable.ANSWERS_FILE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_FILE.schema}
+    __mapper_args__ = {"polymorphic_identity": "AnswerFile"}
 
-    answer_id: Mapped[UUID] = column_fk(target=f"{TargetTable.ANSWERS.fq_name}.id")
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
+
     value_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.FILES.fq_name}.id",
         ondelete="CASCADE",
@@ -160,11 +142,14 @@ class AnswerFile(Base):
     answer: Mapped["Answer"] = relationship("Answer", back_populates="file_answer")
 
 
-class AnswerMultiChoice(Base):
+class AnswerMultiChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_MULTI_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_MULTI_CHOICE.schema}
+    __mapper_args__ = {"polymorphic_identity": "AnswerMultiChoice"}
 
-    answer_id: Mapped[UUID] = column_fk(target=f"{TargetTable.ANSWERS.fq_name}.id")
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
 
     updated_at: Mapped[datetime] = column_updated_at()
 
@@ -176,11 +161,14 @@ class AnswerMultiChoice(Base):
     )  # adjust name for each type
 
 
-class AnswerNumeric(Base):
+class AnswerNumeric(Answer):
     __tablename__ = TargetTable.ANSWERS_NUMERIC.table
     __table_args__ = {"schema": TargetTable.ANSWERS_NUMERIC.schema}
+    __mapper_args__ = {"polymorphic_identity": "AnswerNumeric"}
 
-    answer_id: Mapped[UUID] = column_fk(target=f"{TargetTable.ANSWERS.fq_name}.id")
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
 
     value: Mapped[Decimal] = column_decimal()
 
@@ -191,11 +179,15 @@ class AnswerNumeric(Base):
     )  # adjust name for each type
 
 
-class AnswerSingleChoice(Base):
+class AnswerSingleChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_SINGLE_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_SINGLE_CHOICE.schema}
+    __mapper_args__ = {"polymorphic_identity": "AnswerSingleChoice"}
 
-    answer_id: Mapped[UUID] = column_fk(target=f"{TargetTable.ANSWERS.fq_name}.id")
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
+
     value_id: Mapped[UUID] = column_fk(target=f"{TargetTable.FIELD_CHOICES.fq_name}.id")
 
     updated_at: Mapped[datetime] = column_updated_at()
@@ -208,11 +200,14 @@ class AnswerSingleChoice(Base):
     )  # adjust name for each type
 
 
-class AnswerText(Base):
+class AnswerText(Answer):
     __tablename__ = TargetTable.ANSWERS_TEXT.table
     __table_args__ = {"schema": TargetTable.ANSWERS_TEXT.schema}
+    __mapper_args__ = {"polymorphic_identity": "AnswerText"}
 
-    answer_id: Mapped[UUID] = column_fk(target=f"{TargetTable.ANSWERS.fq_name}.id")
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
 
     value: Mapped[str] = column_long_text()
 
