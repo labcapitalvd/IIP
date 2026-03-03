@@ -2,7 +2,7 @@ from typing import cast
 from uuid import UUID
 
 from models import (
-    Criteria,
+    Criterion,
     Grade,
     Result,
 )
@@ -11,20 +11,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 
-class CriteriaRepository:
+class CriterionRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, id: UUID) -> Criteria | None:
-        stmt = select(Criteria).where(Criteria.id == id)
+    async def get_by_id(self, id: UUID) -> Criterion | None:
+        stmt = select(Criterion).where(Criterion.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: Criteria) -> None:
+    def add(self, entry: Criterion) -> None:
         session = cast(Session, self.session)
         session.add(entry)
 
-    def delete(self, entry: Criteria) -> None:
+    def delete(self, entry: Criterion) -> None:
         session = cast(Session, self.session)
         session.delete(entry)
 
