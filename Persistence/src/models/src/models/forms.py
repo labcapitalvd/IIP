@@ -45,7 +45,7 @@ class CardTemplate(Base):
         "FieldGroup", back_populates="card_template"
     )
     card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
-        "CardEntry", back_populates="card_template", cascade="all, delete-orphan"
+        "AnswerCardEntry", back_populates="card_template", cascade="all, delete-orphan"
     )
 
     criteria: Mapped[List["Criteria"]] = relationship(
@@ -122,8 +122,8 @@ class FieldChoice(Base):
     answer_links: Mapped[list["MultiChoiceOptionLink"]] = relationship(
         "MultiChoiceOptionLink", back_populates="choice"
     )
-    answer_link: Mapped["AnswerSingleChoice"] = relationship(
-        "SingleChoiceAnswer", back_populates="choice"
+    answer_link: Mapped[List["AnswerSingleChoice"]] = relationship(
+        "AnswerSingleChoice", back_populates="choice"
     )
     field: Mapped["Field"] = relationship("Field", back_populates="field_choices")
 
