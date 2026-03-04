@@ -5,12 +5,10 @@ from uuid import UUID
 from shared_db import (
     Base,
     column_decimal,
-    column_enum,
     column_fk,
     column_integer,
     column_short_text,
     column_updated_at,
-    column_uuid,
 )
 from sqlalchemy.orm import Mapped
 
