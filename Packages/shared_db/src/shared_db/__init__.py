@@ -16,7 +16,7 @@ from .column_abstractions import (
     column_slug,
     column_jsonb,
 )
-from .base_table import Base, TableInfo 
+from .base_table import Base, TableInfo, generate_table_enum
 
 from .db_engine import (
     sync_engine,
@@ -48,6 +48,7 @@ __all__ = [
     # base_table
     "Base",
     "TableInfo",
+    "generate_table_enum",
     # db_engine
     "sync_engine",
     "async_engine",

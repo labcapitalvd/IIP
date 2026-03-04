@@ -25,3 +25,12 @@ class TableInfo:
     def fq_name(self) -> str:
         return f"{self.schema}.{self.table}"
 
+def generate_table_enum(name, *registries):
+    members = {}
+    for registry in registries:
+        # Get all upper-case attributes that are TableInfo instances
+        for key, value in registry.__dict__.items():
+            if key.isupper() and isinstance(value, TableInfo):
+                # Use fq_name as the value stored in the DB
+                members[key] = value.fq_name
+    return Enum(name, members)
