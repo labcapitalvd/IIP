@@ -1,6 +1,5 @@
 import os
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +8,6 @@ from fastapi.responses import JSONResponse
 from shared_models.relationships import *
 from shared_utils import configure_logging, get_logger, BaseDomainError
 
-from routers.results import router as router_results
 
 configure_logging()
 

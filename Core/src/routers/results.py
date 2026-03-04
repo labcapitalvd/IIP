@@ -1,10 +1,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared_db import get_session
-from shared_utils import AccessContext, SessionContext
+from shared_utils import AccessContext
 
 from schemas.results import RequestResult
 
