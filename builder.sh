@@ -21,41 +21,17 @@ else
 fi
 
 if [[ "$1" == "applications" ]]; then
-  MODELS=$(date +%s)
+  APPLICATION=$(date +%s)
   shift
 else
-  MODELS=1
+  APPLICATION=1
 fi
 
 (
-  cd Persistence && docker compose build \
+  docker compose build \
     --build-arg INSTALLER="$INSTALLER" "$@" \
     --build-arg SHARED="$SHARED" "$@" \
     --build-arg MODELS="$MODELS" "$@" \
     --build-arg APPLICATION="$APPLICATION" "$@"
 )
 
-(
-  cd Core && docker compose build \
-    --build-arg INSTALLER="$INSTALLER" "$@" \
-    --build-arg SHARED="$SHARED" "$@" \
-    --build-arg MODELS="$MODELS" "$@" \
-    --build-arg APPLICATION="$APPLICATION" "$@"
-)
-
-(
-  cd IA-Agent && docker compose build \
-    --build-arg INSTALLER="$INSTALLER" "$@" \
-    --build-arg SHARED="$SHARED" "$@" \
-    --build-arg MODELS="$MODELS" "$@" \
-    --build-arg APPLICATION="$APPLICATION" "$@"
-)
-
-(
-  cd Stats && docker compose \
-    --profile prod build \
-    --build-arg INSTALLER="$INSTALLER" "$@" \
-    --build-arg SHARED="$SHARED" "$@" \
-    --build-arg MODELS="$MODELS" "$@" \
-    --build-arg APPLICATION="$APPLICATION" "$@"
-)

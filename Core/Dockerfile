@@ -20,43 +20,42 @@ RUN chmod +x /installer.sh
 # -----------------------------
 # 3. Install the packages
 # -----------------------------
-WORKDIR /packages
 ARG SHARED=1
-COPY Packages/shared_db .
-COPY Packages/shared_models .
-COPY Packages/shared_schemas .
-COPY Packages/shared_utils .
-RUN \
-    /installer.sh shared_db \
-    /installer.sh shared_models \
-    /installer.sh shared_schemas \
-    /installer.sh shared_utils
+WORKDIR /packages
 
-ARG MODELS=1
-COPY Packages/models .
+COPY Packages/shared_db ./shared_db
+COPY Packages/shared_models ./shared_models
+COPY Packages/shared_schemas ./shared_schemas
+COPY Packages/shared_utils ./shared_utils
+COPY Persistence/src/models ./models
 RUN \
-    /installer.sh models
-
-COPY src/pyproject.toml ./pyproject.toml
-RUN pip install --no-cache-dir .
+    /installer.sh /packages/shared_db &&\
+    /installer.sh /packages/shared_models &&\
+    /installer.sh /packages/shared_schemas &&\
+    /installer.sh /packages/shared_utils &&\
+    /installer.sh /packages/models
 
 # -----------------------------
 # 4. Copy app
 # -----------------------------
-WORKDIR /api
 ARG APPLICATION=1
-COPY src/main.py ./main.py
-COPY src/application ./application
-COPY src/domain ./domain
-COPY src/infrastructure ./infrastructure
-COPY src/routers ./routers
-COPY src/schemas ./schemas
-COPY src/utils ./utils
+WORKDIR /api
+
+COPY Core/src/pyproject.toml ./pyproject.toml
+RUN pip install --no-cache-dir .
+
+COPY Core/src/main.py ./main.py
+COPY Core/src/application ./application
+COPY Core/src/domain ./domain
+COPY Core/src/infrastructure ./infrastructure
+COPY Core/src/routers ./routers
+COPY Core/src/schemas ./schemas
+COPY Core/src/utils ./utils
 
 # -----------------------------
 # 5. setup entrypoint
 # -----------------------------
-COPY entrypoint_core.sh /entrypoint_core.sh
+COPY Core/entrypoint_core.sh /entrypoint_core.sh
 RUN chmod +x /entrypoint_core.sh
 ENTRYPOINT ["/entrypoint_core.sh"]
 
