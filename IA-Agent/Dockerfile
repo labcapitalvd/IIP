@@ -20,37 +20,36 @@ RUN chmod +x /installer.sh
 # -----------------------------
 # 3. Install the packages
 # -----------------------------
-WORKDIR /packages
 ARG SHARED=1
-COPY Packages/shared_db .
-COPY Packages/shared_models .
-COPY Packages/shared_schemas .
-COPY Packages/shared_utils .
-RUN \
-    /installer.sh shared_db \
-    /installer.sh shared_models \
-    /installer.sh shared_schemas \
-    /installer.sh shared_utils
+WORKDIR /packages
 
-ARG MODELS=1
-COPY Packages/models .
+COPY Packages/shared_db ./shared_db
+COPY Packages/shared_models ./shared_models
+COPY Packages/shared_schemas ./shared_schemas
+COPY Packages/shared_utils ./shared_utils
+COPY Persistence/src/models ./models
 RUN \
-    /installer.sh models
-
-COPY src/pyproject.toml ./pyproject.toml
-RUN pip install --no-cache-dir .
+    /installer.sh /packages/shared_db &&\
+    /installer.sh /packages/shared_models &&\
+    /installer.sh /packages/shared_schemas &&\
+    /installer.sh /packages/shared_utils &&\
+    /installer.sh /packages/models
 
 # -----------------------------
 # 4. Copy app
 # -----------------------------
-WORKDIR /api
 ARG APPLICATION=1
-COPY src/main.py ./main.py
+WORKDIR /api
+
+COPY IA-Agent/src/pyproject.toml ./pyproject.toml
+RUN pip install --no-cache-dir .
+
+COPY IA-Agent/src/main.py ./main.py
 
 # -----------------------------
 # 5. setup entrypoint
 # -----------------------------
-COPY entrypoint_agent.sh /entrypoint_agent.sh
+COPY IA-Agent/entrypoint_agent.sh /entrypoint_agent.sh
 RUN chmod +x /entrypoint_agent.sh
 ENTRYPOINT ["/entrypoint_agent.sh"]
 
