@@ -1,11 +1,11 @@
-from uuid import UUID
 from datetime import datetime
-
-from sqlalchemy.orm import Mapped
+from uuid import UUID
 
 from shared_db import Base, column_fk, column_updated_at
+from sqlalchemy.orm import Mapped, relationship
 
-from ...targets import CoreTargetTable as TargetTable
+from .targets import CoreTargetTable as TargetTable
+
 
 class UserFileLink(Base):
     __tablename__ = TargetTable.LINK_USER_FILE.table
@@ -28,3 +28,7 @@ class UserFileLink(Base):
     )
 
     updated_at: Mapped[datetime] = column_updated_at()
+
+    user = relationship("User", back_populates="file_links")
+    file = relationship("File", back_populates="user_links")
+    roles = relationship("Role", back_populates="user_file_link")

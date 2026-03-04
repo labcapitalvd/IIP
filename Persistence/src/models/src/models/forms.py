@@ -11,13 +11,13 @@ from shared_db import (
     column_short_text,
     column_updated_at,
 )
-from sqlalchemy import Index, and_
-from sqlalchemy.orm import Mapped, foreign, relationship, remote
+from sqlalchemy import Index
+from sqlalchemy.orm import Mapped, relationship
 
 from models.targets import TargetTable
 
 if TYPE_CHECKING:
-    from .grading import Criteria
+    from .grading import Criterion
     from .links import MultiChoiceOptionLink
     from .reference import FieldType
     from .rules import FieldDependency, FieldRule, SectionDependency
@@ -48,15 +48,12 @@ class CardTemplate(Base):
         "AnswerCardEntry", back_populates="card_template", cascade="all, delete-orphan"
     )
 
-    criteria: Mapped[List["Criteria"]] = relationship(
-        "Criteria",
-        primaryjoin=lambda: and_(
-            foreign(Criteria.target_id) == remote(Question.id),
-            Criteria.target == TargetTable.QUESTIONS.table,
-        ),
-        viewonly=True,
-        overlaps="criteria",
-    )
+    criteria: Mapped[List["Criterion"]] = relationship(
+    "Criterion",
+    # Flip remote to the Criterion side
+    primaryjoin="remote(Criterion.question_id) == foreign(Question.id)",
+    viewonly=True,
+)
 
 
 class Field(Base):
@@ -219,15 +216,12 @@ class Question(Base):
     card_templates: Mapped[List["CardTemplate"]] = relationship(
         "CardTemplate", back_populates="question"
     )
-
-    criteria: Mapped[List["Criteria"]] = relationship(
-        "Criteria",
-        primaryjoin=lambda: and_(
-            foreign(Criteria.target_id) == Question.id,
-            Criteria.target == TargetTable.QUESTIONS.table,
-        ),
+    criteria: Mapped[List["Criterion"]] = relationship(
+        "Criterion",
+        # Use the FK that actually links them now
+        primaryjoin="foreign(Criterion.question_id) == remote(Question.id)",
         viewonly=True,
-        overlaps="criteria",
+        # No need for manual 'target == questions' anymore!
     )
 
 

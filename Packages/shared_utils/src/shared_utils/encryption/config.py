@@ -1,4 +1,3 @@
-import webencodings
 import os
 
 from shared_utils.logger import get_logger

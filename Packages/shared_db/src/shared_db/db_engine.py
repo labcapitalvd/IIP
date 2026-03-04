@@ -1,4 +1,3 @@
-from shared_utils import encrypt
 import os
 from typing import AsyncGenerator, Dict, Callable
 

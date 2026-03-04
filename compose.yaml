@@ -38,6 +38,9 @@ services:
 
   persister:
     container_name: iip_persister
+    build:
+      context: .
+      dockerfile: Persistence/Dockerfile
     image: labcapital/apps:IIP-Persister
     env_file: ./.env
     secrets:
@@ -65,7 +68,7 @@ services:
       context: .
       dockerfile: Auth/Dockerfile
 
-    image: labcapital/apps:Auth
+    image: labcapital/apps:IIP-Auth
     env_file: ./.env
     secrets:
       - jwt_private_key

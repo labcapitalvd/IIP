@@ -1,6 +1,5 @@
 from datetime import date, datetime
 from decimal import Decimal
-from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
@@ -15,14 +14,16 @@ from shared_db import (
     column_short_text,
     column_updated_at,
 )
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, column_property, relationship
 
+from models import FieldTypesEnum as AnswerType
 from models.targets import TargetTable
 
 if TYPE_CHECKING:
     from .forms import CardTemplate, Field, FieldChoice
     from .links import MultiChoiceOptionLink, UserSubmissionLink
     from .reference import SubmissionStatusType
+
 
 class Answer(Base):
     __tablename__ = TargetTable.ANSWERS.table
@@ -54,7 +55,7 @@ class Answer(Base):
     )
     field: Mapped["Field"] = relationship("Field", back_populates="answers")
     card_entry: Mapped[Optional["AnswerCardEntry"]] = relationship(
-        "AnswerCardEntry", back_populates="answers"
+        "AnswerCardEntry", foreign_keys=[card_entry_id], back_populates="answers"
     )
 
 
@@ -69,13 +70,23 @@ class AnswerBoolean(Answer):
 
     value: Mapped[bool] = column_bool()
 
-    updated_at: Mapped[datetime] = column_updated_at()
-
 
 class AnswerCardEntry(Answer):
     __tablename__ = TargetTable.ANSWERS_CARD_ENTRY.table
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.CARD.value}
+    __mapper_args__ = {
+        "polymorphic_identity": AnswerType.CARD.value,
+        "inherit_condition": id == Answer.id,
+    }
+
+    id: Mapped[UUID] = column_property(
+        column_fk(
+            target=f"{TargetTable.ANSWERS.fq_name}.id",
+            primary_key=True,
+            ondelete="CASCADE",
+        ),
+        Answer.id,
+    )
 
     question_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
@@ -85,16 +96,18 @@ class AnswerCardEntry(Answer):
         ondelete="CASCADE",
         nullable=False,
     )
-    submission_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.SUBMISSIONS.fq_name}.id",
-        ondelete="CASCADE",
-        nullable=False,
+
+    submission_id: Mapped[UUID] = column_property(
+        column_fk(
+            target=f"{TargetTable.SUBMISSIONS.fq_name}.id",
+            ondelete="CASCADE",
+            nullable=False,
+        ),
+        Answer.submission_id,
     )
 
     title: Mapped[str] = column_short_text(length=255)
     card_index: Mapped[int] = column_integer()
-
-    updated_at: Mapped[datetime] = column_updated_at()
 
     card_template: Mapped["CardTemplate"] = relationship(
         "CardTemplate", back_populates="card_entries"
@@ -103,7 +116,7 @@ class AnswerCardEntry(Answer):
         "Submission", back_populates="card_entries"
     )
     answers: Mapped[List["Answer"]] = relationship(
-        "Answer", back_populates="card_entry", cascade="all, delete-orphan"
+        "Answer", foreign_keys="Answer.card_entry_id", back_populates="card_entry"
     )
 
 
@@ -117,8 +130,6 @@ class AnswerDate(Answer):
     )
 
     value: Mapped[date] = column_date(nullable=True)
-
-    updated_at: Mapped[datetime] = column_updated_at()
 
 
 class AnswerFile(Answer):
@@ -137,8 +148,6 @@ class AnswerFile(Answer):
         nullable=True,
     )
 
-    updated_at: Mapped[datetime] = column_updated_at()
-
 
 class AnswerMultiChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_MULTI_CHOICE.table
@@ -148,8 +157,6 @@ class AnswerMultiChoice(Answer):
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-
-    updated_at: Mapped[datetime] = column_updated_at()
 
     option_links: Mapped[list["MultiChoiceOptionLink"]] = relationship(
         "MultiChoiceOptionLink", back_populates="answer", cascade="all, delete-orphan"
@@ -167,8 +174,6 @@ class AnswerNumeric(Answer):
 
     value: Mapped[Decimal] = column_decimal()
 
-    updated_at: Mapped[datetime] = column_updated_at()
-
 
 class AnswerSingleChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_SINGLE_CHOICE.table
@@ -180,8 +185,6 @@ class AnswerSingleChoice(Answer):
     )
 
     value_id: Mapped[UUID] = column_fk(target=f"{TargetTable.FIELD_CHOICES.fq_name}.id")
-
-    updated_at: Mapped[datetime] = column_updated_at()
 
     choice: Mapped["FieldChoice"] = relationship(
         "FieldChoice", back_populates="answer_link"
@@ -199,8 +202,6 @@ class AnswerText(Answer):
 
     value: Mapped[str] = column_long_text()
 
-    updated_at: Mapped[datetime] = column_updated_at()
-
 
 class Submission(Base):
     __tablename__ = TargetTable.SUBMISSIONS.table
@@ -217,8 +218,6 @@ class Submission(Base):
         ondelete="SET NULL",
     )
 
-    updated_at: Mapped[datetime] = column_updated_at()
-
     status: Mapped["SubmissionStatusType"] = relationship(
         "SubmissionStatusType", back_populates="submission", uselist=False
     )
@@ -227,6 +226,9 @@ class Submission(Base):
         "UserSubmissionLink", back_populates="submission"
     )
     card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
-        "AnswerCardEntry", back_populates="submission"
+        "AnswerCardEntry",
+        back_populates="submission",
+        # Add this line to resolve the ambiguity
+        foreign_keys="[AnswerCardEntry.submission_id]",
     )
     answers: Mapped["Answer"] = relationship("Answer", back_populates="submission")

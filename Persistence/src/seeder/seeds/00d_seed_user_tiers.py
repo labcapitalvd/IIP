@@ -20,7 +20,7 @@ def upgrade() -> None:
                 continue  # Skip this one
             session.add(
                 UserTier(
-                    label=tier,
+                    label=tier.label,
                     max_file_size=tier.max_file_size,
                     storage_quota=tier.storage_quota,
                     max_requests_per_minute=tier.max_requests_per_minute,

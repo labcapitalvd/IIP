@@ -41,8 +41,8 @@ class MultiChoiceOptionLink(Base):
     choice: Mapped["FieldChoice"] = relationship(
         "FieldChoice", back_populates="answer_links"
     )
-    answer: Mapped["MultiChoiceAnswer"] = relationship(
-        "MultiChoiceAnswer", back_populates="option_links"
+    answer: Mapped["AnswerMultiChoice"] = relationship(
+        "AnswerMultiChoice", back_populates="option_links"
     )
 
 

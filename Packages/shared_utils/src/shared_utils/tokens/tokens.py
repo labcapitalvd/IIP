@@ -4,7 +4,7 @@ from typing import Literal, Annotated
 from uuid import UUID
 from uuid_utils import uuid7
 
-from fastapi import Request, Response, Header, HTTPException, Cookie, Body, Depends
+from fastapi import Request, Response, Header, Cookie, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from joserfc import jwt

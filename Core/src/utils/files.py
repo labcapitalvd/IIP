@@ -1,7 +1,6 @@
 import re
 import os
 from typing import Optional
-from uuid import UUID
 import hashlib
 
 from fastapi import UploadFile

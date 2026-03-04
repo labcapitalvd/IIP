@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from application import AuthAppService
 from schemas.auth import RequestRegister, RequestLogin
 
-from domain.services.auth.errors import UserAlreadyExists
 
 from shared_schemas import ResponseAuth, ResponseMessage
-from shared_utils import AccessContext, SessionContext
+from shared_utils import SessionContext
 
 router = APIRouter(tags=["Autenticación"], prefix="/auth")
 
