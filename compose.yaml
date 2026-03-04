@@ -38,6 +38,9 @@ services:
 
   persister:
     container_name: iip_persister
+    build:
+      context: .
+      dockerfile: Persistence/Dockerfile
     image: labcapital/apps:IIP-Persister
     env_file: ./.env
     secrets:
