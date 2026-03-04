@@ -2,7 +2,6 @@
 # Stage 1: Start application
 # =================================================
 FROM python:3.14-slim-bookworm
-WORKDIR /api
 RUN apt-get update && apt-get install -y \
     gcc\
     g++\
@@ -12,31 +11,31 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------
-# 2. Install shared packages from GitHub
+# 2. Get the installer
 # -----------------------------
-ARG FETCHER=1
-RUN --mount=type=secret,id=github_token_commons \
-    export GITHUB_TOKEN_COMMONS=$(cat /run/secrets/github_token_commons) && \
-    curl -L -H "Authorization: token ${GITHUB_TOKEN_COMMONS}" \
-    -H "Accept: application/vnd.github.v3.raw" \
-    "https://api.github.com/repos/labcapitalvd/Commons/contents/Packages/shared_utils/fetch.sh?ref=main" \
-    -o /usr/local/bin/fetch.sh && \
-    chmod +x /usr/local/bin/fetch.sh
+ARG INSTALLER=1
+COPY Packages/installer.sh /installer.sh
+RUN chmod +x /installer.sh
 
 # -----------------------------
-# 3. Config virtual environment
+# 3. Install the packages
 # -----------------------------
-ARG PACKAGES=1
-RUN --mount=type=secret,id=github_token_commons \
-    TOKEN=$(cat /run/secrets/github_token_commons) && \
-    /usr/local/bin/fetch.sh labcapitalvd/Commons shared_db.zip "$TOKEN" && \
-    /usr/local/bin/fetch.sh labcapitalvd/Commons shared_models.zip "$TOKEN" && \
-    /usr/local/bin/fetch.sh labcapitalvd/Commons shared_schemas.zip "$TOKEN" && \
-    /usr/local/bin/fetch.sh labcapitalvd/Commons shared_utils.zip "$TOKEN"
+WORKDIR /packages
+ARG SHARED=1
+COPY Packages/shared_db .
+COPY Packages/shared_models .
+COPY Packages/shared_schemas .
+COPY Packages/shared_utils .
+RUN \
+    /installer.sh shared_db \
+    /installer.sh shared_models \
+    /installer.sh shared_schemas \
+    /installer.sh shared_utils
 
-RUN --mount=type=secret,id=github_token_iip \
-    TOKEN=$(cat /run/secrets/github_token_iip) && \
-    /usr/local/bin/fetch.sh labcapitalvd/IIP models.zip "$TOKEN"
+ARG MODELS=1
+COPY Packages/models .
+RUN \
+    /installer.sh models
 
 COPY src/pyproject.toml ./pyproject.toml
 RUN pip install --no-cache-dir .
@@ -44,7 +43,8 @@ RUN pip install --no-cache-dir .
 # -----------------------------
 # 4. Copy app
 # -----------------------------
-ARG APPLCATION=1
+WORKDIR /api
+ARG APPLICATION=1
 COPY src/migrator ./migrator
 COPY src/schemer ./schemer
 COPY src/seeder ./seeder
