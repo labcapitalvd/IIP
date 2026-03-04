@@ -1,0 +1,17 @@
+[project]
+name = "api"
+version = "0.1.0"
+description = "Contenedor encargado de publicar endpoints desde la base de datos"
+requires-python = ">=3.12"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "alembic>=1.17.1",
+    "argon2-cffi>=25.1.0",
+    "fastapi>=0.120.2",
+    "joserfc>=1.4.0",
+    "pydantic[email]>=2.12.3",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.44",
+    "uuid-utils>=0.14.0",
+    "uvicorn>=0.38.0",
+]
