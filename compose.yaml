@@ -65,7 +65,7 @@ services:
       context: .
       dockerfile: Auth/Dockerfile
 
-    image: labcapital/apps:Auth
+    image: labcapital/apps:IIP-Auth
     env_file: ./.env
     secrets:
       - jwt_private_key
