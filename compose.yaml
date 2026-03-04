@@ -61,6 +61,10 @@ services:
 
   api_auth:
     container_name: iip_api_auth
+    build:
+      context: .
+      dockerfile: Auth/Dockerfile
+
     image: labcapital/apps:Auth
     env_file: ./.env
     secrets:
@@ -77,6 +81,9 @@ services:
 
   api_core:
     container_name: iip_api_core
+    build:
+      context: .
+      dockerfile: Core/Dockerfile
     image: labcapital/apps:IIP-Core
     env_file: ./.env
     secrets:
@@ -90,6 +97,9 @@ services:
 
   api_ia_agent:
     container_name: iip_api_ia_agent
+    build:
+      context: .
+      dockerfile: IA-Agent/Dockerfile
     image: labcapital/apps:IIP-IA-Agent
     env_file: ./.env
     secrets:
