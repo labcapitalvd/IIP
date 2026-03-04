@@ -1,6 +1,6 @@
 from sqlalchemy.orm import relationship
 
-from ... import UserFileLink
+from .. import UserFileLink
 
 
 UserFileLink.user = relationship(

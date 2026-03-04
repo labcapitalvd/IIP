@@ -1,6 +1,6 @@
 from sqlalchemy.orm import relationship
 
-from ... import File
+from .. import File, FileType
 
 
 File.profile = relationship(
@@ -11,4 +11,8 @@ File.user_links = relationship(
 )
 File.type = relationship(
     "FileType", back_populates="file", uselist=False
+)
+
+FileType.file = relationship(
+    "File", back_populates="type", uselist=False
 )

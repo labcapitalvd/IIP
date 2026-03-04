@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped
 
 from shared_db import Base, column_fk, column_updated_at
 
-from ...targets import CoreTargetTable as TargetTable
+from ..targets import CoreTargetTable as TargetTable
 
 class UserFileLink(Base):
     __tablename__ = TargetTable.LINK_USER_FILE.table
