@@ -1,8 +1,5 @@
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Body, Path, UploadFile, File
-from fastapi.responses import FileResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter
 
 # from handlers.files import FileHandler
 # from schemas.files import (
