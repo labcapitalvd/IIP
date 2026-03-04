@@ -29,7 +29,6 @@ class LogActionType(Base):
     description: Mapped[str] = column_long_text()
 
     log = relationship("ActivityLog", back_populates="type", uselist=False)
-    type = relationship("LogActionType", back_populates="log", uselist=False)
 
 
 class ActivityLog(Base):
@@ -47,3 +46,6 @@ class ActivityLog(Base):
     description: Mapped[str] = column_long_text(nullable=True)
 
     timestamp: Mapped[datetime] = column_updated_at()
+
+    type = relationship("LogActionType", back_populates="log", uselist=False)
+    
