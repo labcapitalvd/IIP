@@ -44,6 +44,6 @@ members = [
     "Packages/shared_db",
     "Packages/shared_models",
     "Packages/shared_schemas",
-    "Packages/shared_utils"
+    "Packages/shared_utils",
     "Persistence/src/models"
 ]
