@@ -18,7 +18,7 @@ def upgrade() -> None:
                 continue  # Skip this one
             session.add(
                 NotificationType(
-                    label=type,
+                    label=type.label,
                     description=type.description,
                 )
             )

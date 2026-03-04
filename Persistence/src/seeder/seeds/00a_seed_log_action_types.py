@@ -19,7 +19,7 @@ def upgrade() -> None:
                 continue  # Skip this one
             session.add(
                 LogActionType(
-                    label=type,
+                    label=type.label,
                     description=type.description,
                 )
             )

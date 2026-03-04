@@ -17,7 +17,7 @@ def upgrade() -> None:
                 continue  # Skip this one
             session.add(
                 FieldType(
-                    label=tier,
+                    label=tier.label,
                     description=tier.description,
                 )
             )
