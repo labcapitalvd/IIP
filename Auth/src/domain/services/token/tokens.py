@@ -8,7 +8,7 @@ from shared_utils.hashing import hash_token, verify_token
 from infrastructure.uow import AuthUoW
 
 from shared_utils import get_logger
-from .errors import TokenRevoked, TokenExpired, TokenError, TokenMalformed
+from .errors import TokenRevoked, TokenExpired, TokenError
 
 
 logger = get_logger(__name__)
@@ -35,7 +35,7 @@ class TokenService:
             expires_at=datetime.fromtimestamp(expr, tz=timezone.utc),
         )
 
-        uow.tokens.create_refresh_token(token=db_token)
+        uow.tokens.create_refresh_token(entry=db_token)
         return client_access_token, client_refresh_token
 
     async def reauth(self, client_refresh_token: str, uow: AuthUoW) -> tuple[str, str]:
