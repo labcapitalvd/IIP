@@ -1,17 +1,16 @@
-from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
-
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String
+from uuid import UUID
 
 from shared_db import (
     Base,
+    column_decimal,
+    column_fk,
     column_short_text,
     column_updated_at,
-    column_fk,
-    column_decimal,
 )
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .targets import CoreTargetTable as TargetTable
 
@@ -25,6 +24,8 @@ class FileType(Base):
     extension: Mapped[str] = column_short_text(length=255)
     category: Mapped[str] = column_short_text(length=255)
     max_size: Mapped[Decimal] = column_decimal(precision=15, scale=0)
+
+    file = relationship("File", back_populates="type", uselist=False)
 
 
 class File(Base):
@@ -45,5 +46,8 @@ class File(Base):
     )
     filesize: Mapped[Decimal] = column_decimal(precision=15, scale=0)
 
-    
     updated_at: Mapped[datetime] = column_updated_at()
+
+    profile = relationship("UserProfile", back_populates="file", uselist=False)
+    user_links = relationship("UserFileLink", back_populates="file")
+    type = relationship("FileType", back_populates="file", uselist=False)

@@ -1,20 +1,20 @@
+from datetime import datetime
 from enum import Enum
 from uuid import UUID
-from datetime import datetime
-
-from sqlalchemy.orm import Mapped
 
 from shared_db import (
     Base,
+    column_bool,
     column_enum,
     column_fk,
     column_long_text,
+    column_short_text,
     column_updated_at,
     column_uuid,
-    column_short_text,
-    column_bool,
-    generate_table_enum
+    generate_table_enum,
 )
+from sqlalchemy.orm import Mapped, relationship
+
 from shared_models.targets import CoreTargetTable
 
 from .targets import CoreTargetTable as TargetTable
@@ -28,6 +28,8 @@ class NotificationType(Base):
 
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
+
+    notification = relationship("Notification", back_populates="type", uselist=False)
 
 
 class Notification(Base):
@@ -46,8 +48,12 @@ class Notification(Base):
 
     is_read: Mapped[bool] = column_bool(default=False)
 
-    
     updated_at: Mapped[datetime] = column_updated_at()
+
+    user = relationship("User", back_populates="notifications")
+    type = relationship(
+        "NotificationType", back_populates="notification", uselist=False
+    )
 
 
 class CommentType(Base):
@@ -56,6 +62,8 @@ class CommentType(Base):
 
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
+
+    comment = relationship("Comment", back_populates="type", uselist=False)
 
 
 class Comment(Base):
@@ -73,5 +81,7 @@ class Comment(Base):
     label: Mapped[str] = column_short_text(255)
     content: Mapped[str] = column_long_text()
 
-    
     updated_at: Mapped[datetime] = column_updated_at()
+
+    user = relationship("User", back_populates="comments")
+    type = relationship("CommentType", back_populates="comment", uselist=False)

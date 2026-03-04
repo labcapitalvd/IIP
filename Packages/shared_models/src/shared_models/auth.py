@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Mapped
-
+from sqlalchemy.orm import relationship
 from shared_db import (
     Base,
     column_bool,
@@ -24,11 +24,13 @@ class Role(Base):
     """
     name: canonical role code (matches RoleCode enum)
     """
+
     __tablename__ = TargetTable.ROLES.table
     __table_args__ = {"schema": TargetTable.ROLES.schema}
 
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
+    user_file_link = relationship("UserFileLink", back_populates="roles")
 
 
 class UserTier(Base):
@@ -41,8 +43,9 @@ class UserTier(Base):
     max_requests_per_minute: Mapped[int] = column_integer()
     priority_level: Mapped[int] = column_integer()
 
-    
     updated_at: Mapped[datetime] = column_updated_at()
+
+    user = relationship("User", back_populates="tier", uselist=False)
 
 
 class RefreshSession(Base):
@@ -53,9 +56,10 @@ class RefreshSession(Base):
 
     jti: Mapped[UUID] = column_uuid()
     refresh_hash: Mapped[str] = column_short_text()
-    
+
     expires_at: Mapped[datetime] = column_datetime()
     is_active: Mapped[bool] = column_bool()
+    user = relationship("User", back_populates="refresh_sessions")
 
 
 class UserDetails(Base):
@@ -69,8 +73,10 @@ class UserDetails(Base):
     email_pro: Mapped[str] = column_short_text(length=255, unique=True, nullable=False)
     job_title: Mapped[str] = column_short_text(length=255, nullable=True)
     area: Mapped[str] = column_short_text(length=255, nullable=True)
-    
+
     updated_at: Mapped[datetime] = column_updated_at()
+
+    user = relationship("User", back_populates="details", uselist=False)
 
 
 class UserProfile(Base):
@@ -88,8 +94,11 @@ class UserProfile(Base):
     )
 
     biography: Mapped[str | None] = column_long_text(nullable=True)
-    
+
     updated_at: Mapped[datetime] = column_updated_at()
+
+    user = relationship("User", back_populates="profile", uselist=False)
+    file = relationship("File", back_populates="profile", uselist=False)
 
 
 class User(Base):
@@ -109,3 +118,11 @@ class User(Base):
     media_usage: Mapped[Decimal] = column_decimal(
         precision=15, scale=0, default=Decimal(0)
     )
+
+    profile = relationship("UserProfile", back_populates="user", uselist=False)
+    details = relationship("UserDetails", back_populates="user", uselist=False)
+    tier = relationship("UserTier", back_populates="user", uselist=False)
+    notifications = relationship("Notification", back_populates="user")
+    comments = relationship("Comment", back_populates="user")
+    file_links = relationship("UserFileLink", back_populates="user")
+    refresh_sessions = relationship("RefreshSession", back_populates="user")

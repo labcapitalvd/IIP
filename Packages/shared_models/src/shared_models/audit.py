@@ -1,24 +1,25 @@
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
-
-from sqlalchemy.orm import Mapped
+from uuid import UUID
 
 from shared_db import (
     Base,
     column_enum,
+    column_fk,
     column_long_text,
     column_short_text,
     column_updated_at,
-    column_fk,
     column_uuid,
     generate_table_enum,
 )
+from sqlalchemy.orm import Mapped, relationship
+
 from shared_models.targets import CoreTargetTable
 
 from .targets import CoreTargetTable as TargetTable
 
 TargetTableEnum = generate_table_enum("TargetTableEnum", CoreTargetTable, TargetTable)
+
 
 class LogActionType(Base):
     __tablename__ = TargetTable.LOG_ACTION_TYPES.table
@@ -26,6 +27,9 @@ class LogActionType(Base):
 
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
+
+    log = relationship("ActivityLog", back_populates="type", uselist=False)
+    type = relationship("LogActionType", back_populates="log", uselist=False)
 
 
 class ActivityLog(Base):
