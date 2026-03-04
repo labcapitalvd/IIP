@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from fastapi import UploadFile
 
-from .allowed_types import FileTypeEnum
+from models import FileTypesEnum
 
 
 class FileError(Exception):
@@ -23,8 +23,8 @@ class FileExtensionError(FileError):
 
 class FileUtils:
     def check_file_type(
-        self, filetype: str, allowed_types: list[FileTypeEnum]
-    ) -> FileTypeEnum:
+        self, filetype: str, allowed_types: list[FileTypesEnum]
+    ) -> FileTypesEnum:
         if not filetype:
             raise FileExtensionError("File has no extension.")
 
@@ -34,7 +34,7 @@ class FileUtils:
 
         raise FileExtensionError("Unsupported file format.")
 
-    def determine_subpath(self, filetype: FileTypeEnum) -> str:
+    def determine_subpath(self, filetype: FileTypesEnum) -> str:
         if not hasattr(filetype, "category"):
             raise FileExtensionError("Invalid file format.")
         return filetype.category
