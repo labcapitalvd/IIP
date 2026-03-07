@@ -5,7 +5,7 @@ from shared_models import File, FileType
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from utils.allowed_types import FileTypeEnum
+from models import FileTypesEnum
 
 
 class FileRepository:
@@ -14,7 +14,7 @@ class FileRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_filetype(self, filetype_enum: FileTypeEnum) -> FileType:
+    async def get_filetype(self, filetype_enum: FileTypesEnum) -> FileType:
         stmt = select(FileType).where(FileType.label == filetype_enum.label)
         result = await self.session.execute(stmt)
         return result.scalar_one()
