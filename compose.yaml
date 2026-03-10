@@ -55,10 +55,15 @@ services:
 
   front_stats:
     container_name: iip_stats
-    image: labcapital/apps:IIP-Stats
+    build:
+      context: .
+      dockerfile: Dockerfile.angular
+    image: labcapital/apps:IIP-Stats-Angular
     env_file: ./.env
     networks:
       - iip_nginx
+    ports:
+      - "3000:3000"
 
   api_auth:
     container_name: iip_api_auth
