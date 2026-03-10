@@ -48,13 +48,6 @@ class CardTemplate(Base):
         "AnswerCardEntry", back_populates="card_template", cascade="all, delete-orphan"
     )
 
-    criteria: Mapped[List["Criterion"]] = relationship(
-    "Criterion",
-    # Flip remote to the Criterion side
-    primaryjoin="remote(Criterion.question_id) == foreign(Question.id)",
-    viewonly=True,
-)
-
 
 class Field(Base):
     __tablename__ = TargetTable.FIELDS.table

@@ -3,26 +3,31 @@
 # ============================================================
 *.env
 *.env.local
+*.env.*.local
 *.key
 *.pem
 *.crt
 *.token
 *_token.txt
 *_password.txt
+github_token.txt
+Secrets/
 
 # ============================================================
-# NODE & BUILD
+# PYTHON
 # ============================================================
-node_modules/
-npm-debug.log
-yarn-error.log
-.npm/
-pnpm-debug.log
-pnpm-lock.yaml.bak
-dist/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
 build/
-.svelte-kit/
-.bun/
+dist/
+*.egg-info/
+.venv/
+env/
+venv/
+.ruff_cache/
+*.lock
 
 # ============================================================
 # IDE & EDITOR
@@ -40,4 +45,3 @@ build/
 *.log
 .cache/
 .tmp/
-temp/

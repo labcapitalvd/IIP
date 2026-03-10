@@ -21,10 +21,8 @@ services:
     container_name: iip_db
     image: postgres:18-bookworm
     env_file: ./.env
-    secrets:
-      - postgres_password
     environment:
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
       - iip_db_net
       - pgadmin_net
@@ -124,8 +122,8 @@ networks:
     name: iip_nginx_network
 
   pgadmin_net:
+    driver: bridge
     name: pgadmin_network
-    external: true
 
 volumes:
   postgresql:
