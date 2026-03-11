@@ -97,23 +97,11 @@ class AnswerCardEntry(Answer):
         nullable=False,
     )
 
-    submission_id: Mapped[UUID] = column_property(
-        column_fk(
-            target=f"{TargetTable.SUBMISSIONS.fq_name}.id",
-            ondelete="CASCADE",
-            nullable=False,
-        ),
-        Answer.submission_id,
-    )
-
     title: Mapped[str] = column_short_text(length=255)
     card_index: Mapped[int] = column_integer()
 
     card_template: Mapped["CardTemplate"] = relationship(
         "CardTemplate", back_populates="card_entries"
-    )
-    submission: Mapped["Submission"] = relationship(
-        "Submission", back_populates="card_entries"
     )
     answers: Mapped[List["Answer"]] = relationship(
         "Answer", foreign_keys="Answer.card_entry_id", back_populates="card_entry"
@@ -225,10 +213,12 @@ class Submission(Base):
     user_links: Mapped["UserSubmissionLink"] = relationship(
         "UserSubmissionLink", back_populates="submission"
     )
+    answers: Mapped[List["Answer"]] = relationship(
+        "Answer", back_populates="submission", cascade="all, delete-orphan"
+    )
     card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
         "AnswerCardEntry",
         back_populates="submission",
-        # Add this line to resolve the ambiguity
-        foreign_keys="[AnswerCardEntry.submission_id]",
+        viewonly=True,
+        foreign_keys="Answer.submission_id",
     )
-    answers: Mapped["Answer"] = relationship("Answer", back_populates="submission")
