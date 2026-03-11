@@ -5,9 +5,9 @@ set -eu
 MODE="${1:-}"
 shift || true
 
-if [ -f .env ]; then
+if [ -f ../.env ]; then
   set -o allexport
-  source .env
+  source ../.env
   set +o allexport
 else
   echo "⚠️  Warning: .env file not found, environment variables may be missing."

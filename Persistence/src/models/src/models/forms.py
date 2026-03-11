@@ -47,13 +47,12 @@ class CardTemplate(Base):
     card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
         "AnswerCardEntry", back_populates="card_template", cascade="all, delete-orphan"
     )
-
-    criteria: Mapped[List["Criterion"]] = relationship(
-    "Criterion",
-    # Flip remote to the Criterion side
-    primaryjoin="remote(Criterion.question_id) == foreign(Question.id)",
-    viewonly=True,
-)
+    criterion: Mapped[List["Criterion"]] = relationship(
+        "Criterion",
+        primaryjoin="CardTemplate.question_id ==                            foreign(Criterion.question_id)",
+        viewonly=True,
+        uselist=True,
+    )
 
 
 class Field(Base):
@@ -218,10 +217,8 @@ class Question(Base):
     )
     criteria: Mapped[List["Criterion"]] = relationship(
         "Criterion",
-        # Use the FK that actually links them now
-        primaryjoin="foreign(Criterion.question_id) == remote(Question.id)",
+        primaryjoin="foreign(Criterion.question_id) == Question.id",
         viewonly=True,
-        # No need for manual 'target == questions' anymore!
     )
 
 
