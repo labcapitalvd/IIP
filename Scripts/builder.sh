@@ -28,7 +28,7 @@ else
 fi
 
 (
-  docker compose build \
+  docker compose -f ../compose.yaml build \
     --build-arg INSTALLER="$INSTALLER" "$@" \
     --build-arg SHARED="$SHARED" "$@" \
     --build-arg MODELS="$MODELS" "$@" \
