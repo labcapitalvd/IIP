@@ -4,11 +4,11 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-login',
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss']
+  selector: 'app-register',
+  templateUrl: './register.component.html',
+  styleUrls: ['./register.component.scss']
 })
-export class LoginComponent implements OnInit {
+export class RegisterComponent implements OnInit {
   loginForm!: FormGroup;
   loading = false;
   error: string | null = null;
@@ -22,6 +22,7 @@ export class LoginComponent implements OnInit {
   ngOnInit(): void {
     this.loginForm = this.fb.group({
       username: ['', [Validators.required]],
+      email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required]]
     });
   }
@@ -34,19 +35,20 @@ export class LoginComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    const { username, password } = this.loginForm.value;
+    const { username, password, email } = this.loginForm.value;
     const body = new URLSearchParams();
     body.set('grant_type', 'password');
     body.set('username', username);
     body.set('password', password);
+    body.set('email', email);
 
     // Cambiar URL según tu configuración real
-    this.http.post<any>('https://localhost:8001/auth/login', body.toString(), {
+    this.http.post<any>('https://localhost:8001/public/auth/register', body.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     }).subscribe({
       next: (response) => {
         this.loading = false;
-        console.log('Login exitoso', response);
+        console.log('Registro exitoso', response);
         localStorage.setItem('access_token', response.access_token);
         if (response.refresh_token) {
           localStorage.setItem('refresh_token', response.refresh_token);
@@ -56,7 +58,7 @@ export class LoginComponent implements OnInit {
       error: (err) => {
         this.loading = false;
         this.error = 'Credenciales inválidas o error del servidor';
-        console.error('Login error', err);
+        console.error('Registro error', err);
       }
     });
   }
