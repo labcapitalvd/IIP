@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
-
+ 
 from shared_db import (
     Base,
     column_bool,
@@ -46,6 +46,12 @@ class CardTemplate(Base):
     )
     card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
         "AnswerCardEntry", back_populates="card_template", cascade="all, delete-orphan"
+    )
+    criterion: Mapped[List["Criterion"]] = relationship(
+        "Criterion",
+        primaryjoin="CardTemplate.question_id ==                            foreign(Criterion.question_id)",
+        viewonly=True,
+        uselist=True,
     )
 
 
@@ -211,10 +217,8 @@ class Question(Base):
     )
     criteria: Mapped[List["Criterion"]] = relationship(
         "Criterion",
-        # Use the FK that actually links them now
-        primaryjoin="foreign(Criterion.question_id) == remote(Question.id)",
+        primaryjoin="foreign(Criterion.question_id) == Question.id",
         viewonly=True,
-        # No need for manual 'target == questions' anymore!
     )
 
 

@@ -154,6 +154,6 @@ secrets:
   users_file:
     file: ./Secrets/users.toml
   https_public:
-    file: ./Secrets/vd-cert.crt
+    file: ./Secrets/cert.crt
   https_private:
-    file: ./Secrets/vd-cert.key
+    file: ./Secrets/cert.key

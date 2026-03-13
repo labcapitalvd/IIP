@@ -28,7 +28,7 @@ class MultiChoiceOptionLink(Base):
     choice_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.FIELD_CHOICES.fq_name}.id",
         primary_key=True,
-        ondelete="SET NULL",
+        ondelete="CASCADE",
     )
     multi_choice_answer_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS_MULTI_CHOICE.fq_name}.id",
