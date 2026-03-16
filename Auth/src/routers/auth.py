@@ -10,21 +10,27 @@ from shared_utils import SessionContext
 router = APIRouter(tags=["Autenticación"], prefix="/auth")
 
 
+def get_auth_service() -> AuthAppService:
+    return AuthAppService()
+
+
 @router.post(
     "/register",
     response_model=ResponseMessage,
     response_model_exclude_none=True,
     operation_id="register_user",
 )
-async def register(form: RequestRegister):
+async def register(
+        form: RequestRegister,
+        service: AuthAppService = Depends(get_auth_service)
+        ):
     """Function for registering"""
-    await AuthAppService().register(
+    await service.register(
         form.username,
         form.email,
         form.password.get_secret_value(),
     )
     return ResponseMessage(message="ok")
-
 
 
 @router.post(
@@ -36,9 +42,10 @@ async def register(form: RequestRegister):
 async def login(
     form_data: RequestLogin,
     ctx: SessionContext = Depends(),
+    service: AuthAppService = Depends(get_auth_service)
 ):
     """Function for logging in"""
-    access_token, refresh_token = await AuthAppService().login(
+    access_token, refresh_token = await service.login(
         username=form_data.username, password=form_data.password.get_secret_value()
     )
     return ctx.make_response(access_token, refresh_token)
@@ -52,9 +59,10 @@ async def login(
 )
 async def refresh_token(
     ctx: SessionContext = Depends(),
+    service: AuthAppService = Depends(get_auth_service)
 ):
     """Function for refreshing token"""
-    new_access, new_refresh = await AuthAppService().reauth(
+    new_access, new_refresh = await service.reauth(
         client_refresh_token=ctx.refresh_token
     )
     return ctx.make_response(new_access, new_refresh)
@@ -68,8 +76,9 @@ async def refresh_token(
 )
 async def logout(
     ctx: SessionContext = Depends(),
+    service: AuthAppService = Depends(get_auth_service)
 ):
     """Function for logging out"""
-    await AuthAppService().logout(client_refresh_token=ctx.refresh_token)
+    await service.logout(client_refresh_token=ctx.refresh_token)
     ctx.unset_refresh_cookie()
     return ResponseMessage(message="ok")
