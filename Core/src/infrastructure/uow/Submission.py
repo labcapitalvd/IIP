@@ -1,14 +1,6 @@
 from shared_db import UnitOfWork
 from ..repositories import (
     AnswerRepository,
-    AnswerBooleanRepository,
-    AnswerCardEntryRepository,
-    AnswerDateRepository,
-    AnswerFileRepository,
-    AnswerMultiChoiceRepository,
-    AnswerNumericRepository,
-    AnswerSingleChoiceRepository,
-    AnswerTextRepository,
     FieldRepository,
     FormRepository,
     MultiChoiceOptionLinkRepository,

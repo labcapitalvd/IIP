@@ -10,7 +10,7 @@ from .forms import (
     SectionRepository,
     SectionTypeRepository,
 )
-from .grading import CriteriaRepository, GradeRepository, ResultRepository
+from .grading import CriterionRepository, GradeRepository, ResultRepository
 from .links import MultiChoiceOptionLinkRepository, UserActorLinkRepository, UserSubmissionLinkRepository
 from .reference import (
     FieldTypeRepository,
@@ -25,14 +25,6 @@ from .rules import (
 )
 from .submissions import (
     AnswerRepository,
-    AnswerBooleanRepository,
-    AnswerCardEntryRepository,
-    AnswerDateRepository,
-    AnswerFileRepository,
-    AnswerMultiChoiceRepository,
-    AnswerNumericRepository,
-    AnswerSingleChoiceRepository,
-    AnswerTextRepository,
     SubmissionRepository,
 )
 
@@ -51,7 +43,7 @@ __all__ = [
     "SectionRepository",
     "SectionTypeRepository",
     #Grading
-    "CriteriaRepository",
+    "CriterionRepository",
     "GradeRepository",
     "ResultRepository",
     #Links
@@ -69,13 +61,5 @@ __all__ = [
     "SectionDependencyRepository",
     #submissions
     "AnswerRepository",
-    "AnswerBooleanRepository",
-    "AnswerCardEntryRepository",
-    "AnswerDateRepository",
-    "AnswerFileRepository",
-    "AnswerMultiChoiceRepository",
-    "AnswerNumericRepository",
-    "AnswerSingleChoiceRepository",
-    "AnswerTextRepository",
     "SubmissionRepository"
 ]
