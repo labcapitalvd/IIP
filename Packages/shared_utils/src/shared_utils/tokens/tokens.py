@@ -83,7 +83,7 @@ def generate_token(
             claims["jti"]: UUID = jti
 
         token = jwt.encode(header, claims, PRIVATE_KEY, registry=REGISTRY)
-        return token, int(exp.timestamp()), UUID(jti)
+        return token, int(exp.timestamp()), UUID(jti) if jti else None
 
     except InsecureClaimError as e:
         raise TokenEncodeError("Insecure claim error") from e
