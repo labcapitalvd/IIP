@@ -1,22 +1,35 @@
-from typing import Annotated
+from uuid_utils import uuid7
+from typing import List, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Body
 
 from shared_utils import AccessContext
 
-from schemas.results import RequestResult
 
+from uuid import UUID
+
+from application import SubmissionAppService
+
+from shared_schemas import ResponseMessage
 
 router = APIRouter(tags=["Submissions"], prefix="/submissions")
 
 
-@router.get(
-    "/get/one",
+@router.post(
+    "/forms/{form_id}/submissions",
+    response_model=ResponseMessage,
     response_model_exclude_none=True,
-    operation_id="get_one_results",
-)
-async def get_one_form(
-    query: Annotated[RequestResult, Query()],
-    ctx: AccessContext = Depends(),
+    operation_id="send_submission"
+        )
+async def create_submission(
+    form_id: UUID,
+    answers: List[Any] = Body(...),
+    ctx: AccessContext =Depends(),
 ):
-    """Obtiene una edición de índice"""
+    user_id = uuid7() 
+    await SubmissionAppService().create_submission(
+        user_id=str(user_id),
+        form_id=str(form_id),
+        data=answers
+    )
+    return ResponseMessage(message=f"submission {form_id} created.")
