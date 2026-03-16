@@ -32,7 +32,10 @@ class AnswerFactory:
         elif field_type == "card_entry":
             return AnswerCardEntry(
                 **base_kwargs,
-                value=bool(data.get("value")),
+                question_id=data.get("question_id"),
+                card_template_id=data.get("card_template_id"),
+                title=data.get("title"),
+                card_index=data.get("card_index"),
             )
 
         elif field_type == "date":
@@ -57,7 +60,10 @@ class AnswerFactory:
             )
 
         elif field_type == "singlechoice":
-            return AnswerSingleChoice()
+            return AnswerSingleChoice(
+                **base_kwargs,
+                value_id=data.get("value"),
+            )
 
         elif field_type == "text":
             return AnswerText(
