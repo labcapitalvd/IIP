@@ -5,7 +5,7 @@ from .hashing import hash_string, hash_password, hash_token
 from .hashing import verify_string, verify_password, verify_token
 from .texts import sanitize_text, sanitize_email 
 from .tokens import AccessContext, SessionContext
-from .tokens import generate_token, decode_token
+from .tokens import generate_token, decode_token, get_claims
 from .logger import configure_logging, get_logger
 
 __all__ = [
@@ -28,6 +28,7 @@ __all__ = [
     "SessionContext",
     "generate_token",
     "decode_token",
+    "get_claims",
     "configure_logging",
     "get_logger",
 ]

@@ -1,5 +1,5 @@
 from .tokens import AccessContext, SessionContext
-from .tokens import generate_token, decode_token 
+from .tokens import generate_token, decode_token, get_claims 
 
 
 __all__ = [
@@ -7,5 +7,5 @@ __all__ = [
     "SessionContext",
     "generate_token",
     "decode_token",
-    "get_refresh_token",
+    "get_claims",
 ]

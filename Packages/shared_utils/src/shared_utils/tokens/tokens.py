@@ -131,6 +131,24 @@ def decode_token(token: str, expected_type: TokenType):
         raise TokenDecodeError(f"Error decoding {expected_type} token") from e
 
 
+def get_claims(token: str) -> dict:
+    """
+    Simple wrapper to get claims from an access token.
+    Catches domain errors and returns the dict.
+    """
+    try:
+        payload = decode_token(token, expected_type="access")
+        return payload.claims
+
+    except (
+        TokenDecodeError,
+        TokenExpiredError,
+        TokenSignatureError,
+        TokenTypeError,
+    ) as e:
+        raise ValueError(e)
+
+
 class AccessContext:
     def __init__(
         self,
