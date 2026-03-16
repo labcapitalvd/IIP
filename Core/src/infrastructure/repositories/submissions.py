@@ -7,7 +7,7 @@ from models import (
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 
 class AnswerRepository:
@@ -33,7 +33,14 @@ class SubmissionRepository:
         self.session = session
 
     async def get_by_id(self, id: UUID) -> Submission | None:
-        stmt = select(Submission).where(Submission.id == id)
+        stmt = (
+            select(Submission)
+            .where(Submission.id == id)
+            .options(
+                selectinload(Submission.answers)
+                .selectinload(Answer.card_entry)
+            )
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
