@@ -13,9 +13,6 @@ class AnswerFactory:
     def create_answer(data: dict) -> "Answer":
         field_type = data.get("type")
 
-        # Notice: We are NOT passing in submission_id yet.
-        # We handle the relationship later.
-
         if field_type == "boolean":
             return AnswerBoolean(
                 field_id=data.get("field_id"),
