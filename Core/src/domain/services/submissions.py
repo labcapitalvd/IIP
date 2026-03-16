@@ -1,22 +1,9 @@
-from typing import List, Optional, Any
+from typing import List, Any
 from uuid import UUID
 
-from domain import AnswerFactory
-
-from models import (
-    Answer,
-    AnswerBoolean,
-    AnswerCardEntry,
-    AnswerDate,
-    AnswerFile,
-    AnswerMultiChoice,
-    AnswerNumeric,
-    AnswerSingleChoice,
-    AnswerText,
-    MultiChoiceOptionLink,
-    Submission,
-)
-from infrastructure.uow import SubmissionUoW
+from models import Submission, Answer, AnswerCardEntry
+from domain.factories.answer_factory import AnswerFactory
+from infrastructure.uow.Submission import SubmissionUoW
 
 
 class SubmissionService:
@@ -65,4 +52,3 @@ class SubmissionService:
         uow.submissions.add(submission)
 
         return submission
-
