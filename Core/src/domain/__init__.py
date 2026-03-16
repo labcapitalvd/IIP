@@ -1,5 +1,9 @@
 from .services import SubmissionService
+from .factories import AnswerFactory
 
 __all__ = [
-        'SubmissionService'
-        ]
+    # Services
+    "SubmissionService"
+    # Factories
+    "AnswerFactory"
+]
