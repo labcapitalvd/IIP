@@ -228,7 +228,7 @@ class SessionContext:
                 secure=COOKIES_SECURE,
                 samesite=COOKIES_SAMESITE,
                 max_age=(JWT_EXPIRE_MINUTES_REFRESH * 60) - 120,
-                path="/auth",
+                path="/",
             )
 
     def unset_refresh_cookie(self):
@@ -238,7 +238,7 @@ class SessionContext:
                 httponly=True,
                 secure=COOKIES_SECURE,
                 samesite=COOKIES_SAMESITE,
-                path="/auth",
+                path="/",
             )
 
     def make_response(self, access_token: str, refresh_token: str) -> ResponseAuth:
