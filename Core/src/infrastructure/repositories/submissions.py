@@ -3,7 +3,7 @@ from uuid import UUID
 
 from models import (
     Answer,
-    Submission,
+    Submission, AnswerCardEntry,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,7 @@ class SubmissionRepository:
             .options(
                 selectinload(Submission.answers)
                 .selectinload(Answer.card_entry)
+                .selectinload(AnswerCardEntry.answers)
             )
         )
         result = await self.session.execute(stmt)
