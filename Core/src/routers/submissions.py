@@ -1,7 +1,7 @@
 from typing import Any, List
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Path
 from shared_schemas import ResponseMessage
 from shared_utils import AccessContext, get_claims
 
@@ -21,7 +21,7 @@ def get_submission_service() -> SubmissionAppService:
     operation_id="send_submission",
 )
 async def create_submission(
-    form_id: UUID = Query(),
+    form_id: UUID = Path(),
     answers: List[Any] = Body(...),
     ctx: AccessContext = Depends(),
     service: SubmissionAppService = Depends(get_submission_service),
