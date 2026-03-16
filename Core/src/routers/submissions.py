@@ -15,7 +15,7 @@ def get_submission_service() -> SubmissionAppService:
 
 
 @router.post(
-    "/forms/{form_id}/submissions",
+    "/forms/{form_id}",
     response_model=ResponseMessage,
     response_model_exclude_none=True,
     operation_id="send_submission",
