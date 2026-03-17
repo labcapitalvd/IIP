@@ -5,6 +5,7 @@ from models import Submission, Answer, AnswerCardEntry
 from domain.factories.answer_factory import AnswerFactory
 from infrastructure.uow.Submission import SubmissionUoW
 
+from models.enums import SubmissionStatusesEnum
 
 class SubmissionService:
     def _handle_nested_card(
@@ -30,10 +31,16 @@ class SubmissionService:
         Main business logic for creating a submission.
         """
 
+        default_status = await uow.submissions.get_status_by_label(SubmissionStatusesEnum.DRAFT.label)
+    
+        if not default_status:
+            raise ValueError("Initial submission status 'draft' not found in database.")
+
         # 1. Create the Submission Header
         submission = Submission(
             actor_id=user_id,
             form_id=form_id,
+            status_id=default_status.id
         )
 
         # 3. Process the list of answers recursively
