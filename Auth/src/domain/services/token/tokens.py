@@ -45,7 +45,7 @@ class TokenService:
         decoded = dec.claims
         jti = decoded["jti"]
         user_id = decoded["sub"]
-        username = decoded[""]
+        username = decoded["username"]
 
         db_token = await uow.tokens.get_refresh_token_by_jti(user_id=user_id, jti=jti)
         if db_token is None:

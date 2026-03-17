@@ -7,6 +7,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from shared_utils import configure_logging, get_logger, BaseDomainError
 
+from routers.submissions import router as router_submissions
 
 configure_logging()
 
@@ -178,7 +179,7 @@ async def universal_exception_handler(request: Request, exc: Exception):
 ##############################################################################################
 # Montaje de frontend en la aplicación principal
 ##############################################################################################
-public_routers = []
+public_routers = [router_submissions]
 
 private_routers = []
 
@@ -196,6 +197,13 @@ for app_instance in [api, api_private, api_public]:
     app_instance.add_exception_handler(BaseDomainError, domain_exception_handler)
     app_instance.add_exception_handler(Exception, universal_exception_handler)
 
+
+##############################################################################################
+# Montaje de frontend en la aplicación principal
+##############################################################################################
+
+api.mount("/private", api_private)
+api.mount("/public", api_public)
 
 ##############################################################################################
 # Tests

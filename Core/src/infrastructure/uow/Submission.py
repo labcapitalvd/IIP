@@ -1,9 +1,9 @@
 from shared_db import UnitOfWork
 from ..repositories import (
     AnswerRepository,
-    AnswerCardEntryRepository,
     FieldRepository,
     FormRepository,
+    MultiChoiceOptionLinkRepository,
     SubmissionRepository,
     UserSubmissionLinkRepository,
 )
@@ -17,8 +17,10 @@ class SubmissionUoW(UnitOfWork):
 
     submissions: SubmissionRepository
     answers: AnswerRepository
+
     user_links: UserSubmissionLinkRepository
-    card_entries: AnswerCardEntryRepository
+    multichoice_links: MultiChoiceOptionLinkRepository
+
     forms: FormRepository
     fields: FieldRepository
 
@@ -28,8 +30,10 @@ class SubmissionUoW(UnitOfWork):
 
         self.submissions = SubmissionRepository(self.session)
         self.answers = AnswerRepository(self.session)
+
         self.user_links = UserSubmissionLinkRepository(self.session)
-        self.card_entries = AnswerCardEntryRepository(self.session)
+        self.multichoice_links = MultiChoiceOptionLinkRepository(self.session)
+
         # Read-only access to form structure for validation during submission
         self.forms = FormRepository(self.session)
         self.fields = FieldRepository(self.session)

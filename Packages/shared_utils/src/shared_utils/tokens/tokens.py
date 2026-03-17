@@ -83,7 +83,7 @@ def generate_token(
             claims["jti"]: UUID = jti
 
         token = jwt.encode(header, claims, PRIVATE_KEY, registry=REGISTRY)
-        return token, int(exp.timestamp()), UUID(jti)
+        return token, int(exp.timestamp()), UUID(jti) if jti else None
 
     except InsecureClaimError as e:
         raise TokenEncodeError("Insecure claim error") from e
@@ -129,6 +129,24 @@ def decode_token(token: str, expected_type: TokenType):
 
     except JoseError as e:
         raise TokenDecodeError(f"Error decoding {expected_type} token") from e
+
+
+def get_claims(token: str) -> dict:
+    """
+    Simple wrapper to get claims from an access token.
+    Catches domain errors and returns the dict.
+    """
+    try:
+        payload = decode_token(token, expected_type="access")
+        return payload.claims
+
+    except (
+        TokenDecodeError,
+        TokenExpiredError,
+        TokenSignatureError,
+        TokenTypeError,
+    ) as e:
+        raise ValueError(e)
 
 
 class AccessContext:
@@ -210,7 +228,7 @@ class SessionContext:
                 secure=COOKIES_SECURE,
                 samesite=COOKIES_SAMESITE,
                 max_age=(JWT_EXPIRE_MINUTES_REFRESH * 60) - 120,
-                path="/auth",
+                path="/",
             )
 
     def unset_refresh_cookie(self):
@@ -220,7 +238,7 @@ class SessionContext:
                 httponly=True,
                 secure=COOKIES_SECURE,
                 samesite=COOKIES_SAMESITE,
-                path="/auth",
+                path="/",
             )
 
     def make_response(self, access_token: str, refresh_token: str) -> ResponseAuth:
