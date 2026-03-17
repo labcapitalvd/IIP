@@ -12,6 +12,7 @@ from shared_db import (
     column_integer,
     column_long_text,
     column_short_text,
+    column_created_at,
     column_updated_at,
 )
 from sqlalchemy.orm import Mapped, column_property, relationship
@@ -205,6 +206,8 @@ class Submission(Base):
         target=f"{TargetTable.SUBMISSION_STATUS_TYPES.fq_name}.id",
         ondelete="SET NULL",
     )
+    created_at: Mapped[datetime] = column_created_at()
+    updated_at: Mapped[datetime] = column_updated_at()
 
     status: Mapped["SubmissionStatusType"] = relationship(
         "SubmissionStatusType", back_populates="submission", uselist=False
