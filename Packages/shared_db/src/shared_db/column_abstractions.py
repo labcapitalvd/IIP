@@ -116,7 +116,7 @@ def column_created_at(
     *,
     nullable: bool = False,
     unique: bool = False,
-    default: DateTimeType = None,
+    default: DateTimeType = lambda: datetime.now(timezone.utc),
 ) -> Mapped[datetime]:
     return column_datetime(
         nullable=nullable,

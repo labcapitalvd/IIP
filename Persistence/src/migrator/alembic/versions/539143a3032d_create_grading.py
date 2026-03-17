@@ -31,6 +31,7 @@ def upgrade() -> None:
     sa.Column('actor_id', sa.UUID(), nullable=False),
     sa.Column('form_id', sa.UUID(), nullable=False),
     sa.Column('status_id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='SET NULL'),

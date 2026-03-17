@@ -41,6 +41,20 @@ class UserActorLinkRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_user_id(self, user_id: UUID) -> UserActorLink | None:
+        stmt = (
+                select(UserActorLink)
+                .where(UserActorLink.user_id == user_id)
+                .order_by(UserActorLink.updated_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    async def get_by_actor_id(self, actor_id: UUID) -> UserActorLink | None:
+        stmt = select(UserActorLink).where(UserActorLink.actor_id == actor_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none() 
+
     def add(self, entry: UserActorLink) -> None:
         session = cast(Session, self.session)
         session.add(entry)

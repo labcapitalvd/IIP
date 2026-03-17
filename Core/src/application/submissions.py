@@ -19,7 +19,7 @@ class SubmissionAppService:
             submission = await self.submission_service.process_submission(
                 user_id=UUID(user_id) if isinstance(user_id, str) else user_id,
                 form_id=UUID(form_id) if isinstance(form_id, str) else form_id,
-                answers_data=data.answers,
+                answers_data=data,
                 uow=uow,
             )
             return submission

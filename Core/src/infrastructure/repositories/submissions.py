@@ -3,7 +3,7 @@ from uuid import UUID
 
 from models import (
     Answer,
-    Submission, AnswerCardEntry,
+    Submission, AnswerCardEntry, SubmissionStatusType,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +41,15 @@ class SubmissionRepository:
                 .selectinload(Answer.card_entry)
                 .selectinload(AnswerCardEntry.answers)
             )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_status_by_label(self, label:str) -> SubmissionStatusType | None:
+        print(f"DEBUG: Looking for label: '{label}'")
+        stmt = (
+            select(SubmissionStatusType)
+            .where(SubmissionStatusType.label == label)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
