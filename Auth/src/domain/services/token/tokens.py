@@ -32,6 +32,7 @@ class TokenService:
             jti=jti,
             user_id=user_id,
             refresh_hash=refresh_hash,
+            is_active=True,
             expires_at=datetime.fromtimestamp(expr, tz=timezone.utc),
         )
 
