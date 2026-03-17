@@ -46,6 +46,7 @@ class SubmissionRepository:
         return result.scalar_one_or_none()
 
     async def get_status_by_label(self, label:str) -> SubmissionStatusType | None:
+        print(f"DEBUG: Looking for label: '{label}'")
         stmt = (
             select(SubmissionStatusType)
             .where(SubmissionStatusType.label == label)

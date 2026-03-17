@@ -5,6 +5,7 @@ from ..repositories import (
     FormRepository,
     MultiChoiceOptionLinkRepository,
     SubmissionRepository,
+    UserActorLinkRepository,
     UserSubmissionLinkRepository,
 )
 
@@ -18,7 +19,8 @@ class SubmissionUoW(UnitOfWork):
     submissions: SubmissionRepository
     answers: AnswerRepository
 
-    user_links: UserSubmissionLinkRepository
+    user_submission_links: UserSubmissionLinkRepository
+    user_actor_links: UserActorLinkRepository
     multichoice_links: MultiChoiceOptionLinkRepository
 
     forms: FormRepository
@@ -31,7 +33,8 @@ class SubmissionUoW(UnitOfWork):
         self.submissions = SubmissionRepository(self.session)
         self.answers = AnswerRepository(self.session)
 
-        self.user_links = UserSubmissionLinkRepository(self.session)
+        self.user_submission_links = UserSubmissionLinkRepository(self.session)
+        self.user_actor_links = UserActorLinkRepository(self.session)
         self.multichoice_links = MultiChoiceOptionLinkRepository(self.session)
 
         # Read-only access to form structure for validation during submission
