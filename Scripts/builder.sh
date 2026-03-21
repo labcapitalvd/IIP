@@ -34,4 +34,3 @@ fi
     --build-arg MODELS="$MODELS" "$@" \
     --build-arg APPLICATION="$APPLICATION" "$@"
 )
-

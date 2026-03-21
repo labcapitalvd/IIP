@@ -1,0 +1,33 @@
+/* =========================
+   PALETA IIP
+========================= */
+
+$color-primary: #003a8f;      // azul institucional
+$color-secondary: #1e88e5;    // azul medio
+$color-accent: #4fc3f7;       // azul claro
+
+$bg-page: #f3f6fb;
+$bg-component: #eaf1fb;
+$bg-variable: #f7f9fd;
+$bg-question: #ffffff;
+
+$text-title: #1f2d3d;
+$text-body: #4b5b6a;
+
+$border-color: #d9e2ec;
+
+$radius: 8px;
+$shadow-card: 0 3px 10px rgba(0,0,0,0.06);
+
+
+body {
+  background: $bg-page;
+  font-family: "Inter", "Roboto", sans-serif;
+  color: $text-normal;
+}
+
+.form-container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 40px 20px;
+}

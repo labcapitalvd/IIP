@@ -37,8 +37,6 @@ COPY Core/src/pyproject.toml ./pyproject.toml
 RUN pip install --no-cache-dir .
 
 COPY Core/src/main.py ./main.py
-COPY Core/src/application ./application
-COPY Core/src/domain ./domain
 COPY Core/src/infrastructure ./infrastructure
 COPY Core/src/routers ./routers
 COPY Core/src/schemas ./schemas

@@ -1,0 +1,38 @@
+# ============================================================
+# Stage 1: Build Application
+# ============================================================
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY Stats/angular-app/package.json .
+
+# Instalar dependencias
+RUN npm install
+
+# Copiar source code
+COPY Stats/angular-app/src ./src
+COPY Stats/angular-app/*.json ./
+
+# Build the application
+RUN npm run build:prod
+
+# ============================================================
+# Stage 2: Serve Application
+# ============================================================
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Instalar http-server para servir los archivos estáticos
+RUN npm install -g http-server
+
+# Copiar los archivos compilados de la etapa anterior
+COPY --from=builder /app/dist/iip-stats ./dist
+
+# Exponer puerto
+EXPOSE 3000
+
+# Comando para servir la aplicación
+CMD ["http-server", "dist", "-p", "3000", "-c-1", "--cors"]
