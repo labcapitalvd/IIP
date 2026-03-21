@@ -21,11 +21,11 @@ COPY Packages/shared_models ./shared_models
 COPY Packages/shared_schemas ./shared_schemas
 COPY Packages/shared_utils ./shared_utils
 COPY Persistence/src/models ./models
-RUN pip install --no-cache-dir /packages/shared_db
-RUN pip install --no-cache-dir /packages/shared_models
-RUN pip install --no-cache-dir /packages/shared_schemas
-RUN pip install --no-cache-dir /packages/shared_utils
-RUN pip install --no-cache-dir /packages/models
+RUN pip install -e /packages/shared_db
+RUN pip install -e /packages/shared_models
+RUN pip install -e /packages/shared_schemas
+#RUN pip install -e /packages/shared_utils
+RUN pip install -e /packages/models
 
 # -----------------------------
 # 4. Copy app
@@ -52,4 +52,4 @@ ENTRYPOINT ["/entrypoint_core.sh"]
 # -----------------------------
 # 6. Run uvicorn
 # -----------------------------
-CMD ["sh", "-c", "uvicorn main:api --host 0.0.0.0 --port ${PORT_CORE:-8000}"]
+CMD ["sh", "-c", "uvicorn main:api --reload --host 0.0.0.0 --port ${PORT_CORE:-8000}"]

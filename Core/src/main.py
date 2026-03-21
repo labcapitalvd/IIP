@@ -68,7 +68,7 @@ api = FastAPI(
 
 api_private = FastAPI(
     title="API privada.",
-    description="""API PRIVADA para consumo de la data del HUB.
+    description="""API PRIVADA para consumo de la data del HUBsss.
     Aquí encontrará todos los métodos que la Veeduría Distrital pone a su disposición para la consulta de los datos relacionados con el HUB.
 
 Algunos de los métodos disponibles son:
@@ -88,7 +88,7 @@ Tenga en cuenta que algunos endpoints están protegidos por autenticación y aut
 
 api_public = FastAPI(
     title="API publica.",
-    description="""API PUBLICA para consumo de la data del HUB.
+    description="""API PUBLICA para consumo de la data del HUBssss .
     Aquí encontrará todos los métodos que la Veeduría Distrital pone a su disposición para la consulta de los datos relacionados con el HUB.
 
 Algunos de los métodos disponibles son:
@@ -217,3 +217,13 @@ async def main():
         "message": "Main app is working",
         "cors": f"conditional_credentials: {COOKIES_SECURE}",
     }
+
+
+@api.get("/test")
+async def test():
+    """Base path"""
+    return {
+        "message": "Main app is working",
+        "cors": f"conditional_credentials: {COOKIES_SECURE}",
+    }
+
