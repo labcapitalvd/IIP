@@ -154,3 +154,5 @@ temp/
 cache/
 .auth/
 jwt_keys/
+
+Scripts/
