@@ -1,8 +1,30 @@
-stats/node_modules
-stats/.svelte-kit
-stats/build
-randgen
+# Dependency folders (The most important ones)
+node_modules/
+**/node_modules/
+venv/
+.venv/
+**/.venv
+__pycache__/
+**/__pycache__/
 
-__pycache__
+# Build outputs
+.next/
+**/.next/
+.svelte-kit/
+**/svelte-kit/
+dist/
+**/dist/
+out/
+**/out/
+build/
+**/build/
 
-.venv
+# IDE & OS noise
+.git/
+.vscode/
+.idea/
+.DS_Store
+
+# Environment files
+.env
+.env.local
