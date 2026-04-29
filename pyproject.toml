@@ -28,7 +28,6 @@ dependencies = [
     "shared_models",
     "shared_schemas",
     "shared_utils",
-    "models",
     "uuid-utils>=0.14.0",
 ]
 
@@ -37,7 +36,6 @@ shared_db = { workspace = true }
 shared_models = { workspace = true }
 shared_schemas = { workspace = true }
 shared_utils = { workspace = true }
-models = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -45,5 +43,4 @@ members = [
     "Packages/shared_models",
     "Packages/shared_schemas",
     "Packages/shared_utils",
-    "Persistence/src/models"
 ]
