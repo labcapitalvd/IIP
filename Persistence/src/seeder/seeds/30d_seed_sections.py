@@ -6,7 +6,7 @@ import requests
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import Form, Section, SectionType
+from shared_models import Form, Section, SectionType
 
 
 logger = get_logger("seed/sections")

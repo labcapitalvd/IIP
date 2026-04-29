@@ -11,7 +11,7 @@ from sqlalchemy import UUID as UUIDType
 from shared_db import sync_engine
 from shared_utils.logger import get_logger
 
-from models.targets import TargetTable
+from shared_models.targets import TargetTable
 
 logger = get_logger("seed/forms")
 
