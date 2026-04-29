@@ -5,7 +5,7 @@ from enum import Enum
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import SectionType
+from shared_models import SectionType
 
 logger = get_logger("seed/section_types")
 

@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from fastapi import UploadFile
 
-from models import FileTypesEnum
+from shared_models import FileTypesEnum
 
 
 class FileError(Exception):

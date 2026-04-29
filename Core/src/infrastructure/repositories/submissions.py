@@ -1,7 +1,7 @@
 from typing import cast
 from uuid import UUID
 
-from models import (
+from shared_models import (
     Answer,
     Submission, AnswerCardEntry, SubmissionStatusType,
 )
