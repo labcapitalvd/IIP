@@ -2,7 +2,6 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from shared_schemas import ResponseMessage
 from shared_utils import AccessContext, get_claims
 
 from application.forms import FormAppService
@@ -13,6 +12,16 @@ router = APIRouter(tags=["Forms"], prefix="/forms")
 
 def get_form_service() -> FormAppService:
     return FormAppService()
+
+
+def get_auth_claims(ctx: AccessContext) -> dict:
+    try:
+        return get_claims(ctx.access_token)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        )
 
 
 @router.post(
@@ -98,20 +107,17 @@ async def create_form(
     
     Se requiere autenticación para crear formularios.
     """
-    try:
-        # Obtener información del usuario autenticado
-        claims = get_claims(ctx.access_token)
-        user_id = claims.get("sub")
-        
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token inválido: no se encontró identificador de usuario",
-            )
+    claims = get_auth_claims(ctx)
+    user_id = claims.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido: no se encontró identificador de usuario",
+        )
 
+    try:
         # Crear el formulario
         created_form = await service.create_form(form_data=form_data)
-        
         return created_form
 
     except ValueError as e:
@@ -119,12 +125,6 @@ async def create_form(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
-    except Exception as e:
-        # Errores inesperados
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al crear el formulario: {str(e)}",
         )
 
 
