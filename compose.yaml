@@ -99,8 +99,8 @@ networks:
     name: iip_nginx_network
 
   pgadmin_net:
-    driver: bridge
     name: pgadmin_network
+    external: true
 
 volumes:
   postgresql:
