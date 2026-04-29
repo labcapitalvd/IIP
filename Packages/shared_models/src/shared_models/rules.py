@@ -11,12 +11,11 @@ from shared_db import (
 )
 from sqlalchemy.orm import Mapped, relationship
 
-from models.targets import TargetTable
+from .targets import TargetTable
 
 if TYPE_CHECKING:
     from .forms import Field, Section
     from .reference import RelationalOperator, RuleType
-
 
 
 class FieldDependency(Base):

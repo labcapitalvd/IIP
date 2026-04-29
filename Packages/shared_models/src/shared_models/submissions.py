@@ -17,8 +17,8 @@ from shared_db import (
 )
 from sqlalchemy.orm import Mapped, column_property, relationship
 
-from models import FieldTypesEnum as AnswerType
-from models.targets import TargetTable
+from shared_models import FieldTypesEnum as AnswerType
+from .targets import TargetTable
 
 if TYPE_CHECKING:
     from .forms import CardTemplate, Field, FieldChoice

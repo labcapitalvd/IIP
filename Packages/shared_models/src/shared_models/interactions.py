@@ -15,9 +15,7 @@ from shared_db import (
 )
 from sqlalchemy.orm import Mapped, relationship
 
-from shared_models.targets import CoreTargetTable
-
-from .targets import CoreTargetTable as TargetTable
+from .targets import CoreTargetTable, TargetTable
 
 TargetTableEnum = generate_table_enum("TargetTableEnum", CoreTargetTable, TargetTable)
 

@@ -12,7 +12,7 @@ from shared_db import (
 )
 from sqlalchemy.orm import Mapped
 
-from models.targets import TargetTable
+from .targets import TargetTable
 
 
 class Criterion(Base):
