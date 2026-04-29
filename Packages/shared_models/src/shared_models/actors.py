@@ -4,9 +4,11 @@ from uuid import UUID
 from shared_db import Base, column_fk, column_long_text, column_short_text
 from sqlalchemy.orm import Mapped, relationship
 
-from models.targets import TargetTable
+from .targets import TargetTable
+
 if TYPE_CHECKING:
     from .links import UserActorLink
+
 
 class Actor(Base):
     __tablename__ = TargetTable.ACTORS.table

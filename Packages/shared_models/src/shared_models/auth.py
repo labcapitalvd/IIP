@@ -17,7 +17,7 @@ from shared_db import (
     column_integer,
 )
 
-from .targets import CoreTargetTable as TargetTable
+from .targets import TargetTable
 
 
 class Role(Base):

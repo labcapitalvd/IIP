@@ -12,7 +12,7 @@ from shared_db import (
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .targets import CoreTargetTable as TargetTable
+from .targets import TargetTable
 
 
 class FileType(Base):

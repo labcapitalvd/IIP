@@ -14,7 +14,7 @@ from shared_db import (
 from sqlalchemy import Index
 from sqlalchemy.orm import Mapped, relationship
 
-from models.targets import TargetTable
+from .targets import TargetTable
 
 if TYPE_CHECKING:
     from .grading import Criterion
