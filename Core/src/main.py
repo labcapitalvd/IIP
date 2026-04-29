@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from shared_utils import configure_logging, get_logger, BaseDomainError
 
 from routers.submissions import router as router_submissions
+from routers.forms import router as router_forms
 
 configure_logging()
 
@@ -179,7 +180,7 @@ async def universal_exception_handler(request: Request, exc: Exception):
 ##############################################################################################
 # Montaje de frontend en la aplicación principal
 ##############################################################################################
-public_routers = [router_submissions]
+public_routers = [router_submissions, router_forms]
 
 private_routers = []
 

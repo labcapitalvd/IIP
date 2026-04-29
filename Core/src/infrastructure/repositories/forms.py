@@ -98,6 +98,12 @@ class FormRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_anno(self, anno: int) -> Form | None:
+        """Obtiene un formulario por su año (que es único)."""
+        stmt = select(Form).where(Form.anno == anno)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     def add(self, entry: Form) -> None:
         session = cast(Session, self.session)
         session.add(entry)
