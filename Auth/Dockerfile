@@ -20,12 +20,10 @@ COPY Packages/shared_db ./shared_db
 COPY Packages/shared_models ./shared_models
 COPY Packages/shared_schemas ./shared_schemas
 COPY Packages/shared_utils ./shared_utils
-COPY Persistence/src/models ./models
 RUN pip install --no-cache-dir /packages/shared_db
 RUN pip install --no-cache-dir /packages/shared_models
 RUN pip install --no-cache-dir /packages/shared_schemas
 RUN pip install --no-cache-dir /packages/shared_utils
-RUN pip install --no-cache-dir /packages/models
 
 # -----------------------------
 # 4. Copy app
