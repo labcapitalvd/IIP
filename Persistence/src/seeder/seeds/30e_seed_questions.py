@@ -6,7 +6,7 @@ import requests
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import Form, Question
+from shared_models import Form, Question
 
 
 logger = get_logger("SeedQuestions")

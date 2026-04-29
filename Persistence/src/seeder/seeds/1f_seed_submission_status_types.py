@@ -3,7 +3,7 @@
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from models import SubmissionStatusType, SubmissionStatusesEnum as Types
+from shared_models import SubmissionStatusType, SubmissionStatusesEnum as Types
 
 
 logger = get_logger("seed/submission_status_types")

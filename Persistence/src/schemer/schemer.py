@@ -1,6 +1,6 @@
 import inspect
 
-from models.targets import TargetTable
+from shared_models.targets import TargetTable
 from shared_db import SessionSync, TableInfo
 from shared_utils.logger import get_logger
 from sqlalchemy.exc import SQLAlchemyError

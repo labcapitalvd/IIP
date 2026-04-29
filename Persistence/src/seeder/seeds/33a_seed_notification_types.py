@@ -4,7 +4,7 @@ from shared_db import SessionSync
 from shared_models import NotificationType
 from shared_utils.logger import get_logger
 
-from models import NotificationTypesEnum as Types
+from shared_models import NotificationTypesEnum as Types
 
 logger = get_logger("seed/notification_types")
 
