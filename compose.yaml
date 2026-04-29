@@ -103,22 +103,6 @@ services:
       - iip_db_net
       - iip_nginx
 
-  api_ia_agent:
-    container_name: iip_api_ia_agent
-    build:
-      context: .
-      dockerfile: IA-Agent/Dockerfile
-    image: labcapital/apps:IIP-IA-Agent
-    env_file: ./.env
-    secrets:
-      - jwt_private_key
-      - jwt_public_key
-      - postgres_password
-      - fernet_password
-    networks:
-      - iip_db_net
-      - iip_nginx
-
 networks:
   iip_db_net:
     driver: bridge
