@@ -14,9 +14,11 @@ logger = get_logger("seed/user_tiers")
 def upgrade() -> None:
     with SessionSync() as session:
         for tier in Types:
-            exists = session.query(UserTier).filter_by(label=tier.label).first()
+            exists: UserTier | None = (
+                session.query(UserTier).filter_by(label=tier.label).first()
+            )
             if exists:
-                logger.info(f"{type} already exists in UserTier")
+                logger.info(msg=f"{type} already exists in UserTier")
                 continue  # Skip this one
             session.add(
                 UserTier(
@@ -28,5 +30,5 @@ def upgrade() -> None:
                     updated_at=datetime.now(timezone.utc),
                 )
             )
-            logger.info(f"{type} added to table UserTier") 
+            logger.info(f"{type} added to table UserTier")
         session.commit()

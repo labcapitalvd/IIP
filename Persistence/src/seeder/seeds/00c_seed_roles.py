@@ -12,9 +12,11 @@ logger = get_logger("seed/roles")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = session.query(Role).filter_by(label=type.label).first()
+            exists: Role | None = (
+                session.query(Role).filter_by(label=type.label).first()
+            )
             if exists:
-                logger.info(f"{type} already exists in Role") 
+                logger.info(msg=f"{type} already exists in Role")
                 continue  # Skip this one
             session.add(
                 Role(

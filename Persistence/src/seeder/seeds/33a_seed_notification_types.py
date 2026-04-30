@@ -12,7 +12,9 @@ logger = get_logger("seed/notification_types")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = session.query(NotificationType).filter_by(label=type.label).first()
+            exists: NotificationType | None = (
+                session.query(NotificationType).filter_by(label=type.label).first()
+            )
             if exists:
                 logger.info(f"{type} already exists in NotificationType")
                 continue  # Skip this one

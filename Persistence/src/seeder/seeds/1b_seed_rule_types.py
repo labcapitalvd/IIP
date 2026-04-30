@@ -12,7 +12,9 @@ logger = get_logger("seed/field_validation_rules")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = session.query(RuleType).filter_by(label=type.label).first()
+            exists: RuleType | None = (
+                session.query(RuleType).filter_by(label=type.label).first()
+            )
             if exists:
                 logger.info(f"{type} already exists in RuleType")
                 continue  # Skip this one

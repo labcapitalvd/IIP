@@ -12,7 +12,9 @@ logger = get_logger("seed/comment_types")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = session.query(CommentType).filter_by(label=type.label).first()
+            exists: CommentType | None = (
+                session.query(CommentType).filter_by(label=type.label).first()
+            )
             if exists:
                 logger.info(f"{type} already exists in CommentType")
                 continue  # Skip this one

@@ -24,41 +24,51 @@ with open(USERS_FILE, "rb") as f:
 
 def upgrade() -> None:
     with SessionSync() as session:
-        root_tier = session.query(UserTier).filter_by(label="ROOT").first()
-        admin_tier = session.query(UserTier).filter_by(label="ADMIN").first()
-        premium_tier = session.query(UserTier).filter_by(label="PREMIUM").first()
-        standard_tier = session.query(UserTier).filter_by(label="STANDARD").first()
-        guest_tier = session.query(UserTier).filter_by(label="GUEST").first()
-        if not root_tier or not admin_tier or not premium_tier or not standard_tier or not guest_tier:
-            logger.error("One tier not found in DB")
-            raise RuntimeError("One tier not found in DB")
+        # 1. Fetch all tiers in a single query instead of 5 separate ones
+        tiers: list[UserTier] = session.query(UserTier).all()
+        tier_map = {t.label.lower(): t.id for t in tiers}
 
-        tier_map = {
-            "root": root_tier.id,
-            "admin": admin_tier.id,
-            "premium": premium_tier.id,
-            "standard": standard_tier.id,
-            "guest": guest_tier.id,
+        required_labels = {"root", "admin", "premium", "standard", "guest"}
+        if not required_labels.issubset(tier_map.keys()):
+            missing = required_labels - tier_map.keys()
+            logger.error(f"Missing tiers in DB: {missing}")
+            raise RuntimeError(f"Required tiers missing: {missing}")
+
+        # 2. Pre-fetch existing emails to avoid "N+1" query problem
+        incoming_emails = [u["email"] for u in users_toml.get("users", [])]
+        existing_emails = {
+            email
+            for (email,) in session.query(User.email)
+            .filter(User.email.in_(incoming_emails))
+            .all()
         }
 
+        # 3. Batch build user objects
         for u in users_toml.get("users", []):
-            tier_id = tier_map.get(u["username"].lower(), admin_tier.id)
-            exists = session.query(User).filter_by(email=u["email"]).first()
-            if exists:
-                logger.info(f"User {u['username']} already exists, skipping")
+            email = u["email"]
+            username = u["username"]
+
+            if email in existing_emails:
+                logger.info(f"User {username} already exists, skipping")
                 continue
 
+            # Map username to tier, defaulting to admin if no match
+            # (Matches your logic where specific usernames might dictate roles)
+            tier_id = tier_map.get(username.lower(), tier_map["admin"])
+
             user_obj = User(
-                id=UUID(str(uuid7())),
-                tier_id=UUID(str(tier_id)),
-                username=u["username"],
-                email=u["email"],
+                id=uuid7(),  # uuid_utils.uuid7() returns a UUID object directly
+                tier_id=tier_id,
+                username=username,
+                email=email,
                 password_hash=hash_password(sanitize_text(u["password"])),
                 is_active=True,
                 is_verified=True,
                 updated_at=datetime.now(timezone.utc),
-                media_usage=Decimal(0),
+                media_usage=Decimal("0"),
             )
             session.add(user_obj)
-            logger.info(f"{u['username']} added to table Role")
+            logger.info(f"Queued user: {username}")
+
+        # 4. Single commit for the entire batch
         session.commit()
