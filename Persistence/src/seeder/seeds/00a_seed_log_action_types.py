@@ -13,9 +13,11 @@ logger = get_logger("seed/log_action_types")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = session.query(LogActionType).filter_by(label=type.label).first()
+            exists: LogActionType | None = (
+                session.query(LogActionType).filter_by(label=type.label).first()
+            )
             if exists:
-                logger.info(f"{type} already exists in LogActionType")
+                logger.info(msg=f"{type} already exists in LogActionType")
                 continue  # Skip this one
             session.add(
                 LogActionType(

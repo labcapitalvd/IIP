@@ -11,7 +11,9 @@ logger = get_logger("seed/field_types")
 def upgrade() -> None:
     with SessionSync() as session:
         for tier in Types:
-            exists = session.query(FieldType).filter_by(label=tier.label).first()
+            exists: FieldType | None = (
+                session.query(FieldType).filter_by(label=tier.label).first()
+            )
             if exists:
                 logger.info(f"{type} already exists in FieldType")
                 continue  # Skip this one

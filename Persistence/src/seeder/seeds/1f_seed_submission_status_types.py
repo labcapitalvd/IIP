@@ -12,7 +12,7 @@ logger = get_logger("seed/submission_status_types")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = (
+            exists: SubmissionStatusType | None = (
                 session.query(SubmissionStatusType).filter_by(label=type.label).first()
             )
             if exists:

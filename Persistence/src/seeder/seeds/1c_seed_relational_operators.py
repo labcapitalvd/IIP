@@ -12,7 +12,7 @@ logger = get_logger("seed/relational_operators")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = (
+            exists: RelationalOperator | None = (
                 session.query(RelationalOperator).filter_by(label=type.label).first()
             )
             if exists:

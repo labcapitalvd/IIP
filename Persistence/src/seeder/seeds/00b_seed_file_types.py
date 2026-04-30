@@ -13,9 +13,11 @@ logger = get_logger("seed/file_types")
 def upgrade() -> None:
     with SessionSync() as session:
         for type in Types:
-            exists = session.query(FileType).filter_by(label=type.label).first()
+            exists: FileType | None = (
+                session.query(FileType).filter_by(label=type.label).first()
+            )
             if exists:
-                logger.info(f"{type} already exists in FileType") 
+                logger.info(msg=f"{type} already exists in FileType")
                 continue  # Skip this one
             session.add(
                 FileType(
