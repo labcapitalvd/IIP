@@ -1,7 +1,7 @@
 # =================================================
 # Stage 1: Start application
 # =================================================
-FROM python:3.12-slim-bookworm
+FROM labcapital/apps:IIP-Base
 
 # -----------------------------
 # 4. Copy app
