@@ -6,7 +6,7 @@ from pydantic import Field, EmailStr, SecretStr
 ##############################################################################################
 
 
-class Username(BaseSchema):
+class UsernameSchema(BaseSchema):
     """Request body for registering a new user."""
 
     username: str = Field(
@@ -18,7 +18,7 @@ class Username(BaseSchema):
     )
 
 
-class UserEmail(BaseSchema):
+class UserEmailSchema(BaseSchema):
     """Request body for registering a new user."""
 
     email: EmailStr = Field(
@@ -30,7 +30,7 @@ class UserEmail(BaseSchema):
     )
 
 
-class UserPassword(BaseSchema):
+class UserPasswordSchema(BaseSchema):
     """Request body for registering a new user."""
 
     password: SecretStr = Field(
@@ -42,7 +42,7 @@ class UserPassword(BaseSchema):
     )
 
 
-class Platform(BaseSchema):
+class PlatformSchema(BaseSchema):
     """Platform from which the user is accessing the application."""
 
     platform: str = Field(
@@ -66,7 +66,7 @@ class BaseToken(BaseSchema):
     )
 
 
-class AccessToken(BaseToken):
+class AccessTokenSchema(BaseToken):
     """Modelo para representar un token de acceso."""
 
     access_token: str = Field(
@@ -78,7 +78,7 @@ class AccessToken(BaseToken):
     )
 
 
-class RefreshToken(BaseToken):
+class RefreshTokenSchema(BaseToken):
     """Modelo para representar un token de refresco."""
 
     refresh_token: str = Field(
@@ -90,7 +90,7 @@ class RefreshToken(BaseToken):
     )
 
 
-class ResponseAuth(AccessToken, RefreshToken):
+class ResponseAuthSchema(AccessTokenSchema, RefreshTokenSchema):
     """Unified response for auth endpoints."""
 
     access_token: str | None = Field(
