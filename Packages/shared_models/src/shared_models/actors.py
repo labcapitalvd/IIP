@@ -21,7 +21,7 @@ class Actor(Base):
         target=f"{TargetTable.USERS.fq_name}.id", ondelete="SET NULL", nullable=True
     )
 
-    name: Mapped[str] = column_short_text(length=255, unique=True)
+    label: Mapped[str] = column_short_text(length=255, unique=True)
     description: Mapped[str] = column_long_text()
     mission: Mapped[str] = column_long_text()
     vision: Mapped[str] = column_long_text()
@@ -39,7 +39,7 @@ class ActorSegment(Base):
     __tablename__ = TargetTable.ACTOR_SEGMENTS.table
     __table_args__ = {"schema": TargetTable.ACTOR_SEGMENTS.schema}
 
-    name: Mapped[str] = column_short_text(length=255, unique=True)
+    label: Mapped[str] = column_short_text(length=255, unique=True)
     description: Mapped[str] = column_long_text()
 
     actors: Mapped[list["Actor"]] = relationship(

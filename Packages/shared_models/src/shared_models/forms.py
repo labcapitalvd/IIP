@@ -160,7 +160,7 @@ class Form(Base):
     __table_args__ = {"schema": TargetTable.FORMS.schema}
 
     anno: Mapped[int] = column_integer(unique=True)
-    name: Mapped[str] = column_short_text()
+    label: Mapped[str] = column_short_text()
     description: Mapped[str] = column_long_text()
 
     sections: Mapped[List["Section"]] = relationship("Section", back_populates="form")
