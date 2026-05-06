@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 
 class AnswerRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Answer | None:
         stmt = select(Answer).where(Answer.id == id)
@@ -20,17 +20,15 @@ class AnswerRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Answer) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Answer) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class SubmissionRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Submission | None:
         stmt = (
@@ -55,9 +53,7 @@ class SubmissionRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Submission) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Submission) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)

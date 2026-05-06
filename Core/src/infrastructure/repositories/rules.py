@@ -14,7 +14,7 @@ from shared_models import (
 
 class FieldDependencyRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> FieldDependency | None:
         stmt = select(FieldDependency).where(FieldDependency.id == id)
@@ -22,17 +22,15 @@ class FieldDependencyRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: FieldDependency) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: FieldDependency) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class FieldRuleRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> FieldRule | None:
         stmt = select(FieldRule).where(FieldRule.id == id)
@@ -40,17 +38,15 @@ class FieldRuleRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: FieldRule) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: FieldRule) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class SectionDependencyRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> SectionDependency | None:
         stmt = select(SectionDependency).where(SectionDependency.id == id)
@@ -58,9 +54,7 @@ class SectionDependencyRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: SectionDependency) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: SectionDependency) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
