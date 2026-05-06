@@ -2,7 +2,7 @@ from typing import Any, List
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path
-from shared_schemas import ResponseMessage
+from shared_schemas import ResponseMessageSchema
 from shared_utils import AccessContext, get_claims
 
 from application import SubmissionAppService
@@ -16,7 +16,7 @@ def get_submission_service() -> SubmissionAppService:
 
 @router.post(
     "/forms/{form_id}",
-    response_model=ResponseMessage,
+    response_model=ResponseMessageSchema,
     response_model_exclude_none=True,
     operation_id="send_submission",
 )
@@ -30,4 +30,4 @@ async def create_submission(
     await service.create_submission(
         user_id=str(user_id.get("sub")), form_id=str(form_id), data=answers
     )
-    return ResponseMessage(message=f"submission {form_id} created.")
+    return ResponseMessageSchema(message=f"submission {form_id} created.")

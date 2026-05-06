@@ -4,33 +4,28 @@
 from .base.base import (
     BaseSchema,
     UuidSchema,
-    ResponseMessage,
+    LabelSchema,
+    DescriptionSchema,
+    ResponseMessageSchema,
 )
 
 # auth depends on base, so import it *after* base
 from .auth.auth import (
-    Username,
-    UserEmail,
-    UserPassword,
-    Platform,
-    AccessToken,
-    RefreshToken,
-    ResponseAuth,
+    UsernameSchema,
+    UserEmailSchema,
+    UserPasswordSchema,
+    PlatformSchema,
+    AccessTokenSchema,
+    RefreshTokenSchema,
+    ResponseAuthSchema,
+)
+
+from .core.actors import (
+    ActorSchema,
+    ActorSegmentSchema,
 )
 
 __all__ = [
-    # base
-    "BaseSchema",
-    "UuidSchema",
-    "ResponseMessage",
-    # auth
-    "Username",
-    "UserEmail",
-    "UserPassword",
-    "Platform",
-    "AccessToken",
-    "RefreshToken",
-    "ResponseAuth",
     # errors
     "CustomError",
     "ItemError",
@@ -38,4 +33,21 @@ __all__ = [
     "custom_error_handler",
     "add_custom_error_responses",
     "add_routers_with_custom_errors",
+    # base
+    "BaseSchema",
+    "UuidSchema",
+    "LabelSchema",
+    "DescriptionSchema",
+    "ResponseMessageSchema",
+    # auth
+    "UsernameSchema",
+    "UserEmailSchema",
+    "UserPasswordSchema",
+    "PlatformSchema",
+    "AccessTokenSchema",
+    "RefreshTokenSchema",
+    "ResponseAuthSchema",
+    # core
+    "ActorSchema",
+    "ActorSegmentSchema",
 ]

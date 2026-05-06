@@ -4,7 +4,7 @@ from application import AuthAppService
 from schemas.auth import RequestRegister, RequestLogin
 
 
-from shared_schemas import ResponseAuth, ResponseMessage
+from shared_schemas import ResponseAuthSchema, ResponseMessageSchema
 from shared_utils import SessionContext
 
 router = APIRouter(tags=["Autenticación"], prefix="/auth")
@@ -16,7 +16,7 @@ def get_auth_service() -> AuthAppService:
 
 @router.post(
     "/register",
-    response_model=ResponseMessage,
+    response_model=ResponseMessageSchema,
     response_model_exclude_none=True,
     operation_id="register_user",
 )
@@ -30,12 +30,12 @@ async def register(
         form.email,
         form.password.get_secret_value(),
     )
-    return ResponseMessage(message="ok")
+    return ResponseMessageSchema(message="ok")
 
 
 @router.post(
     "/login",
-    response_model=ResponseAuth,
+    response_model=ResponseAuthSchema,
     response_model_exclude_none=True,
     operation_id="login_user",
 )
@@ -53,7 +53,7 @@ async def login(
 
 @router.post(
     "/reauth",
-    response_model=ResponseAuth,
+    response_model=ResponseAuthSchema,
     response_model_exclude_none=True,
     operation_id="reauth_user",
 )
@@ -70,7 +70,7 @@ async def refresh_token(
 
 @router.post(
     "/logout",
-    response_model=ResponseMessage,
+    response_model=ResponseMessageSchema,
     response_model_exclude_none=True,
     operation_id="logout_user",
 )
@@ -81,4 +81,4 @@ async def logout(
     """Function for logging out"""
     await service.logout(client_refresh_token=ctx.refresh_token)
     ctx.unset_refresh_cookie()
-    return ResponseMessage(message="ok")
+    return ResponseMessageSchema(message="ok")

@@ -7,7 +7,7 @@ from fastapi import UploadFile
 import unicodedata
 from decimal import Decimal
 
-from .allowed_types import FileTypeEnum
+from shared_models import FileTypesEnum
 
 class FileError(Exception):
     """Base error for FileUtils."""
@@ -21,8 +21,8 @@ class FileExtensionError(FileError):
 
 class FileUtils:
     def check_file_type(
-        self, filetype: str, allowed_types: list[FileTypeEnum]
-    ) -> FileTypeEnum:
+        self, filetype: str, allowed_types: list[FileTypesEnum]
+    ) -> FileTypesEnum:
         if not filetype:
             raise FileExtensionError("File has no extension.")
 
@@ -32,7 +32,7 @@ class FileUtils:
 
         raise FileExtensionError("Unsupported file format.")
 
-    def determine_subpath(self, filetype: FileTypeEnum) -> str:
+    def determine_subpath(self, filetype: FileTypesEnum) -> str:
         if not hasattr(filetype, "category"):
             raise FileExtensionError("Invalid file format.")
         return filetype.category

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 class MultiChoiceOptionLinkRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> MultiChoiceOptionLink | None:
         stmt = select(MultiChoiceOptionLink).where(MultiChoiceOptionLink.id == id)
@@ -24,17 +24,15 @@ class MultiChoiceOptionLinkRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: MultiChoiceOptionLink) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: MultiChoiceOptionLink) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class UserActorLinkRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> UserActorLink | None:
         stmt = select(UserActorLink).where(UserActorLink.id == id)
@@ -56,17 +54,15 @@ class UserActorLinkRepository:
         return result.scalar_one_or_none() 
 
     def add(self, entry: UserActorLink) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: UserActorLink) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class UserSubmissionLinkRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> UserSubmissionLink | None:
         stmt = select(UserSubmissionLink).where(UserSubmissionLink.id == id)
@@ -74,9 +70,7 @@ class UserSubmissionLinkRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: UserSubmissionLink) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: UserSubmissionLink) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)

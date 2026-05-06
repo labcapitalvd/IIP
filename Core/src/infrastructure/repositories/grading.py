@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 class CriterionRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Criterion | None:
         stmt = select(Criterion).where(Criterion.id == id)
@@ -21,17 +21,15 @@ class CriterionRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Criterion) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Criterion) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class GradeRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Grade | None:
         stmt = select(Grade).where(Grade.id == id)
@@ -39,17 +37,15 @@ class GradeRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Grade) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Grade) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class ResultRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Result | None:
         stmt = select(Result).where(Result.id == id)
@@ -57,9 +53,7 @@ class ResultRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Result) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Result) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)

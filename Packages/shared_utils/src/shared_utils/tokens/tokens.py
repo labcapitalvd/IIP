@@ -19,7 +19,7 @@ from joserfc.errors import (
     JoseError,
 )
 
-from shared_schemas import ResponseAuth
+from shared_schemas import ResponseAuthSchema
 
 from .config import (
     JWT_EXPIRE_MINUTES_ACCESS,
@@ -241,20 +241,20 @@ class SessionContext:
                 path="/",
             )
 
-    def make_response(self, access_token: str, refresh_token: str) -> ResponseAuth:
+    def make_response(self, access_token: str, refresh_token: str) -> ResponseAuthSchema:
         """
         Constructs the appropriate response structure and sets cookies if
         needed.
         """
         if self.platform == "web":
             self._set_refresh_cookie(refresh_token)
-            return ResponseAuth(
+            return ResponseAuthSchema(
                 access_token=access_token,
                 refresh_token=None,
                 message="Auth successful (web)",
             )
 
-        return ResponseAuth(
+        return ResponseAuthSchema(
             access_token=access_token,
             refresh_token=refresh_token,
             message="Auth successful (mobile)",

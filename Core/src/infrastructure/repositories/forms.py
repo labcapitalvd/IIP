@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 class CardTemplateRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> CardTemplate | None:
         stmt = select(CardTemplate).where(CardTemplate.id == id)
@@ -27,17 +27,15 @@ class CardTemplateRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: CardTemplate) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: CardTemplate) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class FieldChoiceRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> FieldChoice | None:
         stmt = select(FieldChoice).where(FieldChoice.id == id)
@@ -45,17 +43,15 @@ class FieldChoiceRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: FieldChoice) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: FieldChoice) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class FieldGroupRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> FieldGroup | None:
         stmt = select(FieldGroup).where(FieldGroup.id == id)
@@ -63,17 +59,15 @@ class FieldGroupRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: FieldGroup) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: FieldGroup) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class FieldRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Field | None:
         stmt = select(Field).where(Field.id == id)
@@ -81,17 +75,15 @@ class FieldRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Field) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Field) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class FormRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Form | None:
         stmt = select(Form).where(Form.id == id)
@@ -105,17 +97,15 @@ class FormRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Form) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Form) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class InfoRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Info | None:
         stmt = select(Info).where(Info.id == id)
@@ -123,17 +113,15 @@ class InfoRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Info) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Info) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class QuestionRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Question | None:
         stmt = select(Question).where(Question.id == id)
@@ -141,17 +129,15 @@ class QuestionRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Question) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Question) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class SectionRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> Section | None:
         stmt = select(Section).where(Section.id == id)
@@ -159,17 +145,15 @@ class SectionRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: Section) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: Section) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
 
 
 class SectionTypeRepository:
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self.session: AsyncSession = session
 
     async def get_by_id(self, id: UUID) -> SectionType | None:
         stmt = select(SectionType).where(SectionType.id == id)
@@ -177,9 +161,7 @@ class SectionTypeRepository:
         return result.scalar_one_or_none()
 
     def add(self, entry: SectionType) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
     def delete(self, entry: SectionType) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+        self.session.delete(entry)
