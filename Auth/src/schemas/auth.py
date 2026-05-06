@@ -1,9 +1,9 @@
 from pydantic import EmailStr, SecretStr, field_validator
 from shared_schemas import (
     BaseSchema,
-    UserEmail,
-    Username,
-    UserPassword,
+    UserEmailSchema,
+    UsernameSchema,
+    UserPasswordSchema,
 )
 from shared_utils import sanitize_text, sanitize_email
 
@@ -12,7 +12,7 @@ from shared_utils import sanitize_text, sanitize_email
 ##############################################################################################
 
 
-class RequestRegister(Username, UserEmail, UserPassword):
+class RequestRegister(UsernameSchema, UserEmailSchema, UserPasswordSchema):
     """Request body for registering a new user."""
 
     @field_validator("username")
@@ -31,7 +31,7 @@ class RequestRegister(Username, UserEmail, UserPassword):
         return v
 
 
-class RequestLogin(Username, UserPassword):
+class RequestLogin(UsernameSchema, UserPasswordSchema):
     """Request body for logging in a user."""
 
     @field_validator("username")
