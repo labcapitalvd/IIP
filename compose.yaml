@@ -50,6 +50,8 @@ services:
     depends_on:
       base:
         condition: service_started
+      db:
+        condition: service_healthy
     env_file: ./.env
     secrets:
       - jwt_private_key
@@ -93,6 +95,8 @@ services:
     depends_on:
       base:
         condition: service_started
+      db:
+        condition: service_healthy
     env_file: ./.env
     secrets:
       - jwt_private_key
