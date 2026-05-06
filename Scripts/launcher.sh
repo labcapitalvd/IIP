@@ -14,80 +14,88 @@ else
 fi
 
 case "$MODE" in
-# ===========================================
-#   Docker lifecycle commands
-# ===========================================
---setup)
-  MSG="${1:-default}"
-  echo "🐘 Starting database container..."
-  docker compose up -d db
-  echo "⏳ Waiting for database readiness (max 60s)..."
-  TIMEOUT=60
-  SECONDS=0
-  until docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do
-    sleep 1
-    if [ $SECONDS -ge $TIMEOUT ]; then
-      echo "❌ Database did not become ready after $TIMEOUT seconds."
+  # ===========================================
+  #   Populate system with default values
+  # ===========================================
+  --setup)
+    MSG="${1:-default}"
+    echo "🐘 Starting database container..."
+    docker compose up -d db
+    echo "⏳ Waiting for database readiness (max 60s)..."
+    TIMEOUT=60
+    SECONDS=0
+    until docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do
+      sleep 1
+      if [ $SECONDS -ge $TIMEOUT ]; then
+        echo "❌ Database did not become ready after $TIMEOUT seconds."
+        exit 1
+      fi
+      echo "   ...still waiting ($SECONDS s)"
+    done
+    echo "✅ Database is ready!"
+    echo "1️⃣  Creating schemas..."
+    docker compose run --rm persister sh -c "cd /api/schemer  && python schemer.py"
+    echo "2️⃣  Applying migrations (upgrade head)..."
+    docker compose run --rm persister sh -c "cd /api/migrator  && alembic upgrade head"
+    echo "3️⃣  Seeding tables..."
+    docker compose run --rm persister sh -c "cd /api/seeder && python seeder.py"
+    echo "✅ Starting services..."
+    docker compose up -d
+    ;;
+  # ===========================================
+  #   Create alembic revision
+  # ===========================================
+  --revision | -r)
+    DESC="${1:-}"
+    if [ -z "$DESC" ]; then
+      echo "❌ Error: Migration description required."
+      echo "Usage: ./launcher.sh --revision \"add_user_bio_field\""
       exit 1
     fi
-    echo "   ...still waiting ($SECONDS s)"
-  done
-  echo "✅ Database is ready!"
-  echo "1️⃣  Creating schemas..."
-  docker compose run --rm persister sh -c "cd /api/schemer  && python schemer.py"
-  echo "2️⃣  Applying migrations (upgrade head)..."
-  docker compose run --rm persister sh -c "cd /api/migrator  && alembic upgrade head"
-  echo "3️⃣  Seeding tables..."
-  docker compose run --rm persister sh -c "cd /api/seeder && python seeder.py"
-  echo "✅ Starting services..."
-  docker compose up -d
-  ;;
 
---start | -s)
-  echo "Starting containers..."
-  docker compose up -d
-  ;;
+    echo "🔍 Comparing Models vs Database..."
+    # We run this through the 'persister' service which has access to shared_models
+    docker compose run --rm persister sh -c \
+      "cd /api/migrator && alembic revision --autogenerate -m \"$DESC\""
 
---clean | -c)
-  echo "Cleaning containers and volumes..."
-  docker compose down -v
-  ;;
+    echo "✨ Migration script generated in Persistence/src/migrator/alembic/versions/"
+    ;;
 
-# ===========================================
-#   Database backup and restore
-# ===========================================
---backup)
-  TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-  BACKUP_DIR="./Backups"
-  mkdir -p "$BACKUP_DIR"
+  # ===========================================
+  #   Database backup and restore
+  # ===========================================
+  --backup)
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    BACKUP_DIR="./Backups"
+    mkdir -p "$BACKUP_DIR"
 
-  BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
-  echo "Creating database backup: $BACKUP_FILE"
+    BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
+    echo "Creating database backup: $BACKUP_FILE"
 
-  if docker compose exec -T db pg_dump -U "${DB_USER}" -d "${DB_NAME}" >"$BACKUP_FILE"; then
-    echo "✅ Backup completed successfully."
-  else
-    echo "❌ Backup failed."
-    rm -f "$BACKUP_FILE"
-  fi
-  ;;
+    if docker compose exec -T db pg_dump -U "${DB_USER}" -d "${DB_NAME}" >"$BACKUP_FILE"; then
+      echo "✅ Backup completed successfully."
+    else
+      echo "❌ Backup failed."
+      rm -f "$BACKUP_FILE"
+    fi
+    ;;
 
---restore)
-  FILE="${1:-}"
-  if [ -z "$FILE" ]; then
-    echo "Usage: ./launcher.sh --restore <path_to_backup.sql>"
-    exit 1
-  fi
-  echo "Restoring database from $FILE..."
-  docker compose exec -T db psql -U "${DB_USER}" -d "${DB_NAME}" <"$FILE"
-  echo "✅ Restore completed."
-  ;;
+  --restore)
+    FILE="${1:-}"
+    if [ -z "$FILE" ]; then
+      echo "Usage: ./launcher.sh --restore <path_to_backup.sql>"
+      exit 1
+    fi
+    echo "Restoring database from $FILE..."
+    docker compose exec -T db psql -U "${DB_USER}" -d "${DB_NAME}" <"$FILE"
+    echo "✅ Restore completed."
+    ;;
 
-# ===========================================
-# 🆘 Help
-# ===========================================
---help | -h | "" | *)
-  cat <<EOF
+  # ===========================================
+  # 🆘 Help
+  # ===========================================
+  --help | -h | "" | *)
+    cat <<EOF
 Usage: $(basename "$0") [option] [args]
 
 IIP-Visualizador Launcher — manages containers and database migrations
@@ -108,7 +116,8 @@ Examples:
     ./launcher.sh --start
     ./launcher.sh --setup
 EOF
-  exit 0
-  ;;
+    exit 0
+    ;;
 
 esac
+
