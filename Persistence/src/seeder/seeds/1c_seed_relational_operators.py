@@ -3,8 +3,8 @@
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from shared_models import RelationalOperator, RelationalOperatorsEnum as Types
-
+from shared_models import RelationalOperator
+from shared_enums import RelationalOperatorsEnum as Types
 
 logger = get_logger("seed/relational_operators")
 

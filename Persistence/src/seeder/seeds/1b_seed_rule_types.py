@@ -3,7 +3,8 @@
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from shared_models import RuleType, RuleTypesEnum as Types
+from shared_models import RuleType
+from shared_enums import RuleTypesEnum as Types
 
 
 logger = get_logger("seed/field_validation_rules")

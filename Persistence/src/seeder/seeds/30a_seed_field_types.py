@@ -3,7 +3,9 @@
 from shared_db import SessionSync
 from shared_utils.logger import get_logger
 
-from shared_models import FieldType, FieldTypesEnum as Types
+
+from shared_models import FieldType
+from shared_enums import FieldTypesEnum as Types
 
 logger = get_logger("seed/field_types")
 
