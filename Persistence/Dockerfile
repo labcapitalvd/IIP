@@ -2,30 +2,6 @@
 # Stage 1: Start application
 # =================================================
 FROM python:3.12-slim-bookworm
-RUN apt-get update && apt-get install -y \
-    gcc\
-    g++\
-    libpq-dev\
-    curl\
-    jq\
-    && rm -rf /var/lib/apt/lists/*
-
-# -----------------------------
-# 3. Install the packages
-# -----------------------------
-ARG SHARED=1
-WORKDIR /packages
-
-COPY Packages/shared_db ./shared_db
-COPY Packages/shared_enums ./shared_enums
-COPY Packages/shared_models ./shared_models
-COPY Packages/shared_schemas ./shared_schemas
-COPY Packages/shared_utils ./shared_utils
-RUN pip install --no-cache-dir /packages/shared_db
-RUN pip install --no-cache-dir /packages/shared_enums
-RUN pip install --no-cache-dir /packages/shared_models
-RUN pip install --no-cache-dir /packages/shared_schemas
-RUN pip install --no-cache-dir /packages/shared_utils
 
 # -----------------------------
 # 4. Copy app
