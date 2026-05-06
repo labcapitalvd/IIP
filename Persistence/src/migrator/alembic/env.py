@@ -7,14 +7,36 @@ from shared_db import sync_engine, SYNC_DB
 from shared_db import Base
 from shared_models import __all__ as model_names
 
+import math
+
 
 def print_list(title: str, items: list[str], cols: int = 3):
-    print(f"\n{title}:")
-    width = max(len(item) for item in items) + 2
-    for i, item in enumerate(sorted(items)):
-        print(f"{item:<{width}}", end="" if (i + 1) % cols else "\n")
-    if len(items) % cols:
-        print()
+    if not items:
+        print(f"\n{title}: (Empty)")
+        return
+
+    items = sorted(items)
+    num_items = len(items)
+    # Calculate rows needed to satisfy the column count
+    rows = math.ceil(num_items / cols)
+
+    # Determine the width of the widest item for padding
+    width = max(len(item) for item in items) + 4
+
+    print(f"\n{title} ({num_items}):")
+    print("─" * (width * cols))  # Top border
+
+    for row in range(rows):
+        line = ""
+        for col in range(cols):
+            # Calculate the index for vertical (downward) ordering
+            index = row + (col * rows)
+            if index < num_items:
+                line += f"{items[index]:<{width}}"
+        print(line)
+
+    print("─" * (width * cols))  # Bottom border
+
 
 print_list("Loaded Models", model_names)
 print_list("Tables Found in Metadata", list(Base.metadata.tables.keys()))
