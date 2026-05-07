@@ -33,7 +33,9 @@ class IdentityAppService:
                 mission=a.mission,
                 vision=a.vision,
                 actor_segment=ActorSegmentSchema(
-                    label=a.actor_segment.label, description=a.actor_segment.description
+                    id=a.actor_segment.id,
+                    label=a.actor_segment.label,
+                    description=a.actor_segment.description,
                 ),
             )
 
