@@ -3,13 +3,13 @@
 
 from .base.base import (
     BaseSchema,
+    ResponseMessageSchema,
     UuidSchema,
     LabelSchema,
     DescriptionSchema,
     HelperSchema,
     DisplayOrderSchema,
     RequiredSchema,
-    ResponseMessageSchema,
 )
 
 from .auth.auth import (
@@ -87,13 +87,13 @@ __all__ = [
     "add_routers_with_custom_errors",
     # base
     "BaseSchema",
+    "ResponseMessageSchema",
     "UuidSchema",
     "LabelSchema",
     "DescriptionSchema",
     "HelperSchema",
     "DisplayOrderSchema",
     "RequiredSchema",
-    "ResponseMessageSchema",
     # auth
     "UsernameSchema",
     "UserEmailSchema",
