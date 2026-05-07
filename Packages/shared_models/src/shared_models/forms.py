@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
- 
+
 from shared_db import (
     Base,
     column_bool,
@@ -32,7 +32,7 @@ class CardTemplate(Base):
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
     )
 
-    title: Mapped[str] = column_short_text(length=255)
+    label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
     helper: Mapped[str] = column_long_text(nullable=True)
 
@@ -69,7 +69,7 @@ class Field(Base):
         target=f"{TargetTable.FIELD_TYPES.fq_name}.id", ondelete="CASCADE"
     )
 
-    title: Mapped[str] = column_short_text(length=255)
+    label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
     required: Mapped[bool] = column_bool()
     display_order: Mapped[int] = column_integer(default=0)
@@ -109,7 +109,7 @@ class FieldChoice(Base):
         target=f"{TargetTable.FIELDS.fq_name}.id", ondelete="CASCADE"
     )
 
-    title: Mapped[str] = column_short_text(255)
+    label: Mapped[str] = column_short_text(255)
     description: Mapped[str] = column_short_text(255)
     display_order: Mapped[int] = column_integer(default=0)
 
@@ -140,7 +140,7 @@ class FieldGroup(Base):
         nullable=True,
     )
 
-    title: Mapped[str] = column_short_text(length=255)
+    label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
     display_order: Mapped[int] = column_integer(default=0)
 
@@ -173,13 +173,12 @@ class Info(Base):
     section_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.SECTIONS.fq_name}.id", ondelete="SET NULL"
     )
-
-    title: Mapped[str] = column_short_text(255)
-    description: Mapped[str] = column_long_text()
     file_id: Mapped[Optional[UUID]] = column_fk(
         target=f"{TargetTable.FILES.fq_name}.id", ondelete="CASCADE", nullable=True
     )
 
+    label: Mapped[str] = column_short_text(255)
+    description: Mapped[str] = column_long_text()
     display_order: Mapped[int] = column_integer(default=0)
 
     section: Mapped["Section"] = relationship("Section", back_populates="infos")
@@ -195,16 +194,16 @@ class Question(Base):
     section_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.SECTIONS.fq_name}.id", ondelete="SET NULL"
     )
-    is_loop: Mapped[bool] = column_bool()
     file_id: Mapped[Optional[UUID]] = column_fk(
         target=f"{TargetTable.FILES.fq_name}.id", ondelete="CASCADE", nullable=True
     )
 
-    title: Mapped[str] = column_short_text(255)
+    label: Mapped[str] = column_short_text(255)
     description: Mapped[str] = column_long_text()
     helper: Mapped[str] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
     required: Mapped[bool] = column_bool()
+    is_loop: Mapped[bool] = column_bool()
 
     updated_at: Mapped[datetime] = column_updated_at()
 
@@ -247,7 +246,7 @@ class Section(Base):
         nullable=True,
     )
 
-    title: Mapped[str] = column_short_text(255)
+    label: Mapped[str] = column_short_text(255)
     description: Mapped[str] = column_long_text()
     helper: Mapped[str] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
