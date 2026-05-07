@@ -1,8 +1,8 @@
 """initial
 
-Revision ID: 7663dc533c0a
+Revision ID: 8dd4d6c9250f
 Revises: 
-Create Date: 2026-05-07 00:11:53.064934
+Create Date: 2026-05-07 00:26:36.398784
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '7663dc533c0a'
+revision: str = '8dd4d6c9250f'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -122,31 +122,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='reference'
     )
-    op.create_table('answers',
-    sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('field_id', sa.UUID(), nullable=False),
-    sa.Column('card_entry_id', sa.UUID(), nullable=True),
-    sa.Column('discriminator', sa.String(length=50), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['card_entry_id'], ['submissions.answers_card_entry.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['field_id'], ['forms.fields.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
-    )
-    op.create_table('answers_card_entry',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('question_id', sa.UUID(), nullable=False),
-    sa.Column('card_template_id', sa.UUID(), nullable=False),
-    sa.Column('title', sa.String(length=255), nullable=False),
-    sa.Column('card_index', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['card_template_id'], ['forms.card_templates.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
-    )
     op.create_table('users',
     sa.Column('tier_id', sa.UUID(), nullable=False),
     sa.Column('username', sa.String(length=32), nullable=False),
@@ -162,40 +137,6 @@ def upgrade() -> None:
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username'),
     schema='auth'
-    )
-    op.create_table('answers_boolean',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value', sa.Boolean(), nullable=False),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
-    )
-    op.create_table('answers_date',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value', sa.Date(), server_default=sa.text('CURRENT_DATE'), nullable=True),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
-    )
-    op.create_table('answers_multi_choice',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
-    )
-    op.create_table('answers_numeric',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value', sa.Numeric(precision=18, scale=4), nullable=False),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
-    )
-    op.create_table('answers_texts',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value', sa.Text(), nullable=False),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
     )
     op.create_table('actors',
     sa.Column('actor_segment_id', sa.UUID(), nullable=False),
@@ -349,14 +290,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'file_id', 'role_id', 'id'),
     schema='links'
-    )
-    op.create_table('answers_file',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['value_id'], ['files.files.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
     )
     op.create_table('submissions',
     sa.Column('actor_id', sa.UUID(), nullable=False),
@@ -534,6 +467,81 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='rules'
     )
+    op.create_table('answers',
+    sa.Column('submission_id', sa.UUID(), nullable=False),
+    sa.Column('field_id', sa.UUID(), nullable=False),
+    sa.Column('card_entry_id', sa.UUID(), nullable=True),
+    sa.Column('discriminator', sa.String(length=50), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['card_entry_id'], ['submissions.answers_card_entry.id'], name='fk_answers_card_entry_instance', ondelete='CASCADE', use_alter=True),
+    sa.ForeignKeyConstraint(['field_id'], ['forms.fields.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_boolean',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('value', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_card_entry',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('question_id', sa.UUID(), nullable=False),
+    sa.Column('card_template_id', sa.UUID(), nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('card_index', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['card_template_id'], ['forms.card_templates.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_date',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('value', sa.Date(), server_default=sa.text('CURRENT_DATE'), nullable=True),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_file',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('value_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['value_id'], ['files.files.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_multi_choice',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_numeric',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('value', sa.Numeric(precision=18, scale=4), nullable=False),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_single_choice',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('value_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['value_id'], ['forms.field_choices.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
+    op.create_table('answers_texts',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('value', sa.Text(), nullable=False),
+    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
     op.create_table('choice_multichoice_links',
     sa.Column('choice_id', sa.UUID(), nullable=False),
     sa.Column('multi_choice_answer_id', sa.UUID(), nullable=False),
@@ -544,22 +552,22 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('choice_id', 'multi_choice_answer_id', 'id'),
     schema='links'
     )
-    op.create_table('answers_single_choice',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['value_id'], ['forms.field_choices.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
-    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('answers_single_choice', schema='submissions')
     op.drop_table('choice_multichoice_links', schema='links')
+    op.drop_table('answers_texts', schema='submissions')
+    op.drop_table('answers_single_choice', schema='submissions')
+    op.drop_table('answers_numeric', schema='submissions')
+    op.drop_table('answers_multi_choice', schema='submissions')
+    op.drop_table('answers_file', schema='submissions')
+    op.drop_table('answers_date', schema='submissions')
+    op.drop_table('answers_card_entry', schema='submissions')
+    op.drop_table('answers_boolean', schema='submissions')
+    op.drop_table('answers', schema='submissions')
     op.drop_table('field_rules', schema='rules')
     op.drop_table('field_dependencies', schema='rules')
     op.drop_table('field_choices', schema='forms')
@@ -574,7 +582,6 @@ def downgrade() -> None:
     op.drop_table('questions', schema='forms')
     op.drop_table('information', schema='forms')
     op.drop_table('submissions', schema='submissions')
-    op.drop_table('answers_file', schema='submissions')
     op.drop_table('user_file_links', schema='links')
     op.drop_table('user_actor_links', schema='links')
     op.drop_index('idx_sections_section_type_id', table_name='sections', schema='forms')
@@ -591,14 +598,7 @@ def downgrade() -> None:
     op.drop_table('refresh_sessions', schema='auth')
     op.drop_table('logs', schema='audit')
     op.drop_table('actors', schema='actors')
-    op.drop_table('answers_texts', schema='submissions')
-    op.drop_table('answers_numeric', schema='submissions')
-    op.drop_table('answers_multi_choice', schema='submissions')
-    op.drop_table('answers_date', schema='submissions')
-    op.drop_table('answers_boolean', schema='submissions')
     op.drop_table('users', schema='auth')
-    op.drop_table('answers_card_entry', schema='submissions')
-    op.drop_table('answers', schema='submissions')
     op.drop_table('user_tiers', schema='reference')
     op.drop_table('submission_status_types', schema='reference')
     op.drop_table('rule_types', schema='reference')
