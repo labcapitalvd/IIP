@@ -55,10 +55,14 @@ class ActorSchemaFK:
         description="Persona de contacto del actor.",
     )
 
+
 class ActorSchemaRel:
     """Modelo para representar un actor."""
 
     actor_segment: ActorSegmentSchema | None = None
+    # user_links: (
+    #     Annotated[Sequence[UserActorLinkSchema], Len(min_length=1, max_length=512)] | None
+    # ) = Field(None, description="Lista de userlinks")
 
 
 class ActorSchemaExtended(ActorSchema, ActorSchemaFK, ActorSchemaRel):
@@ -78,8 +82,7 @@ class ActorSegmentSchemaRel:
     """Modelo para representar un actor segment."""
 
     actors: (
-        Annotated[Sequence[ActorSchema], Len(min_length=1, max_length=512)]
-        | None
+        Annotated[Sequence[ActorSchema], Len(min_length=1, max_length=512)] | None
     ) = Field(None, description="Lista de actores")
 
 
