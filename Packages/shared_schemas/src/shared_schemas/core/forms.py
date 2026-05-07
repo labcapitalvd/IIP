@@ -103,7 +103,7 @@ class CardTemplateSchemaRel:
     """Modelo para representar un CardTemplate."""
 
 
-class CardTemplateSchemaExtended:
+class CardTemplateSchemaExtended(CardTemplateSchema, CardTemplateSchemaFK, CardTemplateSchemaRel):
     """Modelo para representar un CardTemplate."""
 
 
@@ -142,7 +142,7 @@ class FieldSchemaRel:
     """Modelo para representar un Field."""
 
 
-class FieldSchemaExtended:
+class FieldSchemaExtended(FieldSchema, FieldSchemaFK, FieldSchemaRel):
     """Modelo para representar un Field."""
 
 
@@ -159,7 +159,7 @@ class FieldChoiceSchemaRel:
     """Modelo para representar un FieldChoice."""
 
 
-class FieldChoiceSchemaExtended:
+class FieldChoiceSchemaExtended(FieldChoiceSchema, FieldChoiceSchemaFK, FieldChoiceSchemaRel):
     """Modelo para representar un FieldChoice."""
 
 
@@ -176,7 +176,7 @@ class FieldGroupSchemaRel:
     """Modelo para representar un FieldGroup."""
 
 
-class FieldGroupSchemaExtended:
+class FieldGroupSchemaExtended(FieldGroupSchema, FieldGroupSchemaFK, FieldGroupSchemaRel):
     """Modelo para representar un FieldGroup."""
 
 
@@ -193,7 +193,7 @@ class FormSchemaRel:
     """Modelo para representar un Form."""
 
 
-class FormSchemaExtended:
+class FormSchemaExtended(FormSchema, FormSchemaFK, FormSchemaRel):
     """Modelo para representar un Form."""
 
 
@@ -210,7 +210,7 @@ class InfoSchemaRel:
     """Modelo para representar un Info."""
 
 
-class InfoSchemaExtended:
+class InfoSchemaExtended(InfoSchema, InfoSchemaFK, InfoSchemaRel):
     """Modelo para representar un Info."""
 
 
@@ -227,7 +227,7 @@ class QuestionSchemaRel:
     """Modelo para representar un Question."""
 
 
-class QuestionSchemaExtended:
+class QuestionSchemaExtended(QuestionSchema, QuestionSchemaFK, QuestionSchemaRel):
     """Modelo para representar un Question."""
 
 
@@ -244,7 +244,7 @@ class SectionSchemaRel:
     """Modelo para representar un Section."""
 
 
-class SectionSchemaExtended:
+class SectionSchemaExtended(SectionSchema, SectionSchemaFK, SectionSchemaRel):
     """Modelo para representar un Section."""
 
 
@@ -261,5 +261,5 @@ class SectionTypeSchemaRel:
     """Modelo para representar un Section."""
 
 
-class SectionTypeSchemaExtended:
+class SectionTypeSchemaExtended(SectionTypeSchema, SectionTypeSchemaFK, SectionTypeSchemaRel):
     """Modelo para representar un Section."""
