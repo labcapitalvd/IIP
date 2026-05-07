@@ -68,7 +68,7 @@ class ActorSegmentRepository:
             select(ActorSegment).options(joinedload(ActorSegment.actors)).order_by(ActorSegment.label)
         )
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return result.unique().scalars().all()
 
     def add(self, entry: ActorSegment) -> None:
         self.session.add(entry)
