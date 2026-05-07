@@ -1,19 +1,15 @@
+from typing import Sequence, Annotated
+from annotated_types import Len
 from pydantic import Field
 
 from shared_schemas import UuidSchema, LabelSchema, DescriptionSchema
 
 
 ###############################################################################
-# ActorSegment
-###############################################################################
-class ActorSegmentSchema(UuidSchema, LabelSchema, DescriptionSchema):
-    """Modelo para representar un mensaje de respuesta estandarizado."""
-
-###############################################################################
 # Actor
 ###############################################################################
 class ActorSchema(UuidSchema, LabelSchema, DescriptionSchema):
-    """Modelo para representar un mensaje de respuesta estandarizado."""
+    """Modelo para representar un actor."""
 
     actor_segment: str | None = Field(
         default=None,
@@ -37,3 +33,13 @@ class ActorSchema(UuidSchema, LabelSchema, DescriptionSchema):
         description="Mensaje legible para el usuario",
     )
 
+
+###############################################################################
+# ActorSegment
+###############################################################################
+class ActorSegmentSchema(UuidSchema, LabelSchema, DescriptionSchema):
+    """Modelo para representar un actor segment."""
+
+    actors: (
+        Annotated[Sequence[ActorSchema], Len(min_length=1, max_length=512)] | None
+    ) = Field(None, description="Lista de actores")
