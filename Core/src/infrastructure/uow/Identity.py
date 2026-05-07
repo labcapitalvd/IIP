@@ -14,7 +14,7 @@ class IdentityUoW(UnitOfWork):
 
     actors: ActorRepository
     user_actor_links: UserActorLinkRepository
-    segments: ActorSegmentRepository
+    actor_segments: ActorSegmentRepository
 
     async def __aenter__(self):
         await super().__aenter__()
@@ -22,5 +22,6 @@ class IdentityUoW(UnitOfWork):
 
         self.actors = ActorRepository(self.session)
         self.user_actor_links = UserActorLinkRepository(self.session)
-        self.segments = ActorSegmentRepository(self.session)
+        self.actor_segments = ActorSegmentRepository(self.session)
         return self
+
