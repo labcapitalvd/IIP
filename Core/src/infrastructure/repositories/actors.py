@@ -63,6 +63,13 @@ class ActorSegmentRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_all(self) -> Sequence[ActorSegment]:
+        stmt = (
+            select(ActorSegment).options(joinedload(ActorSegment.actors)).order_by(ActorSegment.label)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     def add(self, entry: ActorSegment) -> None:
         self.session.add(entry)
 
