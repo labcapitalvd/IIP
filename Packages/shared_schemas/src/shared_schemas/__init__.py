@@ -3,13 +3,15 @@
 
 from .base.base import (
     BaseSchema,
+    ResponseMessageSchema,
     UuidSchema,
     LabelSchema,
     DescriptionSchema,
-    ResponseMessageSchema,
+    HelperSchema,
+    DisplayOrderSchema,
+    RequiredSchema,
 )
 
-# auth depends on base, so import it *after* base
 from .auth.auth import (
     UsernameSchema,
     UserEmailSchema,
@@ -21,8 +23,58 @@ from .auth.auth import (
 )
 
 from .core.actors import (
+    # base
     ActorSchema,
     ActorSegmentSchema,
+    # fk
+    ActorSchemaFK,
+    ActorSegmentSchemaFK,
+    # rel
+    ActorSchemaRel,
+    ActorSegmentSchemaRel,
+    # extended
+    ActorSchemaExtended,
+    ActorSegmentSchemaExtended,
+)
+
+
+from .core.forms import (
+    # base
+    CardTemplateSchema,
+    FieldSchema,
+    FieldChoiceSchema,
+    FieldGroupSchema,
+    FormSchema,
+    InfoSchema,
+    QuestionSchema,
+    SectionSchema,
+    # fk
+    CardTemplateSchemaFK,
+    FieldSchemaFK,
+    FieldChoiceSchemaFK,
+    FieldGroupSchemaFK,
+    FormSchemaFK,
+    InfoSchemaFK,
+    QuestionSchemaFK,
+    SectionSchemaFK,
+    # rel
+    CardTemplateSchemaRel,
+    FieldSchemaRel,
+    FieldChoiceSchemaRel,
+    FieldGroupSchemaRel,
+    FormSchemaRel,
+    InfoSchemaRel,
+    QuestionSchemaRel,
+    SectionSchemaRel,
+    # extended
+    CardTemplateSchemaExtended,
+    FieldSchemaExtended,
+    FieldChoiceSchemaExtended,
+    FieldGroupSchemaExtended,
+    FormSchemaExtended,
+    InfoSchemaExtended,
+    QuestionSchemaExtended,
+    SectionSchemaExtended,
 )
 
 __all__ = [
@@ -35,10 +87,13 @@ __all__ = [
     "add_routers_with_custom_errors",
     # base
     "BaseSchema",
+    "ResponseMessageSchema",
     "UuidSchema",
     "LabelSchema",
     "DescriptionSchema",
-    "ResponseMessageSchema",
+    "HelperSchema",
+    "DisplayOrderSchema",
+    "RequiredSchema",
     # auth
     "UsernameSchema",
     "UserEmailSchema",
@@ -47,7 +102,48 @@ __all__ = [
     "AccessTokenSchema",
     "RefreshTokenSchema",
     "ResponseAuthSchema",
-    # core
+    # core base
     "ActorSchema",
     "ActorSegmentSchema",
+    "CardTemplateSchema",
+    "FieldSchema",
+    "FieldChoiceSchema",
+    "FieldGroupSchema",
+    "FormSchema",
+    "InfoSchema",
+    "QuestionSchema",
+    "SectionSchema",
+    # core fk
+    "ActorSchemaFK",
+    "ActorSegmentSchemaFK",
+    "CardTemplateSchemaFK",
+    "FieldSchemaFK",
+    "FieldChoiceSchemaFK",
+    "FieldGroupSchemaFK",
+    "FormSchemaFK",
+    "InfoSchemaFK",
+    "QuestionSchemaFK",
+    "SectionSchemaFK",
+    # core rel
+    "ActorSchemaRel",
+    "ActorSegmentSchemaRel",
+    "CardTemplateSchemaRel",
+    "FieldSchemaRel",
+    "FieldChoiceSchemaRel",
+    "FieldGroupSchemaRel",
+    "FormSchemaRel",
+    "InfoSchemaRel",
+    "QuestionSchemaRel",
+    "SectionSchemaRel",
+    # core extended
+    "ActorSchemaExtended",
+    "ActorSegmentSchemaExtended",
+    "CardTemplateSchemaExtended",
+    "FieldSchemaExtended",
+    "FieldChoiceSchemaExtended",
+    "FieldGroupSchemaExtended",
+    "FormSchemaExtended",
+    "InfoSchemaExtended",
+    "QuestionSchemaExtended",
+    "SectionSchemaExtended",
 ]

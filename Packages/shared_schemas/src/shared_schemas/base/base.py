@@ -28,6 +28,7 @@ class UuidSchema(BaseSchema):
         description="el UUID en v4 o v7 de un objeto en la db",
     )
 
+
 ##############################################################################################
 # Name
 ##############################################################################################
@@ -42,6 +43,7 @@ class LabelSchema(BaseSchema):
         description="el name o label de un objeto en la db",
     )
 
+
 ##############################################################################################
 # Description
 ##############################################################################################
@@ -55,6 +57,52 @@ class DescriptionSchema(BaseSchema):
         title="Description del objeto.",
         description="el description de un objeto en la db",
     )
+
+
+##############################################################################################
+# Helper
+##############################################################################################
+class HelperSchema(BaseSchema):
+    """Modelo para representar un Helper."""
+
+    helper: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="Helper del objeto.",
+        description="el helper de un objeto en la db",
+    )
+
+
+##############################################################################################
+# Display Order
+##############################################################################################
+class DisplayOrderSchema(BaseSchema):
+    """Modelo para representar un Display Order."""
+
+    display_order: int | None = Field(
+        default=...,
+        min_length=1,
+        max_length=256,
+        title="Display Order.",
+        description="el display_order de un objeto en la db",
+    )
+
+
+##############################################################################################
+# Required
+##############################################################################################
+class RequiredSchema(BaseSchema):
+    """Modelo para representar un Required."""
+
+    required: bool | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="Required.",
+        description="el required de un objeto en la db",
+    )
+
 
 ##############################################################################################
 # Message
