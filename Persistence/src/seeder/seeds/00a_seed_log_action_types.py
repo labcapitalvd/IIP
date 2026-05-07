@@ -4,7 +4,7 @@ from shared_db import SessionSync
 from shared_models import LogActionType
 from shared_utils.logger import get_logger
 
-from shared_models import LogActionTypesEnum as Types
+from shared_enums import LogActionTypesEnum as Types
 
 
 logger = get_logger("seed/log_action_types")

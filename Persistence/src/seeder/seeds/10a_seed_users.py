@@ -57,8 +57,8 @@ def upgrade() -> None:
             tier_id = tier_map.get(username.lower(), tier_map["admin"])
 
             user_obj = User(
-                id=uuid7(),  # uuid_utils.uuid7() returns a UUID object directly
-                tier_id=tier_id,
+                id=str(uuid7()),
+                tier_id=str(tier_id),
                 username=username,
                 email=email,
                 password_hash=hash_password(sanitize_text(u["password"])),

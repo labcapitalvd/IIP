@@ -34,13 +34,27 @@ services:
       timeout: 3s
       retries: 5
 
+  base:
+    container_name: iip_base
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: labcapital/apps:IIP-Base
+
   persister:
     container_name: iip_persister
     build:
       context: .
       dockerfile: Persistence/Dockerfile
     image: labcapital/apps:IIP-Persister
+    depends_on:
+      base:
+        condition: service_started
+      db:
+        condition: service_healthy
     env_file: ./.env
+    volumes:
+      - "./Persistence/src/migrator/alembic/versions:/api/migrator/alembic/versions"
     secrets:
       - jwt_private_key
       - jwt_public_key
@@ -49,7 +63,7 @@ services:
       - github_token_commons
       - github_token_iip
       - github_token_seeds
-      - users_file   
+      - users_file
     networks:
       - iip_db_net
 
@@ -58,8 +72,12 @@ services:
     build:
       context: .
       dockerfile: Auth/Dockerfile
-
     image: labcapital/apps:IIP-Auth
+    depends_on:
+      base:
+        condition: service_started
+      db:
+        condition: service_healthy
     env_file: ./.env
     secrets:
       - jwt_private_key
@@ -69,9 +87,6 @@ services:
     networks:
       - iip_db_net
       - iip_nginx
-    depends_on:
-      db:
-        condition: service_healthy
 
   api_core:
     container_name: iip_api_core
@@ -79,6 +94,11 @@ services:
       context: .
       dockerfile: Core/Dockerfile
     image: labcapital/apps:IIP-Core
+    depends_on:
+      base:
+        condition: service_started
+      db:
+        condition: service_healthy
     env_file: ./.env
     secrets:
       - jwt_private_key

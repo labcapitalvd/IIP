@@ -4,7 +4,7 @@ from shared_db import SessionSync
 from shared_models import Role
 from shared_utils.logger import get_logger
 
-from shared_models import RolesEnum as Types
+from shared_enums import RolesEnum as Types
 
 logger = get_logger("seed/roles")
 

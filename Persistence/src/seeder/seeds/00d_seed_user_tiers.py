@@ -6,7 +6,7 @@ from shared_db import SessionSync
 from shared_models import UserTier
 from shared_utils.logger import get_logger
 
-from shared_models import UserTiersEnum as Types
+from shared_enums import UserTiersEnum as Types
 
 logger = get_logger("seed/user_tiers")
 
