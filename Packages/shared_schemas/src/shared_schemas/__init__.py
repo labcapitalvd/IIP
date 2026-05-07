@@ -2,6 +2,7 @@
 # Unified exports for schemas, avoiding circular imports.
 
 from .base.base import (
+    UUID_STR,
     BaseSchema,
     ResponseMessageSchema,
     UuidSchema,
@@ -86,6 +87,7 @@ __all__ = [
     "add_custom_error_responses",
     "add_routers_with_custom_errors",
     # base
+    "UUID_STR",
     "BaseSchema",
     "ResponseMessageSchema",
     "UuidSchema",

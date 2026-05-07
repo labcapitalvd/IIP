@@ -3,7 +3,7 @@ from typing import Sequence, Annotated
 from annotated_types import Len
 from pydantic import Field
 
-from shared_schemas import UuidSchema, LabelSchema, DescriptionSchema
+from shared_schemas import UUID_STR, UuidSchema, LabelSchema, DescriptionSchema
 
 
 ###############################################################################
@@ -40,12 +40,12 @@ class ActorSegmentSchema(UuidSchema, LabelSchema, DescriptionSchema):
 class ActorSchemaFK(ActorSchema):
     """Modelo para representar un actor."""
 
-    actor_segment_id: UUID | None = Field(
+    actor_segment_id: UUID_STR | None = Field(
         default=None,
         title="Segmento.",
         description="Segmento al que pertenece el actor.",
     )
-    contact_person_id: UUID | None = Field(
+    contact_person_id: UUID_STR | None = Field(
         default=None,
         title="Contacto.",
         description="Persona de contacto del actor.",
@@ -82,7 +82,5 @@ class ActorSegmentSchemaRel(ActorSegmentSchema):
     ) = Field(None, description="Lista de actores")
 
 
-class ActorSegmentSchemaExtended(
-    ActorSegmentSchemaFK, ActorSegmentSchemaRel
-):
+class ActorSegmentSchemaExtended(ActorSegmentSchemaFK, ActorSegmentSchemaRel):
     """Modelo para representar un actor segment."""

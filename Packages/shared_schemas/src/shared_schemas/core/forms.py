@@ -5,6 +5,7 @@ from annotated_types import Len
 from pydantic import Field
 
 from shared_schemas import (
+    UUID_STR,
     UuidSchema,
     LabelSchema,
     DescriptionSchema,
@@ -90,7 +91,7 @@ class SectionTypeSchema(UuidSchema, LabelSchema, DescriptionSchema):
 class CardTemplateSchemaFK(CardTemplateSchema):
     """Modelo para representar un CardTemplate."""
 
-    question_id: UUID | None = Field(
+    question_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de question.",
@@ -101,9 +102,7 @@ class CardTemplateSchemaRel(CardTemplateSchema):
     """Modelo para representar un CardTemplate."""
 
 
-class CardTemplateSchemaExtended(
-    CardTemplateSchemaFK, CardTemplateSchemaRel
-):
+class CardTemplateSchemaExtended(CardTemplateSchemaFK, CardTemplateSchemaRel):
     """Modelo para representar un CardTemplate."""
 
 
@@ -115,17 +114,17 @@ class CardTemplateSchemaExtended(
 class FieldSchemaFK(FieldSchema):
     """Modelo para representar un Field."""
 
-    form_id: UUID | None = Field(
+    form_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de formulario.",
     )
-    field_group_id: UUID | None = Field(
+    field_group_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de field group.",
     )
-    field_type_id: UUID | None = Field(
+    field_type_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de field type.",
@@ -148,7 +147,7 @@ class FieldSchemaExtended(FieldSchemaFK, FieldSchemaRel):
 class FieldChoiceSchemaFK(FieldChoiceSchema):
     """Modelo para representar un FieldChoice."""
 
-    field_id: UUID | None = Field(
+    field_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de field.",
@@ -159,9 +158,7 @@ class FieldChoiceSchemaRel(FieldChoiceSchema):
     """Modelo para representar un FieldChoice."""
 
 
-class FieldChoiceSchemaExtended(
-    FieldChoiceSchemaFK, FieldChoiceSchemaRel
-):
+class FieldChoiceSchemaExtended(FieldChoiceSchemaFK, FieldChoiceSchemaRel):
     """Modelo para representar un FieldChoice."""
 
 
@@ -173,17 +170,17 @@ class FieldChoiceSchemaExtended(
 class FieldGroupSchemaFK(FieldGroupSchema):
     """Modelo para representar un FieldGroup."""
 
-    form_id: UUID | None = Field(
+    form_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de form.",
     )
-    question_id: UUID | None = Field(
+    question_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de question.",
     )
-    card_template_id: UUID | None = Field(
+    card_template_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de card_template.",
@@ -194,9 +191,7 @@ class FieldGroupSchemaRel(FieldGroupSchema):
     """Modelo para representar un FieldGroup."""
 
 
-class FieldGroupSchemaExtended(
-    FieldGroupSchemaFK, FieldGroupSchemaRel
-):
+class FieldGroupSchemaExtended(FieldGroupSchemaFK, FieldGroupSchemaRel):
     """Modelo para representar un FieldGroup."""
 
 
@@ -225,12 +220,12 @@ class FormSchemaExtended(FormSchemaFK, FormSchemaRel):
 class InfoSchemaFK(InfoSchema):
     """Modelo para representar un Info."""
 
-    section_id: UUID | None = Field(
+    section_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de section.",
     )
-    file_id: UUID | None = Field(
+    file_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de file.",
@@ -253,17 +248,17 @@ class InfoSchemaExtended(InfoSchemaFK, InfoSchemaRel):
 class QuestionSchemaFK(QuestionSchema):
     """Modelo para representar un Question."""
 
-    form_id: UUID | None = Field(
+    form_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de form.",
     )
-    section_id: UUID | None = Field(
+    section_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de section.",
     )
-    file_id: UUID | None = Field(
+    file_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de file.",
@@ -286,22 +281,22 @@ class QuestionSchemaExtended(QuestionSchemaFK, QuestionSchemaRel):
 class SectionSchemaFK(SectionSchema):
     """Modelo para representar un Section."""
 
-    form_id: UUID | None = Field(
+    form_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de form.",
     )
-    file_id: UUID | None = Field(
+    file_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de file.",
     )
-    parent_id: UUID | None = Field(
+    parent_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de parent.",
     )
-    section_type_id: UUID | None = Field(
+    section_type_id: UUID_STR | None = Field(
         default=None,
         title="ID.",
         description="Id de section type.",
@@ -329,7 +324,5 @@ class SectionTypeSchemaRel(SectionTypeSchema):
     """Modelo para representar un Section."""
 
 
-class SectionTypeSchemaExtended(
-    SectionTypeSchemaFK, SectionTypeSchemaRel
-):
+class SectionTypeSchemaExtended(SectionTypeSchemaFK, SectionTypeSchemaRel):
     """Modelo para representar un Section."""

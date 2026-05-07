@@ -2,6 +2,15 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_snake
+from pydantic import functional_validators, BeforeValidator
+from typing import Annotated, Any
+
+
+def coerce_to_str(v: Any) -> str:
+    if isinstance(v, UUID):
+        return str(v)
+    return v
+UUID_STR = Annotated[str, BeforeValidator(coerce_to_str)]
 
 
 ##############################################################################################
@@ -22,7 +31,7 @@ class BaseSchema(BaseModel):
 class UuidSchema(BaseSchema):
     """Modelo para representar un UUID."""
 
-    id: UUID | None = Field(
+    id: UUID_STR | None = Field(
         default=...,
         title="UUID del objeto.",
         description="el UUID en v4 o v7 de un objeto en la db",
