@@ -42,15 +42,11 @@ class ActorSchemaFK(ActorSchema):
 
     actor_segment_id: UUID | None = Field(
         default=None,
-        min_length=1,
-        max_length=256,
         title="Segmento.",
         description="Segmento al que pertenece el actor.",
     )
     contact_person_id: UUID | None = Field(
         default=None,
-        min_length=1,
-        max_length=256,
         title="Contacto.",
         description="Persona de contacto del actor.",
     )
