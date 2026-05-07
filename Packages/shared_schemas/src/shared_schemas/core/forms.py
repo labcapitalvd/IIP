@@ -103,7 +103,9 @@ class CardTemplateSchemaRel:
     """Modelo para representar un CardTemplate."""
 
 
-class CardTemplateSchemaExtended(CardTemplateSchema, CardTemplateSchemaFK, CardTemplateSchemaRel):
+class CardTemplateSchemaExtended(
+    CardTemplateSchema, CardTemplateSchemaFK, CardTemplateSchemaRel
+):
     """Modelo para representar un CardTemplate."""
 
 
@@ -120,21 +122,21 @@ class FieldSchemaFK:
         min_length=1,
         max_length=256,
         title="ID.",
-        description="Id de question.",
+        description="Id de formulario.",
     )
     field_group_id: UUID | None = Field(
         default=None,
         min_length=1,
         max_length=256,
         title="ID.",
-        description="Id de question.",
+        description="Id de field group.",
     )
     field_type_id: UUID | None = Field(
         default=None,
         min_length=1,
         max_length=256,
         title="ID.",
-        description="Id de question.",
+        description="Id de field type.",
     )
 
 
@@ -154,12 +156,22 @@ class FieldSchemaExtended(FieldSchema, FieldSchemaFK, FieldSchemaRel):
 class FieldChoiceSchemaFK:
     """Modelo para representar un FieldChoice."""
 
+    field_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de field.",
+    )
+
 
 class FieldChoiceSchemaRel:
     """Modelo para representar un FieldChoice."""
 
 
-class FieldChoiceSchemaExtended(FieldChoiceSchema, FieldChoiceSchemaFK, FieldChoiceSchemaRel):
+class FieldChoiceSchemaExtended(
+    FieldChoiceSchema, FieldChoiceSchemaFK, FieldChoiceSchemaRel
+):
     """Modelo para representar un FieldChoice."""
 
 
@@ -171,12 +183,36 @@ class FieldChoiceSchemaExtended(FieldChoiceSchema, FieldChoiceSchemaFK, FieldCho
 class FieldGroupSchemaFK:
     """Modelo para representar un FieldGroup."""
 
+    form_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de form.",
+    )
+    question_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de question.",
+    )
+    card_template_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de card_template.",
+    )
+
 
 class FieldGroupSchemaRel:
     """Modelo para representar un FieldGroup."""
 
 
-class FieldGroupSchemaExtended(FieldGroupSchema, FieldGroupSchemaFK, FieldGroupSchemaRel):
+class FieldGroupSchemaExtended(
+    FieldGroupSchema, FieldGroupSchemaFK, FieldGroupSchemaRel
+):
     """Modelo para representar un FieldGroup."""
 
 
@@ -205,6 +241,21 @@ class FormSchemaExtended(FormSchema, FormSchemaFK, FormSchemaRel):
 class InfoSchemaFK:
     """Modelo para representar un Info."""
 
+    section_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de section.",
+    )
+    file_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de file.",
+    )
+
 
 class InfoSchemaRel:
     """Modelo para representar un Info."""
@@ -222,6 +273,28 @@ class InfoSchemaExtended(InfoSchema, InfoSchemaFK, InfoSchemaRel):
 class QuestionSchemaFK:
     """Modelo para representar un Question."""
 
+    form_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de form.",
+    )
+    section_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de section.",
+    )
+    file_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de file.",
+    )
+
 
 class QuestionSchemaRel:
     """Modelo para representar un Question."""
@@ -238,6 +311,35 @@ class QuestionSchemaExtended(QuestionSchema, QuestionSchemaFK, QuestionSchemaRel
 
 class SectionSchemaFK:
     """Modelo para representar un Section."""
+
+    form_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de form.",
+    )
+    file_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de file.",
+    )
+    parent_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de parent.",
+    )
+    section_type_id: UUID | None = Field(
+        default=None,
+        min_length=1,
+        max_length=256,
+        title="ID.",
+        description="Id de section type.",
+    )
 
 
 class SectionSchemaRel:
@@ -261,5 +363,7 @@ class SectionTypeSchemaRel:
     """Modelo para representar un Section."""
 
 
-class SectionTypeSchemaExtended(SectionTypeSchema, SectionTypeSchemaFK, SectionTypeSchemaRel):
+class SectionTypeSchemaExtended(
+    SectionTypeSchema, SectionTypeSchemaFK, SectionTypeSchemaRel
+):
     """Modelo para representar un Section."""
