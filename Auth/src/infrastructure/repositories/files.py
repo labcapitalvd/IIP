@@ -5,7 +5,7 @@ from shared_models import File, FileType
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared_models import FileTypesEnum
+from shared_enums import FileTypesEnum
 
 
 class FileRepository:

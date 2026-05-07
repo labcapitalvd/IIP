@@ -5,7 +5,7 @@ from shared_models import Submission, Answer, AnswerCardEntry
 from domain.factories.answer_factory import AnswerFactory
 from infrastructure.uow.Submission import SubmissionUoW
 
-from shared_models.enums import SubmissionStatusesEnum
+from shared_enums import SubmissionStatusesEnum
 
 
 class SubmissionService:

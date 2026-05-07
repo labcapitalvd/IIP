@@ -7,7 +7,7 @@ from shared_utils import AccessContext, get_claims
 
 from application import IdentityAppService
 
-router = APIRouter(tags=["Submissions"], prefix="/submissions")
+router = APIRouter(tags=["Actors"], prefix="/actors")
 
 
 def get_identity_service() -> IdentityAppService:
@@ -15,7 +15,7 @@ def get_identity_service() -> IdentityAppService:
 
 
 @router.get(
-    path="/actors",
+    path="/all",
     response_model=Sequence[ActorSchema],
     response_model_exclude_none=True,
     operation_id="get_entities",
@@ -30,7 +30,7 @@ async def get_actors(
 
 
 @router.get(
-    path="/actors/{actor_id}",
+    path="/{actor_id}",
     response_model=ActorSchema,
     response_model_exclude_none=True,
     operation_id="get_entity",
@@ -45,7 +45,7 @@ async def get_actor(
     return response
 
 @router.post(
-    "/actors/new",
+    "/new",
     response_model=ResponseMessageSchema,
     response_model_exclude_none=True,
     operation_id="create_actor",

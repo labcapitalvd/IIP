@@ -1,6 +1,6 @@
 from shared_db import UnitOfWork
 from ..repositories import (
-    CriteriaRepository,
+    CriterionRepository,
     GradeRepository,
     ResultRepository,
     SubmissionRepository,
@@ -15,7 +15,7 @@ class GradingUoW(UnitOfWork):
 
     grades: GradeRepository
     results: ResultRepository
-    criteria: CriteriaRepository
+    criteria: CriterionRepository
     submissions: SubmissionRepository
 
     async def __aenter__(self):
@@ -24,7 +24,7 @@ class GradingUoW(UnitOfWork):
 
         self.grades = GradeRepository(self.session)
         self.results = ResultRepository(self.session)
-        self.criteria = CriteriaRepository(self.session)
+        self.criteria = CriterionRepository(self.session)
         # Read-only access to submissions
         self.submissions = SubmissionRepository(self.session)
         return self
