@@ -2,7 +2,7 @@ from typing import Any, List, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path
-from shared_schemas import ResponseMessageSchema, ActorSegmentSchema, ActorSchema
+from shared_schemas import ResponseMessageSchema, ActorSegmentSchema, ActorSchema, ActorSchemaRel, ActorSegmentSchemaRel
 from shared_utils import AccessContext, get_claims
 
 from application import IdentityAppService
@@ -33,7 +33,7 @@ async def get_actors(
 
 @router_actors.get(
     path="/{actor_id}",
-    response_model=ActorSchema,
+    response_model=ActorSchemaRel,
     response_model_exclude_none=True,
     operation_id="get_entity",
 )
@@ -54,7 +54,7 @@ async def get_actor(
     operation_id="create_actor",
 )
 async def create_actor(
-    actor: ActorSchema,
+    actor: ActorSchemaRel,
     ctx: AccessContext = Depends(),
     service: IdentityAppService = Depends(get_identity_service),
 ):
@@ -81,7 +81,7 @@ async def get_actor_segments(
 
 @router_actor_segments.get(
     path="/{actor_segment_id}",
-    response_model=ActorSegmentSchema,
+    response_model=ActorSegmentSchemaRel,
     response_model_exclude_none=True,
     operation_id="get_actor_segment",
 )
