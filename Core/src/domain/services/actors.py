@@ -1,4 +1,4 @@
-from shared_schemas import ActorSchema, ActorSegmentSchema, ResponseActorSchema
+from shared_schemas import ActorSchema, ActorSegmentSchema
 from sqlalchemy import label, select
 from sqlalchemy.orm import selectinload
 from typing import List, Any
@@ -7,8 +7,6 @@ from uuid import UUID
 from shared_models import Submission, Answer, AnswerCardEntry, Actor
 from domain.factories.answer_factory import AnswerFactory
 from infrastructure.uow import IdentityUoW
-
-from shared_models.enums import SubmissionStatusesEnum
 
 from .errors import ActorError, ActorAlreadyExistsError, SegmentNotFoundError
 
