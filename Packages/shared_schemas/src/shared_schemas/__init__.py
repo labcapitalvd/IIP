@@ -6,6 +6,9 @@ from .base.base import (
     UuidSchema,
     LabelSchema,
     DescriptionSchema,
+    HelperSchema,
+    DisplayOrderSchema,
+    RequiredSchema,
     ResponseMessageSchema,
 )
 
@@ -24,6 +27,60 @@ from .core.actors import (
     ActorSchema,
     ActorSegmentSchema,
 )
+from .core.actors import (
+    ActorSchemaFK,
+    ActorSegmentSchemaFK,
+)
+from .core.actors import (
+    ActorSchemaRel,
+    ActorSegmentSchemaRel,
+)
+from .core.actors import (
+    ActorSchemaExtended,
+    ActorSegmentSchemaExtended,
+)
+
+
+from .core.forms import (
+    CardTemplateSchema,
+    FieldSchema,
+    FieldChoiceSchema,
+    FieldGroupSchema,
+    FormSchema,
+    InfoSchema,
+    QuestionSchema,
+    SectionSchema,
+)
+from .core.forms import (
+    CardTemplateSchemaFK,
+    FieldSchemaFK,
+    FieldChoiceSchemaFK,
+    FieldGroupSchemaFK,
+    FormSchemaFK,
+    InfoSchemaFK,
+    QuestionSchemaFK,
+    SectionSchemaFK,
+)
+from .core.forms import (
+    CardTemplateSchemaRel,
+    FieldSchemaRel,
+    FieldChoiceSchemaRel,
+    FieldGroupSchemaRel,
+    FormSchemaRel,
+    InfoSchemaRel,
+    QuestionSchemaRel,
+    SectionSchemaRel,
+)
+from .core.forms import (
+    CardTemplateSchemaExtended,
+    FieldSchemaExtended,
+    FieldChoiceSchemaExtended,
+    FieldGroupSchemaExtended,
+    FormSchemaExtended,
+    InfoSchemaExtended,
+    QuestionSchemaExtended,
+    SectionSchemaExtended,
+)
 
 __all__ = [
     # errors
@@ -38,6 +95,9 @@ __all__ = [
     "UuidSchema",
     "LabelSchema",
     "DescriptionSchema",
+    "HelperSchema",
+    "DisplayOrderSchema",
+    "RequiredSchema",
     "ResponseMessageSchema",
     # auth
     "UsernameSchema",
@@ -47,7 +107,48 @@ __all__ = [
     "AccessTokenSchema",
     "RefreshTokenSchema",
     "ResponseAuthSchema",
-    # core
+    # core base
     "ActorSchema",
     "ActorSegmentSchema",
+    "CardTemplateSchema",
+    "FieldSchema",
+    "FieldChoiceSchema",
+    "FieldGroupSchema",
+    "FormSchema",
+    "InfoSchema",
+    "QuestionSchema",
+    "SectionSchema",
+    # core fk
+    "ActorSchemaFK",
+    "ActorSegmentSchemaFK",
+    "CardTemplateSchemaFK",
+    "FieldSchemaFK",
+    "FieldChoiceSchemaFK",
+    "FieldGroupSchemaFK",
+    "FormSchemaFK",
+    "InfoSchemaFK",
+    "QuestionSchemaFK",
+    "SectionSchemaFK",
+    # core rel
+    "ActorSchemaRel",
+    "ActorSegmentSchemaRel",
+    "CardTemplateSchemaRel",
+    "FieldSchemaRel",
+    "FieldChoiceSchemaRel",
+    "FieldGroupSchemaRel",
+    "FormSchemaRel",
+    "InfoSchemaRel",
+    "QuestionSchemaRel",
+    "SectionSchemaRel",
+    # core extended
+    "ActorSchemaExtended",
+    "ActorSegmentSchemaExtended",
+    "CardTemplateSchemaExtended",
+    "FieldSchemaExtended",
+    "FieldChoiceSchemaExtended",
+    "FieldGroupSchemaExtended",
+    "FormSchemaExtended",
+    "InfoSchemaExtended",
+    "QuestionSchemaExtended",
+    "SectionSchemaExtended",
 ]
