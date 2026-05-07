@@ -2,7 +2,7 @@ from typing import Any, List, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path
-from shared_schemas import ResponseMessageSchema, ActorSegmentSchema, ActorSchema, ActorSchemaRel, ActorSegmentSchemaRel
+from shared_schemas import ResponseMessageSchema, ActorSegmentSchema, ActorSchema, ActorSchemaRel, ActorSegmentSchemaRel, ActorSchemaFK
 from shared_utils import AccessContext, get_claims
 
 from application import IdentityAppService
@@ -54,7 +54,7 @@ async def get_actor(
     operation_id="create_actor",
 )
 async def create_actor(
-    actor: ActorSchemaRel,
+    actor: ActorSchemaFK,
     ctx: AccessContext = Depends(),
     service: IdentityAppService = Depends(get_identity_service),
 ):

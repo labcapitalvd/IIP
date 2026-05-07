@@ -1,4 +1,4 @@
-from shared_schemas import ActorSchema, ActorSegmentSchema, ActorSchemaRel
+from shared_schemas import ActorSchema, ActorSegmentSchema, ActorSchemaRel, ActorSchemaFK
 from sqlalchemy import label, select
 from sqlalchemy.orm import selectinload
 from typing import List, Any
@@ -15,9 +15,9 @@ class ActorService:
     async def create_actor(
         self,
         uow: IdentityUoW,
-        actor_data: ActorSchemaRel,
+        actor_data: ActorSchemaFK,
     ) -> Actor:
-        if not actor_data.label or not actor_data.actor_segment:
+        if not actor_data.label or not actor_data.actor_segment_id:
             raise ValueError("Actor label is required for creation.")
 
         existing = await uow.actors.get_by_label(label=actor_data.label)
@@ -25,15 +25,14 @@ class ActorService:
         if existing:
             raise ActorAlreadyExistsError(actor_data.label)
 
-        segment_label = actor_data.actor_segment.label if actor_data.actor_segment else None
 
-        if not segment_label:
+        if not actor_data.actor_segment_id:
             raise ValueError("Actor segment label is required.")
 
-        segment = await uow.actor_segments.get_by_label(label=segment_label)
+        segment = await uow.actor_segments.get_by_id(id=actor_data.actor_segment_id)
 
         if not segment:
-            raise SegmentNotFoundError(actor_data.actor_segment)
+            raise SegmentNotFoundError(actor_data.actor_segment_id)
 
         data_for_db = actor_data.model_dump(exclude={"id", "actor_segment"})
 
