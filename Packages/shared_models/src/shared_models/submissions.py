@@ -43,6 +43,8 @@ class Answer(Base):
         target=f"{TargetTable.ANSWERS_CARD_ENTRY.fq_name}.id",
         ondelete="CASCADE",
         nullable=True,
+        use_alter=True,
+        name="fk_answers_card_entry_instance",
     )
     # discriminator is required by SQLAlchemy for Joined Table Inheritance because
     # our Python identities are strings (e.g. "AnswerBoolean") but type_id is a UUID.
@@ -56,7 +58,10 @@ class Answer(Base):
     )
     field: Mapped["Field"] = relationship("Field", back_populates="answers")
     card_entry: Mapped[Optional["AnswerCardEntry"]] = relationship(
-        "AnswerCardEntry", foreign_keys=[card_entry_id], back_populates="answers"
+        "AnswerCardEntry",
+        foreign_keys=[card_entry_id],
+        back_populates="answers",
+        post_update=True,
     )
 
 
