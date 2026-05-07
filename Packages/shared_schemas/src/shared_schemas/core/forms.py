@@ -87,7 +87,7 @@ class SectionTypeSchema(UuidSchema, LabelSchema, DescriptionSchema):
 ###############################################################################
 
 
-class CardTemplateSchemaFK:
+class CardTemplateSchemaFK(CardTemplateSchema):
     """Modelo para representar un CardTemplate."""
 
     question_id: UUID | None = Field(
@@ -99,12 +99,12 @@ class CardTemplateSchemaFK:
     )
 
 
-class CardTemplateSchemaRel:
+class CardTemplateSchemaRel(CardTemplateSchema):
     """Modelo para representar un CardTemplate."""
 
 
 class CardTemplateSchemaExtended(
-    CardTemplateSchema, CardTemplateSchemaFK, CardTemplateSchemaRel
+    CardTemplateSchemaFK, CardTemplateSchemaRel
 ):
     """Modelo para representar un CardTemplate."""
 
@@ -114,7 +114,7 @@ class CardTemplateSchemaExtended(
 ###############################################################################
 
 
-class FieldSchemaFK:
+class FieldSchemaFK(FieldSchema):
     """Modelo para representar un Field."""
 
     form_id: UUID | None = Field(
@@ -140,11 +140,11 @@ class FieldSchemaFK:
     )
 
 
-class FieldSchemaRel:
+class FieldSchemaRel(FieldSchema):
     """Modelo para representar un Field."""
 
 
-class FieldSchemaExtended(FieldSchema, FieldSchemaFK, FieldSchemaRel):
+class FieldSchemaExtended(FieldSchemaFK, FieldSchemaRel):
     """Modelo para representar un Field."""
 
 
@@ -153,7 +153,7 @@ class FieldSchemaExtended(FieldSchema, FieldSchemaFK, FieldSchemaRel):
 ###############################################################################
 
 
-class FieldChoiceSchemaFK:
+class FieldChoiceSchemaFK(FieldChoiceSchema):
     """Modelo para representar un FieldChoice."""
 
     field_id: UUID | None = Field(
@@ -165,12 +165,12 @@ class FieldChoiceSchemaFK:
     )
 
 
-class FieldChoiceSchemaRel:
+class FieldChoiceSchemaRel(FieldChoiceSchema):
     """Modelo para representar un FieldChoice."""
 
 
 class FieldChoiceSchemaExtended(
-    FieldChoiceSchema, FieldChoiceSchemaFK, FieldChoiceSchemaRel
+    FieldChoiceSchemaFK, FieldChoiceSchemaRel
 ):
     """Modelo para representar un FieldChoice."""
 
@@ -180,7 +180,7 @@ class FieldChoiceSchemaExtended(
 ###############################################################################
 
 
-class FieldGroupSchemaFK:
+class FieldGroupSchemaFK(FieldGroupSchema):
     """Modelo para representar un FieldGroup."""
 
     form_id: UUID | None = Field(
@@ -206,12 +206,12 @@ class FieldGroupSchemaFK:
     )
 
 
-class FieldGroupSchemaRel:
+class FieldGroupSchemaRel(FieldGroupSchema):
     """Modelo para representar un FieldGroup."""
 
 
 class FieldGroupSchemaExtended(
-    FieldGroupSchema, FieldGroupSchemaFK, FieldGroupSchemaRel
+    FieldGroupSchemaFK, FieldGroupSchemaRel
 ):
     """Modelo para representar un FieldGroup."""
 
@@ -221,15 +221,15 @@ class FieldGroupSchemaExtended(
 ###############################################################################
 
 
-class FormSchemaFK:
+class FormSchemaFK(FormSchema):
     """Modelo para representar un Form."""
 
 
-class FormSchemaRel:
+class FormSchemaRel(FormSchema):
     """Modelo para representar un Form."""
 
 
-class FormSchemaExtended(FormSchema, FormSchemaFK, FormSchemaRel):
+class FormSchemaExtended(FormSchemaFK, FormSchemaRel):
     """Modelo para representar un Form."""
 
 
@@ -238,7 +238,7 @@ class FormSchemaExtended(FormSchema, FormSchemaFK, FormSchemaRel):
 ###############################################################################
 
 
-class InfoSchemaFK:
+class InfoSchemaFK(InfoSchema):
     """Modelo para representar un Info."""
 
     section_id: UUID | None = Field(
@@ -257,11 +257,11 @@ class InfoSchemaFK:
     )
 
 
-class InfoSchemaRel:
+class InfoSchemaRel(InfoSchema):
     """Modelo para representar un Info."""
 
 
-class InfoSchemaExtended(InfoSchema, InfoSchemaFK, InfoSchemaRel):
+class InfoSchemaExtended(InfoSchemaFK, InfoSchemaRel):
     """Modelo para representar un Info."""
 
 
@@ -270,7 +270,7 @@ class InfoSchemaExtended(InfoSchema, InfoSchemaFK, InfoSchemaRel):
 ###############################################################################
 
 
-class QuestionSchemaFK:
+class QuestionSchemaFK(QuestionSchema):
     """Modelo para representar un Question."""
 
     form_id: UUID | None = Field(
@@ -296,11 +296,11 @@ class QuestionSchemaFK:
     )
 
 
-class QuestionSchemaRel:
+class QuestionSchemaRel(QuestionSchema):
     """Modelo para representar un Question."""
 
 
-class QuestionSchemaExtended(QuestionSchema, QuestionSchemaFK, QuestionSchemaRel):
+class QuestionSchemaExtended(QuestionSchemaFK, QuestionSchemaRel):
     """Modelo para representar un Question."""
 
 
@@ -309,7 +309,7 @@ class QuestionSchemaExtended(QuestionSchema, QuestionSchemaFK, QuestionSchemaRel
 ###############################################################################
 
 
-class SectionSchemaFK:
+class SectionSchemaFK(SectionSchema):
     """Modelo para representar un Section."""
 
     form_id: UUID | None = Field(
@@ -342,11 +342,11 @@ class SectionSchemaFK:
     )
 
 
-class SectionSchemaRel:
+class SectionSchemaRel(SectionSchema):
     """Modelo para representar un Section."""
 
 
-class SectionSchemaExtended(SectionSchema, SectionSchemaFK, SectionSchemaRel):
+class SectionSchemaExtended(SectionSchemaFK, SectionSchemaRel):
     """Modelo para representar un Section."""
 
 
@@ -355,15 +355,15 @@ class SectionSchemaExtended(SectionSchema, SectionSchemaFK, SectionSchemaRel):
 ###############################################################################
 
 
-class SectionTypeSchemaFK:
+class SectionTypeSchemaFK(SectionTypeSchema):
     """Modelo para representar un Section."""
 
 
-class SectionTypeSchemaRel:
+class SectionTypeSchemaRel(SectionTypeSchema):
     """Modelo para representar un Section."""
 
 
 class SectionTypeSchemaExtended(
-    SectionTypeSchema, SectionTypeSchemaFK, SectionTypeSchemaRel
+    SectionTypeSchemaFK, SectionTypeSchemaRel
 ):
     """Modelo para representar un Section."""

@@ -37,7 +37,7 @@ class ActorSegmentSchema(UuidSchema, LabelSchema, DescriptionSchema):
 ###############################################################################
 
 
-class ActorSchemaFK:
+class ActorSchemaFK(ActorSchema):
     """Modelo para representar un actor."""
 
     actor_segment_id: UUID | None = Field(
@@ -56,7 +56,7 @@ class ActorSchemaFK:
     )
 
 
-class ActorSchemaRel:
+class ActorSchemaRel(ActorSchema):
     """Modelo para representar un actor."""
 
     actor_segment: ActorSegmentSchema | None = None
@@ -65,7 +65,7 @@ class ActorSchemaRel:
     # ) = Field(None, description="Lista de userlinks")
 
 
-class ActorSchemaExtended(ActorSchema, ActorSchemaFK, ActorSchemaRel):
+class ActorSchemaExtended(ActorSchemaFK, ActorSchemaRel):
     """Modelo para representar un actor."""
 
 
@@ -74,11 +74,11 @@ class ActorSchemaExtended(ActorSchema, ActorSchemaFK, ActorSchemaRel):
 ###############################################################################
 
 
-class ActorSegmentSchemaFK:
+class ActorSegmentSchemaFK(ActorSegmentSchema):
     """Modelo para representar un actor segment."""
 
 
-class ActorSegmentSchemaRel:
+class ActorSegmentSchemaRel(ActorSegmentSchema):
     """Modelo para representar un actor segment."""
 
     actors: (
@@ -87,6 +87,6 @@ class ActorSegmentSchemaRel:
 
 
 class ActorSegmentSchemaExtended(
-    ActorSegmentSchema, ActorSegmentSchemaFK, ActorSegmentSchemaRel
+    ActorSegmentSchemaFK, ActorSegmentSchemaRel
 ):
     """Modelo para representar un actor segment."""
