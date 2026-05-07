@@ -19,11 +19,11 @@ class Criterion(Base):
     __tablename__ = TargetTable.CRITERIA.table
     __table_args__ = {"schema": TargetTable.CRITERIA.schema}
 
-    assignment_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ASSIGNMENTS.fq_name}.id",
-        ondelete="CASCADE",
-        nullable=True,
-    )
+    # assignment_id: Mapped[UUID] = column_fk(
+    #     target=f"{TargetTable.ASSIGNMENTS.fq_name}.id",
+    #     ondelete="CASCADE",
+    #     nullable=True,
+    # )
     question_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.QUESTIONS.fq_name}.id",
         ondelete="CASCADE",
