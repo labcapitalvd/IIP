@@ -30,7 +30,7 @@ class Actor(Base):
         "ActorSegment", back_populates="actors"
     )
 
-    user_links: Mapped["UserActorLink"] = relationship(
+    user_links: Mapped[list["UserActorLink"]] = relationship(
         "UserActorLink", back_populates="actor"
     )
 
