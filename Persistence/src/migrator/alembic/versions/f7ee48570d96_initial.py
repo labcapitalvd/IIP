@@ -1,8 +1,8 @@
 """initial
 
-Revision ID: 8dd4d6c9250f
+Revision ID: f7ee48570d96
 Revises: 
-Create Date: 2026-05-07 00:26:36.398784
+Create Date: 2026-05-07 21:55:23.124755
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '8dd4d6c9250f'
+revision: str = 'f7ee48570d96'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -251,7 +251,7 @@ def upgrade() -> None:
     sa.Column('file_id', sa.UUID(), nullable=True),
     sa.Column('parent_id', sa.UUID(), nullable=True),
     sa.Column('section_type_id', sa.UUID(), nullable=True),
-    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('helper', sa.Text(), nullable=True),
     sa.Column('display_order', sa.Integer(), nullable=False),
@@ -306,9 +306,9 @@ def upgrade() -> None:
     )
     op.create_table('information',
     sa.Column('section_id', sa.UUID(), nullable=False),
-    sa.Column('title', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=False),
     sa.Column('file_id', sa.UUID(), nullable=True),
+    sa.Column('label', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
@@ -319,13 +319,13 @@ def upgrade() -> None:
     op.create_table('questions',
     sa.Column('form_id', sa.UUID(), nullable=False),
     sa.Column('section_id', sa.UUID(), nullable=False),
-    sa.Column('is_loop', sa.Boolean(), nullable=False),
     sa.Column('file_id', sa.UUID(), nullable=True),
-    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('helper', sa.Text(), nullable=True),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('required', sa.Boolean(), nullable=False),
+    sa.Column('is_loop', sa.Boolean(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
@@ -369,7 +369,7 @@ def upgrade() -> None:
     )
     op.create_table('card_templates',
     sa.Column('question_id', sa.UUID(), nullable=False),
-    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('helper', sa.Text(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
@@ -392,7 +392,7 @@ def upgrade() -> None:
     sa.Column('form_id', sa.UUID(), nullable=False),
     sa.Column('question_id', sa.UUID(), nullable=False),
     sa.Column('card_template_id', sa.UUID(), nullable=True),
-    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
@@ -420,7 +420,7 @@ def upgrade() -> None:
     sa.Column('form_id', sa.UUID(), nullable=False),
     sa.Column('field_group_id', sa.UUID(), nullable=False),
     sa.Column('field_type_id', sa.UUID(), nullable=False),
-    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('required', sa.Boolean(), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
@@ -434,7 +434,7 @@ def upgrade() -> None:
     )
     op.create_table('field_choices',
     sa.Column('field_id', sa.UUID(), nullable=False),
-    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.String(length=255), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),

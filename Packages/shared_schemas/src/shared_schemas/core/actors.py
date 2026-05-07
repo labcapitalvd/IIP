@@ -3,7 +3,7 @@ from typing import Sequence, Annotated
 from annotated_types import Len
 from pydantic import Field
 
-from shared_schemas import UuidSchema, LabelSchema, DescriptionSchema
+from shared_schemas import UUID_STR, UuidSchema, LabelSchema, DescriptionSchema
 
 
 ###############################################################################
@@ -37,26 +37,22 @@ class ActorSegmentSchema(UuidSchema, LabelSchema, DescriptionSchema):
 ###############################################################################
 
 
-class ActorSchemaFK:
+class ActorSchemaFK(ActorSchema):
     """Modelo para representar un actor."""
 
-    actor_segment_id: UUID | None = Field(
+    actor_segment_id: UUID_STR | None = Field(
         default=None,
-        min_length=1,
-        max_length=256,
         title="Segmento.",
         description="Segmento al que pertenece el actor.",
     )
-    contact_person_id: UUID | None = Field(
+    contact_person_id: UUID_STR | None = Field(
         default=None,
-        min_length=1,
-        max_length=256,
         title="Contacto.",
         description="Persona de contacto del actor.",
     )
 
 
-class ActorSchemaRel:
+class ActorSchemaRel(ActorSchema):
     """Modelo para representar un actor."""
 
     actor_segment: ActorSegmentSchema | None = None
@@ -65,7 +61,7 @@ class ActorSchemaRel:
     # ) = Field(None, description="Lista de userlinks")
 
 
-class ActorSchemaExtended(ActorSchema, ActorSchemaFK, ActorSchemaRel):
+class ActorSchemaExtended(ActorSchemaFK, ActorSchemaRel):
     """Modelo para representar un actor."""
 
 
@@ -74,11 +70,11 @@ class ActorSchemaExtended(ActorSchema, ActorSchemaFK, ActorSchemaRel):
 ###############################################################################
 
 
-class ActorSegmentSchemaFK:
+class ActorSegmentSchemaFK(ActorSegmentSchema):
     """Modelo para representar un actor segment."""
 
 
-class ActorSegmentSchemaRel:
+class ActorSegmentSchemaRel(ActorSegmentSchema):
     """Modelo para representar un actor segment."""
 
     actors: (
@@ -86,7 +82,5 @@ class ActorSegmentSchemaRel:
     ) = Field(None, description="Lista de actores")
 
 
-class ActorSegmentSchemaExtended(
-    ActorSegmentSchema, ActorSegmentSchemaFK, ActorSegmentSchemaRel
-):
+class ActorSegmentSchemaExtended(ActorSegmentSchemaFK, ActorSegmentSchemaRel):
     """Modelo para representar un actor segment."""
