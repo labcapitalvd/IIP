@@ -12,7 +12,6 @@ from .base.base import (
     ResponseMessageSchema,
 )
 
-# auth depends on base, so import it *after* base
 from .auth.auth import (
     UsernameSchema,
     UserEmailSchema,
