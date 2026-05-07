@@ -32,7 +32,7 @@ class ActorService:
 
         data_for_db = actor_data.model_dump(exclude={"id", "actor_segment"})
 
-        actor = Actor(actor_segment_id=segment.id, **data_for_db)
+        actor = Actor(actor_segment=segment, **data_for_db)
 
         uow.actors.add(actor)
         return actor 
