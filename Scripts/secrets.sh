@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-mkdir -p ./Secrets
+mkdir -p ../Secrets
 # ENV VARS
 : "${POSTGRES_PASSWORD:?Environment variable POSTGRES_PASSWOR is required}"
 : "${FERNET_PASSWORD:?Environment variable FERNET_PASSWORD is required}"
