@@ -22,7 +22,7 @@ class BaseSchema(BaseModel):
 class UuidSchema(BaseSchema):
     """Modelo para representar un UUID."""
 
-    id: UUID = Field(
+    id: UUID | None = Field(
         default=...,
         title="UUID del objeto.",
         description="el UUID en v4 o v7 de un objeto en la db",
