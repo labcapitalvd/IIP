@@ -23,18 +23,23 @@ from .auth.auth import (
 )
 
 from .core.actors import (
+    # base
     ActorSchema,
     ActorSegmentSchema,
+    # fk
     ActorSchemaFK,
     ActorSegmentSchemaFK,
+    # rel
     ActorSchemaRel,
     ActorSegmentSchemaRel,
+    # extended
     ActorSchemaExtended,
     ActorSegmentSchemaExtended,
 )
 
 
 from .core.forms import (
+    # base
     CardTemplateSchema,
     FieldSchema,
     FieldChoiceSchema,
@@ -43,6 +48,7 @@ from .core.forms import (
     InfoSchema,
     QuestionSchema,
     SectionSchema,
+    # fk
     CardTemplateSchemaFK,
     FieldSchemaFK,
     FieldChoiceSchemaFK,
@@ -51,6 +57,7 @@ from .core.forms import (
     InfoSchemaFK,
     QuestionSchemaFK,
     SectionSchemaFK,
+    # rel
     CardTemplateSchemaRel,
     FieldSchemaRel,
     FieldChoiceSchemaRel,
@@ -59,6 +66,7 @@ from .core.forms import (
     InfoSchemaRel,
     QuestionSchemaRel,
     SectionSchemaRel,
+    # extended
     CardTemplateSchemaExtended,
     FieldSchemaExtended,
     FieldChoiceSchemaExtended,
