@@ -3,6 +3,7 @@ from shared_schemas import (
     ActorSegmentSchema,
     ActorSchemaRel,
     ActorSchemaFK,
+    UuidSchema,
 )
 from sqlalchemy import label, select
 from sqlalchemy.orm import selectinload
@@ -17,7 +18,8 @@ from .errors import (
     ActorError,
     ActorSegmentError,
     ActorAlreadyExistsError,
-    SegmentNotFoundError,
+    ActorNotFoundError,
+    ActorSegmentNotFoundError,
     ActorSegmentAlreadyExistsError,
 )
 
@@ -42,7 +44,7 @@ class ActorService:
         segment = await uow.actor_segments.get_by_id(id=UUID(seg_id))
 
         if not segment:
-            raise SegmentNotFoundError(seg_id)
+            raise ActorSegmentNotFoundError(seg_id)
 
         data_for_db = actor_data.model_dump(exclude={"id", "actor_segment_id"})
 
@@ -54,16 +56,15 @@ class ActorService:
     async def delete_actor(
         self,
         uow: IdentityUoW,
-        actor_data: ActorSchema,
+        actor_id: UuidSchema,
     ) -> Actor:
-        if not actor_data.label:
+        if not actor_id.id:
             raise ValueError("Actor label is required for creation.")
 
-        existing = await uow.actors.get_by_label(label=actor_data.label)
+        existing = await uow.actors.get_by_id(id=UUID(actor_id.id))
 
         if not existing:
-            raise ActorError('''Actor does not exist.''')
-
+            raise ActorNotFoundError()
 
         uow.actors.delete(existing)
         return existing
@@ -91,16 +92,15 @@ class ActorService:
     async def delete_actor_segment(
         self,
         uow: IdentityUoW,
-        actor_segment_data: ActorSegmentSchema,
+        actor_segment_id: UuidSchema,
     ) -> ActorSegment:
-        if not actor_segment_data.label:
+        if not actor_segment_id.id:
             raise ValueError("Actor label is required for creation.")
 
-        existing = await uow.actor_segments.get_by_label(label=actor_segment_data.label)
+        existing = await uow.actor_segments.get_by_id(id=UUID(actor_segment_id.id))
 
         if not existing:
-            raise ActorSegmentError(actor_segment_data.label)
-
+            raise ActorSegmentNotFoundError()
 
         uow.actor_segments.delete(existing)
         return existing
