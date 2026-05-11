@@ -24,7 +24,7 @@ class IdentityAppService:
     ):
         self.actor_service = actor_service or ActorService()
 
-    async def create_actor(self, data: ActorSchemaRel) -> ActorSchemaRel:
+    async def create_actor(self, data: ActorSchemaFK) -> ActorSchemaRel:
         async with IdentityUoW() as uow:
             a: Actor = await self.actor_service.create_actor(uow=uow, actor_data=data)
             return ActorSchemaRel(

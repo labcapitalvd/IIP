@@ -25,9 +25,9 @@ class ActorService:
     async def create_actor(
         self,
         uow: IdentityUoW,
-        actor_data: ActorSchemaRel,
+        actor_data: ActorSchemaFK,
     ) -> Actor:
-        if not actor_data.label:
+        if not actor_data.label or not actor_data.actor_segment_id:
             raise ValueError("Actor label is required for creation.")
 
         existing = await uow.actors.get_by_label(label=actor_data.label)
@@ -35,19 +35,17 @@ class ActorService:
         if existing:
             raise ActorAlreadyExistsError(actor_data.label)
 
-        seg_label = actor_data.actor_segment.label if actor_data.actor_segment else None
+        seg_id = actor_data.actor_segment_id
 
-        if not seg_label:
+        if not seg_id:
             raise ValueError("Actor segment label is required.")
 
-        segment = await uow.actor_segments.get_by_label(
-            label=seg_label
-        )
+        segment = await uow.actor_segments.get_by_id(id=UUID(seg_id))
 
         if not segment:
-            raise SegmentNotFoundError(seg_label)
+            raise SegmentNotFoundError(seg_id)
 
-        data_for_db = actor_data.model_dump(exclude={"id", "actor_segment"})
+        data_for_db = actor_data.model_dump(exclude={"id"})
 
         actor = Actor(actor_segment=segment, **data_for_db)
 
