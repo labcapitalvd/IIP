@@ -5,7 +5,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from shared_utils import configure_logging, get_logger, BaseDomainError
+from shared_utils import (
+    configure_logging,
+    get_logger,
+    BaseDomainError,
+    domain_exception_handler,
+    universal_exception_handler,
+)
 
 
 from routers.actors import router_actors
@@ -148,36 +154,6 @@ logger.info(f"Client app CORS origins: {PUBLIC_ORIGINS}")
 logger.info(f"Client app allow_credentials: {COOKIES_SECURE}")
 logger.info(f"Node app CORS origins: {PRIVATE_ORIGINS}")
 logger.info(f"Node app allow_credentials: {COOKIES_SECURE}")
-
-
-##############################################################################################
-# Exception Handlers
-##############################################################################################
-async def domain_exception_handler(request: Request, exc: BaseDomainError):
-    """
-    Global handler for all business logic errors.
-    Automatically picks up status_code and message from your classes.
-    """
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "status": "error",
-            "code": type(exc).__name__,
-            "message": exc.message,
-        },
-    )
-
-
-async def universal_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error: {str(exc)}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "status": "error",
-            "code": "InternalServerError",
-            "message": "An unexpected error occurred. Our team has been notified.",
-        },
-    )
 
 
 ##############################################################################################
