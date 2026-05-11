@@ -33,5 +33,5 @@ def load_keys() -> tuple[OKPKey, OKPKey]:
 
 
 PRIVATE_KEY, PUBLIC_KEY = load_keys()
-REGISTRY = jws.JWSRegistry(algorithms=["EdDSA"])
+REGISTRY = jws.JWSRegistry(algorithms=["Ed25519"])
 

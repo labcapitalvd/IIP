@@ -67,7 +67,7 @@ def generate_token(
         )
         exp = now + timedelta(minutes=expire_minutes)
 
-        header = {"typ": "JWT", "alg": "EdDSA"}
+        header = {"typ": "JWT", "alg": "Ed25519"}
 
         claims = {
             "sub": str(user_id),
@@ -101,7 +101,7 @@ def decode_token(token: str, expected_type: TokenType):
         payload = jwt.decode(
             token,
             PUBLIC_KEY,
-            algorithms=["EdDSA"],
+            algorithms=["Ed25519"],
         )
 
         if payload.claims.get("token_type") != expected_type:
