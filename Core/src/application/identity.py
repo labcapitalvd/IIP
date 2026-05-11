@@ -12,7 +12,8 @@ from shared_schemas import (
     ActorSchema,
     ActorSegmentSchema,
     ActorSchemaRel,
-    ActorSegmentSchemaRel, ActorSchemaFK,
+    ActorSegmentSchemaRel,
+    ActorSchemaFK,
 )
 
 
@@ -23,7 +24,7 @@ class IdentityAppService:
     ):
         self.actor_service = actor_service or ActorService()
 
-    async def create_actor(self, data: ActorSchemaFK) -> ActorSchemaRel:
+    async def create_actor(self, data: ActorSchemaRel) -> ActorSchemaRel:
         async with IdentityUoW() as uow:
             a: Actor = await self.actor_service.create_actor(uow=uow, actor_data=data)
             return ActorSchemaRel(
@@ -45,7 +46,7 @@ class IdentityAppService:
 
             return [
                 ActorSchema(
-                    id=a.id,
+                    id=str(a.id),
                     label=a.label,
                     description=a.description,
                     mission=a.mission,
@@ -56,15 +57,19 @@ class IdentityAppService:
 
     async def get_one_actor(self, id: UUID) -> ActorSchemaRel:
         async with IdentityUoW() as uow:
-            a: ActorSegment = await uow.actors.get_by_id(id=id)
+            a: Actor = await uow.actors.get_by_id(id=id)
 
             return ActorSchemaRel(
-                id=a.id,
+                id=str(a.id),
                 label=a.label,
                 description=a.description,
                 mission=a.mission,
                 vision=a.vision,
-                actor_segment=a.actor_segment,
+                actor_segment=ActorSegmentSchema(
+                    id=str(a.actor_segment.id),
+                    label=a.actor_segment.label,
+                    description=a.actor_segment.description,
+                ),
             )
 
     async def create_actor_segment(
@@ -86,7 +91,7 @@ class IdentityAppService:
 
             return [
                 ActorSegmentSchema(
-                    id=a.id,
+                    id=str(a.id),
                     label=a.label,
                     description=a.description,
                 )
@@ -98,12 +103,12 @@ class IdentityAppService:
             a: ActorSegment = await uow.actor_segments.get_by_id(id=id)
 
             return ActorSegmentSchemaRel(
-                id=a.id,
+                id=str(a.id),
                 label=a.label,
                 description=a.description,
                 actors=[
                     ActorSchema(
-                        id=actor.id,
+                        id=str(actor.id),
                         label=actor.label,
                         description=actor.description,
                         mission=actor.mission,
