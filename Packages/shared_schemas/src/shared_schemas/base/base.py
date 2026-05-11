@@ -54,8 +54,8 @@ class ResponseMessageSchema(BaseSchema):
         title="Mensaje.",
         description="Mensaje legible para el usuario",
     )
-    detail: str = Field(
-        default=...,
+    detail: str | None = Field(
+        default=None,
         min_length=1,
         max_length=4096,
         title="Detalles.",
