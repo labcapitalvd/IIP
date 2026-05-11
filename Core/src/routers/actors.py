@@ -54,7 +54,7 @@ async def get_actor(
     operation_id="create_actor",
 )
 async def create_actor(
-    actor: ActorSchemaFK,
+    actor: ActorSchemaRel,
     ctx: AccessContext = Depends(),
     service: IdentityAppService = Depends(get_identity_service),
 ):
