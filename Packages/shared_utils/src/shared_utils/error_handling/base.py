@@ -1,3 +1,4 @@
+import re
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -34,13 +35,15 @@ async def domain_exception_handler(request: Request, exc: BaseDomainError):
     Global handler for all business logic errors.
     Automatically picks up status_code and message from your classes.
     """
+    raw_name = type(exc).__name__
+    snake_case_name = re.sub(r"(?<!^)(?=[A-Z])", "_", raw_name).upper()
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "status": "error",
-            "code": type(exc).__name__,
+            "code": snake_case_name,
             "message": exc.message,
-            "detail": None
+            "detail": None,
         },
     )
 
@@ -53,6 +56,6 @@ async def universal_exception_handler(request: Request, exc: Exception):
             "status": "error",
             "code": "INTERNAL_SERVER_ERROR",
             "message": "An unexpected error occurred",
-            "detail": None
+            "detail": None,
         },
     )
