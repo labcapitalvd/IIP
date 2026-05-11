@@ -8,7 +8,7 @@ from shared_schemas import (
     ActorSchema,
     ActorSchemaRel,
     ActorSegmentSchemaRel,
-    ActorSchemaFK, UuidSchema,
+    ActorSchemaFK,
 )
 from shared_utils import AccessContext, get_claims
 
@@ -45,7 +45,7 @@ async def get_actors(
     operation_id="get_entity",
 )
 async def get_actor(
-    actor_id: UuidSchema = Path(),
+    actor_id: UUID = Path(),
     ctx: AccessContext = Depends(),
     service: IdentityAppService = Depends(dependency=get_identity_service),
 ):
@@ -77,12 +77,12 @@ async def create_actor(
     operation_id="delete_actor",
 )
 async def delete_actor(
-    actor_id: UuidSchema = Path(),
+    actor_id: UUID = Path(),
     ctx: AccessContext = Depends(),
     service: IdentityAppService = Depends(get_identity_service),
 ):
     user_id = get_claims(ctx.access_token)
-    await service.delete_actor(data=actor_id)
+    await service.delete_actor(id=actor_id)
     return ResponseMessageSchema(message="ok")
 
 
@@ -108,7 +108,7 @@ async def get_actor_segments(
     operation_id="get_actor_segment",
 )
 async def get_actor_segment(
-    actor_segment_id: UuidSchema = Path(),
+    actor_segment_id: UUID = Path(),
     ctx: AccessContext = Depends(),
     service: IdentityAppService = Depends(dependency=get_identity_service),
 ):
@@ -140,10 +140,10 @@ async def create_actor_segment(
     operation_id="delete_actor_segment",
 )
 async def delete_actor_segment(
-    actor_id: UuidSchema = Path(),
+    actor_id: UUID = Path(),
     ctx: AccessContext = Depends(),
     service: IdentityAppService = Depends(get_identity_service),
 ):
     user_id = get_claims(ctx.access_token)
-    await service.delete_actor_segment(data=actor_id)
+    await service.delete_actor_segment(id=actor_id)
     return ResponseMessageSchema(message="ok")

@@ -56,12 +56,12 @@ class ActorService:
     async def delete_actor(
         self,
         uow: IdentityUoW,
-        actor_id: UuidSchema,
+        actor_id: UUID,
     ) -> Actor:
-        if not actor_id.id:
+        if not actor_id:
             raise ValueError("Actor label is required for creation.")
 
-        existing = await uow.actors.get_by_id(id=UUID(actor_id.id))
+        existing = await uow.actors.get_by_id(id=actor_id)
 
         if not existing:
             raise ActorNotFoundError()
@@ -92,12 +92,12 @@ class ActorService:
     async def delete_actor_segment(
         self,
         uow: IdentityUoW,
-        actor_segment_id: UuidSchema,
+        actor_segment_id: UUID,
     ) -> ActorSegment:
-        if not actor_segment_id.id:
+        if not actor_segment_id:
             raise ValueError("Actor label is required for creation.")
 
-        existing = await uow.actor_segments.get_by_id(id=UUID(actor_segment_id.id))
+        existing = await uow.actor_segments.get_by_id(id=actor_segment_id)
 
         if not existing:
             raise ActorSegmentNotFoundError()

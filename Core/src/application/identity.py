@@ -42,9 +42,9 @@ class IdentityAppService:
                 ),
             )
 
-    async def delete_actor(self, data: UuidSchema) -> ResponseMessageSchema:
+    async def delete_actor(self, id: UUID) -> ResponseMessageSchema:
         async with IdentityUoW() as uow:
-            a: Actor = await self.actor_service.delete_actor(uow=uow, actor_id=data)
+            a: Actor = await self.actor_service.delete_actor(uow=uow, actor_id=id)
             return ResponseMessageSchema(
                 status="success",
                 code="OK",
@@ -67,7 +67,7 @@ class IdentityAppService:
                 for a in actors
             ]
 
-    async def get_one_actor(self, id: UuidSchema) -> ActorSchemaRel:
+    async def get_one_actor(self, id: UUID) -> ActorSchemaRel:
         async with IdentityUoW() as uow:
             a: Actor = await uow.actors.get_by_id(id=id)
 
@@ -97,10 +97,10 @@ class IdentityAppService:
                 description=a.description,
             )
 
-    async def delete_actor_segment(self, data: UuidSchema) -> ResponseMessageSchema:
+    async def delete_actor_segment(self, id: UUID) -> ResponseMessageSchema:
         async with IdentityUoW() as uow:
             a: ActorSegment = await self.actor_service.delete_actor_segment(
-                uow=uow, actor_segment_id=data
+                uow=uow, actor_segment_id=id
             )
             return ResponseMessageSchema(
                 status="success",
@@ -122,7 +122,7 @@ class IdentityAppService:
                 for a in actor_segments
             ]
 
-    async def get_one_actor_segment(self, id: UuidSchema) -> ActorSegmentSchemaRel:
+    async def get_one_actor_segment(self, id: UUID) -> ActorSegmentSchemaRel:
         async with IdentityUoW() as uow:
             a: ActorSegment = await uow.actor_segments.get_by_id(id=id)
 
