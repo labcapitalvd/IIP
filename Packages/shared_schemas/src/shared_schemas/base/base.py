@@ -123,20 +123,27 @@ class ResponseMessageSchema(BaseSchema):
         default="success",
         min_length=1,
         max_length=256,
-        title="Status desde la API.",
+        title="Status.",
         description="Estado de la respuesta (success/error)",
     )
     code: str = Field(
         default="OK",
         min_length=1,
         max_length=100,
-        title="Código desde la API.",
+        title="Code.",
         description="Código de negocio (ej: USER_CREATED, LOGOUT_OK)",
     )
     message: str = Field(
         default=...,
         min_length=1,
         max_length=256,
-        title="Mensaje desde la API.",
+        title="Mensaje.",
         description="Mensaje legible para el usuario",
+    )
+    detail: str = Field(
+        default=...,
+        min_length=1,
+        max_length=4096,
+        title="Detalles.",
+        description="Detalles de la respuesta",
     )

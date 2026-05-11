@@ -1,5 +1,5 @@
 from .encryption import encrypt, decrypt
-from .error_handling import BaseDomainError
+from .error_handling import BaseDomainError, domain_exception_handler, universal_exception_handler 
 from .files import save_file, rename_file, delete_file
 from .hashing import hash_string, hash_password, hash_token
 from .hashing import verify_string, verify_password, verify_token
@@ -12,6 +12,8 @@ __all__ = [
     "encrypt",
     "decrypt",
     "BaseDomainError",
+    "domain_exception_handler",
+    "universal_exception_handler",
     "save_file",
     "rename_file",
     "delete_file",
