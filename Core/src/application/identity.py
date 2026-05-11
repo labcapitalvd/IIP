@@ -14,6 +14,7 @@ from shared_schemas import (
     ActorSchemaRel,
     ActorSegmentSchemaRel,
     ActorSchemaFK,
+    ResponseMessageSchema,
 )
 
 
@@ -38,6 +39,16 @@ class IdentityAppService:
                     label=a.actor_segment.label,
                     description=a.actor_segment.description,
                 ),
+            )
+
+    async def delete_actor(self, data: ActorSchemaFK) -> ResponseMessageSchema:
+        async with IdentityUoW() as uow:
+            a: Actor = await self.actor_service.delete_actor(uow=uow, actor_data=data)
+            return ResponseMessageSchema(
+                status="success",
+                code="OK",
+                message="Actor deletion successful.",
+                detail=f"Actor {a.label} has been deleted successfully.",
             )
 
     async def get_all_actors(self) -> Sequence[ActorSchema]:
@@ -83,6 +94,20 @@ class IdentityAppService:
                 id=str(a.id),
                 label=a.label,
                 description=a.description,
+            )
+
+    async def delete_actor_segment(
+        self, data: ActorSegmentSchema
+    ) -> ResponseMessageSchema:
+        async with IdentityUoW() as uow:
+            a: ActorSegment = await self.actor_service.delete_actor_segment(
+                uow=uow, actor_segment_data=data
+            )
+            return ResponseMessageSchema(
+                status="success",
+                code="OK",
+                message="ActorSegment deletion successful.",
+                detail=f"ActorSegment {a.label} has been deleted successfully.",
             )
 
     async def get_all_actor_segments(self) -> Sequence[ActorSegmentSchema]:
