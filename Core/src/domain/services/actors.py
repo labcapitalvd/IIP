@@ -15,6 +15,7 @@ from infrastructure.uow import IdentityUoW
 
 from .errors import (
     ActorError,
+    ActorSegmentError,
     ActorAlreadyExistsError,
     SegmentNotFoundError,
     ActorSegmentAlreadyExistsError,
@@ -30,27 +31,42 @@ class ActorService:
         if not actor_data.label or not actor_data.actor_segment_id:
             raise ValueError("Actor label is required for creation.")
 
-        existing = await uow.actors.get_by_label(label=actor_data.label)
-
-        if existing:
+        if await uow.actors.get_by_label(label=actor_data.label):
             raise ActorAlreadyExistsError(actor_data.label)
 
         seg_id = actor_data.actor_segment_id
 
         if not seg_id:
-            raise ValueError("Actor segment label is required.")
+            raise ValueError("Actor segment id is required.")
 
         segment = await uow.actor_segments.get_by_id(id=UUID(seg_id))
 
         if not segment:
             raise SegmentNotFoundError(seg_id)
 
-        data_for_db = actor_data.model_dump(exclude={"id"})
+        data_for_db = actor_data.model_dump(exclude={"id", "actor_segment_id"})
 
         actor = Actor(actor_segment=segment, **data_for_db)
 
         uow.actors.add(actor)
         return actor
+
+    async def delete_actor(
+        self,
+        uow: IdentityUoW,
+        actor_data: ActorSchema,
+    ) -> Actor:
+        if not actor_data.label:
+            raise ValueError("Actor label is required for creation.")
+
+        existing = await uow.actors.get_by_label(label=actor_data.label)
+
+        if not existing:
+            raise ActorError('''Actor does not exist.''')
+
+
+        uow.actors.delete(existing)
+        return existing
 
     async def create_actor_segment(
         self,
@@ -71,3 +87,20 @@ class ActorService:
 
         uow.actor_segments.add(actor_segment)
         return actor_segment
+
+    async def delete_actor_segment(
+        self,
+        uow: IdentityUoW,
+        actor_segment_data: ActorSegmentSchema,
+    ) -> ActorSegment:
+        if not actor_segment_data.label:
+            raise ValueError("Actor label is required for creation.")
+
+        existing = await uow.actor_segments.get_by_label(label=actor_segment_data.label)
+
+        if not existing:
+            raise ActorSegmentError(actor_segment_data.label)
+
+
+        uow.actor_segments.delete(existing)
+        return existing
