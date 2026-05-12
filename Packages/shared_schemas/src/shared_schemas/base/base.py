@@ -10,6 +10,8 @@ def coerce_to_str(v: Any) -> str:
     if isinstance(v, UUID):
         return str(v)
     return v
+
+
 UUID_STR = Annotated[str, BeforeValidator(coerce_to_str)]
 
 
@@ -22,6 +24,42 @@ class BaseSchema(BaseModel):
     model_config = ConfigDict(
         validate_by_name=True,
         alias_generator=to_snake,
+    )
+
+
+##############################################################################################
+# Message
+##############################################################################################
+class ResponseMessageSchema(BaseSchema):
+    """Modelo para representar un mensaje de respuesta estandarizado."""
+
+    status: str = Field(
+        default="success",
+        min_length=1,
+        max_length=256,
+        title="Status.",
+        description="Estado de la respuesta (success/error)",
+    )
+    code: str = Field(
+        default="OK",
+        min_length=1,
+        max_length=100,
+        title="Code.",
+        description="Código de negocio (ej: USER_CREATED, LOGOUT_OK)",
+    )
+    message: str = Field(
+        default=...,
+        min_length=1,
+        max_length=256,
+        title="Mensaje.",
+        description="Mensaje legible para el usuario",
+    )
+    detail: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=4096,
+        title="Detalles.",
+        description="Detalles de la respuesta",
     )
 
 
@@ -110,33 +148,4 @@ class RequiredSchema(BaseSchema):
         max_length=256,
         title="Required.",
         description="el required de un objeto en la db",
-    )
-
-
-##############################################################################################
-# Message
-##############################################################################################
-class ResponseMessageSchema(BaseSchema):
-    """Modelo para representar un mensaje de respuesta estandarizado."""
-
-    status: str = Field(
-        default="success",
-        min_length=1,
-        max_length=256,
-        title="Status desde la API.",
-        description="Estado de la respuesta (success/error)",
-    )
-    code: str = Field(
-        default="OK",
-        min_length=1,
-        max_length=100,
-        title="Código desde la API.",
-        description="Código de negocio (ej: USER_CREATED, LOGOUT_OK)",
-    )
-    message: str = Field(
-        default=...,
-        min_length=1,
-        max_length=256,
-        title="Mensaje desde la API.",
-        description="Mensaje legible para el usuario",
     )

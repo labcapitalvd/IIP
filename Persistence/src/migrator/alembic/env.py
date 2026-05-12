@@ -9,33 +9,7 @@ from shared_models import __all__ as model_names
 
 import math
 
-
-def print_list(title: str, items: list[str], cols: int = 3):
-    if not items:
-        print(f"\n{title}: (Empty)")
-        return
-
-    items = sorted(items)
-    num_items = len(items)
-    # Calculate rows needed to satisfy the column count
-    rows = math.ceil(num_items / cols)
-
-    # Determine the width of the widest item for padding
-    width = max(len(item) for item in items) + 4
-
-    print(f"\n{title} ({num_items}):")
-    print("─" * (width * cols))  # Top border
-
-    for row in range(rows):
-        line = ""
-        for col in range(cols):
-            # Calculate the index for vertical (downward) ordering
-            index = row + (col * rows)
-            if index < num_items:
-                line += f"{items[index]:<{width}}"
-        print(line)
-
-    print("─" * (width * cols))  # Bottom border
+from shared_utils import print_list
 
 
 print_list("Loaded Models", model_names)

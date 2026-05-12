@@ -8,7 +8,7 @@ from shared_models import Submission, Answer, AnswerCardEntry, Actor, ActorSegme
 from domain.factories.answer_factory import AnswerFactory
 from infrastructure.uow import IdentityUoW
 
-from .errors import ActorError, ActorAlreadyExistsError, SegmentNotFoundError, ActorSegmentAlreadyExistsError
+from .errors import ActorError, ActorAlreadyExistsError, ActorSegmentNotFoundError, ActorSegmentAlreadyExistsError
 
 
 class FormService:
@@ -28,7 +28,7 @@ class FormService:
         segment = await uow.actor_segments.get_by_label(label=actor_data.actor_segment)
 
         if not segment:
-            raise SegmentNotFoundError(actor_data.actor_segment)
+            raise ActorSegmentNotFoundError(actor_data.actor_segment)
 
         data_for_db = actor_data.model_dump(exclude={"id", "actor_segment"})
 

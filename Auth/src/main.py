@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from shared_utils import BaseDomainError, configure_logging, get_logger
+from shared_utils import BaseDomainError, configure_logging, get_logger, domain_exception_handler, universal_exception_handler
 
 from routers.auth import router as router_auth
 from routers.files import router as router_files
@@ -146,38 +146,6 @@ logger.info(f"Client app CORS origins: {PUBLIC_ORIGINS}")
 logger.info(f"Client app allow_credentials: {COOKIES_SECURE}")
 logger.info(f"Node app CORS origins: {PRIVATE_ORIGINS}")
 logger.info(f"Node app allow_credentials: {COOKIES_SECURE}")
-
-
-##############################################################################################
-# Exception Handlers
-##############################################################################################
-async def domain_exception_handler(request: Request, exc: Any):
-    """
-    Global handler for all business logic errors.
-    Using 'Any' stops the IDE from complaining about the signature match.
-    """
-    # Since we only register this for BaseDomainError subclasses, 
-    # these attributes are guaranteed to exist.
-    return JSONResponse(
-        status_code=getattr(exc, "status_code", 400),
-        content={
-            "status": "error",
-            "code": type(exc).__name__,
-            "message": getattr(exc, "message", "An error occurred"),
-        },
-    )
-
-
-async def universal_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error: {str(exc)}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "status": "error",
-            "code": "InternalServerError",
-            "message": "An unexpected error occurred. Our team has been notified.",
-        },
-    )
 
 
 ##############################################################################################

@@ -25,6 +25,11 @@ class ActorSegmentAlreadyExistsError(ActorSegmentError):
     message = "This actor is already registered in the system."
 
 
-class SegmentNotFoundError(ActorError):
+class ActorNotFoundError(ActorError):
+    status_code = 404  # Not Found
+    message = "The specified actor could not be found."
+
+
+class ActorSegmentNotFoundError(ActorSegmentError):
     status_code = 404  # Not Found
     message = "The specified segment could not be found."

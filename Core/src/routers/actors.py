@@ -2,7 +2,14 @@ from typing import Any, List, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path
-from shared_schemas import ResponseMessageSchema, ActorSegmentSchema, ActorSchema, ActorSchemaRel, ActorSegmentSchemaRel, ActorSchemaFK
+from shared_schemas import (
+    ResponseMessageSchema,
+    ActorSegmentSchema,
+    ActorSchema,
+    ActorSchemaRel,
+    ActorSegmentSchemaRel,
+    ActorSchemaFK,
+)
 from shared_utils import AccessContext, get_claims
 
 from application import IdentityAppService
@@ -63,6 +70,21 @@ async def create_actor(
     return ResponseMessageSchema(message="ok")
 
 
+@router_actors.delete(
+    "/delete/{actor_id}",
+    response_model=ResponseMessageSchema,
+    response_model_exclude_none=True,
+    operation_id="delete_actor",
+)
+async def delete_actor(
+    actor_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: IdentityAppService = Depends(get_identity_service),
+):
+    user_id = get_claims(ctx.access_token)
+    await service.delete_actor(id=actor_id)
+    return ResponseMessageSchema(message="ok")
+
 
 @router_actor_segments.get(
     path="/all",
@@ -108,4 +130,20 @@ async def create_actor_segment(
 ):
     user_id = get_claims(ctx.access_token)
     await service.create_actor_segment(data=actor_segment)
+    return ResponseMessageSchema(message="ok")
+
+
+@router_actor_segments.delete(
+    "/delete/{actor_segment_id}",
+    response_model=ResponseMessageSchema,
+    response_model_exclude_none=True,
+    operation_id="delete_actor_segment",
+)
+async def delete_actor_segment(
+    actor_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: IdentityAppService = Depends(get_identity_service),
+):
+    user_id = get_claims(ctx.access_token)
+    await service.delete_actor_segment(id=actor_id)
     return ResponseMessageSchema(message="ok")
