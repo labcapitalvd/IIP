@@ -24,7 +24,7 @@ class Types(Enum):
         return self.name
 
 
-def upgrade() -> None:
+def upgrade(host: str, port: int) -> None:
     with SessionSync() as session:
         for type in Types:
             exists = session.query(SectionType).filter_by(label=type.label).first()

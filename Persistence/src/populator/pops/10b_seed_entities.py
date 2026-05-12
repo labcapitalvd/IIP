@@ -1,4 +1,4 @@
-"""Poblado de form_versions"""
+"""Poblado de actors"""
 
 import os
 import uuid
@@ -13,12 +13,12 @@ from shared_models.targets import TargetTable
 from shared_utils.logger import get_logger
 
 
-logger = get_logger("seed/forms")
+logger = get_logger("seed/entities")
 
 
-TABLE = TargetTable.FORMS.table
-SCHEMA = TargetTable.FORMS.schema
-ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/00_indices.csv"
+TABLE = TargetTable.ACTORS.table
+SCHEMA = TargetTable.ACTORS.schema
+ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/01_entidades.csv"
 
 GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
 if not os.path.exists(GITHUB_TOKEN_FILE):
@@ -26,18 +26,28 @@ if not os.path.exists(GITHUB_TOKEN_FILE):
 with open(GITHUB_TOKEN_FILE, "r") as f:
     GITHUB_TOKEN = f.read().strip()
 
-headers = {
+headers_gh = {
     "Authorization": f"token {GITHUB_TOKEN}",
     "Accept": "application/vnd.github.v3.raw",
 }
-r = requests.get(ORIGIN_URL, headers=headers)
-r.raise_for_status()  # fail if not 200
+request_gh = requests.get(ORIGIN_URL, headers=headers_gh)
+request_gh.raise_for_status()  # fail if not 200
 
 
-def upgrade() -> None:
-    df = pd.read_csv(StringIO(r.text), sep="|")
+def upgrade(host: str, port: int) -> None:
+    df = pd.read_csv(StringIO(request_gh.text), sep="|")
+
+    rename_map = {
+        "sector_id": "actor_segment_id",
+    }
+
+    df = df.rename(columns=rename_map)
 
     df["id"] = df["id"].apply(lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None)
+    if "actor_segment_id" in df.columns:
+        df["actor_segment_id"] = df["actor_segment_id"].apply(
+            lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None
+        )
 
     query = f'SELECT id FROM "{SCHEMA}"."{TABLE}"'
     existing_ids = pd.read_sql(query, sync_engine)["id"].tolist()
@@ -51,7 +61,7 @@ def upgrade() -> None:
             schema=SCHEMA,
             if_exists="append",
             index=False,
-            dtype={"id": UUIDType()},  # type: ignore[arg-type]
+            dtype={"id": UUIDType(), "actor_segment_id": UUIDType()},  # type: ignore[arg-type]
         )
         logger.info(f"Inserted {len(df_to_insert)} new rows into {SCHEMA}.{TABLE}")
     else:

@@ -20,13 +20,13 @@ if not os.path.exists(GITHUB_TOKEN_FILE):
 with open(GITHUB_TOKEN_FILE, "r") as f:
     GITHUB_TOKEN = f.read().strip()
 
-headers = {
+headers_gh = {
     "Authorization": f"token {GITHUB_TOKEN}",
     "Accept": "application/vnd.github.v3.raw",
 }
-r = requests.get(ORIGIN_URL, headers=headers)
-r.raise_for_status()  # fail if not 200
-hierarchy = r.json()
+request_gh = requests.get(ORIGIN_URL, headers=headers_gh)
+request_gh.raise_for_status()  # fail if not 200
+hierarchy = request_gh.json()
 
 
 def flatten_questions(node):
@@ -57,7 +57,7 @@ def flatten_questions(node):
     return flat
 
 
-def upgrade() -> None:
+def upgrade(host: str, port: int) -> None:
     with SessionSync() as session:
         forms = session.query(Form).all()
         if not forms:
