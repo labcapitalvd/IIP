@@ -3,6 +3,7 @@ import unicodedata
 
 import bleach
 import emoji
+import math
 from email_validator import EmailNotValidError, validate_email
 
 from .errors import TextEmpty, TextMalformed
@@ -12,6 +13,31 @@ MAX_EMAIL_LENGTH = 254
 
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 MULTISPACE_RE = re.compile(r"[ ]{2,}")
+
+
+def print_list(title: str, items: list[str], cols: int = 3):
+    if not items:
+        print(f"\n{title}: (Empty)")
+        return
+
+    items = sorted(items)
+    num_items = len(items)
+    rows = math.ceil(num_items / cols)
+
+    width = max(len(item) for item in items) + 4
+
+    print(f"\n{title} ({num_items}):")
+    print("─" * (width * cols))  # Top border
+
+    for row in range(rows):
+        line = ""
+        for col in range(cols):
+            index = row + (col * rows)
+            if index < num_items:
+                line += f"{items[index]:<{width}}"
+        print(line)
+
+    print("─" * (width * cols))  # Bottom border
 
 
 def _remove_emojis(text: str) -> str:
