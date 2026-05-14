@@ -66,6 +66,7 @@ services:
       - users_file
     networks:
       - iip_db_net
+      - iip_nginx
 
   api_auth:
     container_name: iip_api_auth
