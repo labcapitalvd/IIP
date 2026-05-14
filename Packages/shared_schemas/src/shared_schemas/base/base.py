@@ -100,7 +100,7 @@ class DescriptionSchema(BaseSchema):
     description: str | None = Field(
         default=None,
         min_length=1,
-        max_length=256,
+        max_length=4096,
         title="Description del objeto.",
         description="el description de un objeto en la db",
     )
@@ -129,8 +129,8 @@ class DisplayOrderSchema(BaseSchema):
 
     display_order: int | None = Field(
         default=...,
-        min_length=1,
-        max_length=256,
+        ge=0,
+        le=10000,
         title="Display Order.",
         description="el display_order de un objeto en la db",
     )
@@ -144,8 +144,6 @@ class RequiredSchema(BaseSchema):
 
     required: bool | None = Field(
         default=None,
-        min_length=1,
-        max_length=256,
         title="Required.",
         description="el required de un objeto en la db",
     )
