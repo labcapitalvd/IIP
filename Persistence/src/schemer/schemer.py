@@ -6,6 +6,8 @@ from shared_utils.logger import get_logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
+from shared_utils import print_list
+
 logger = get_logger("seed/schema")
 
 
@@ -44,9 +46,8 @@ def main():
     logger.info(f"Created ({len(created)}): {created}")
     logger.info(f"Failed  ({len(failed)}): {failed}")
 
-    print("---- Schema Creation Summary ----")
-    print(f"Created ({len(created)}): {created}")
-    print(f"Failed  ({len(failed)}): {failed}")
+    print_list("Created", created)
+    print_list("Failed", failed)
 
     return created, failed
 

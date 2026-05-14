@@ -3,6 +3,7 @@ import os
 import traceback
 
 from shared_utils.logger import get_logger
+from shared_utils import print_list
 
 
 logger = get_logger("seed/tables")
@@ -45,6 +46,7 @@ def main():
             traceback.print_exc()
 
     logger.info("Seeding process finished.")
+    print_list("Files to seed",os.listdir(seeds_dir))
 
 
 if __name__ == "__main__":

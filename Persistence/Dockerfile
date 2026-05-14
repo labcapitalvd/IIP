@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir .
 COPY Persistence/src/migrator ./migrator
 COPY Persistence/src/schemer ./schemer
 COPY Persistence/src/seeder ./seeder
+COPY Persistence/src/populator ./populator
 
 # -----------------------------
 # 5. setup entrypoint
