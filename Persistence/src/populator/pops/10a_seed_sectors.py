@@ -5,54 +5,55 @@ import uuid
 from io import StringIO
 
 import pandas as pd
-import requests
-from sqlalchemy import UUID as UUIDType
 
-from shared_db import sync_engine
-from shared_models.targets import TargetTable
 from shared_utils.logger import get_logger
+from shared_schemas import ActorSegmentSchema
 
 
 logger = get_logger("seed/sectors")
 
 
-TABLE = TargetTable.ACTOR_SEGMENTS.table
-SCHEMA = TargetTable.ACTOR_SEGMENTS.schema
 ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/00_sectores.csv"
-
-GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
-if not os.path.exists(GITHUB_TOKEN_FILE):
-    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
-with open(GITHUB_TOKEN_FILE, "r") as f:
-    GITHUB_TOKEN = f.read().strip()
-
-headers_gh = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3.raw",
-}
-request_gh = requests.get(ORIGIN_URL, headers=headers_gh)
-request_gh.raise_for_status()  # fail if not 200
+ENDPOINT = "/public/actor_segments"
 
 
-def upgrade(host: str, port: int) -> None:
-    df = pd.read_csv(StringIO(request_gh.text), sep="|")
+async def upgrade(gh, api) -> None:
+    """Fetches sectors CSV from GitHub, checks for existing IDs via API, and seeds missing data."""
+    logger.info("Starting Sectors population...")
 
-    df["id"] = df["id"].apply(lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None)
+    try:
+        csv_text = await gh.get_raw_text(ORIGIN_URL)
 
-    query = f'SELECT id FROM "{SCHEMA}"."{TABLE}"'
-    existing_ids = pd.read_sql(query, sync_engine)["id"].tolist()
+        df = pd.read_csv(StringIO(csv_text), sep="|")
 
-    df_to_insert = df[~df["id"].isin(existing_ids)]
+        if df.empty:
+            logger.info("Sectors file from GitHub is empty.")
+            return
 
-    if not df_to_insert.empty:
-        df_to_insert.to_sql(
-            TABLE,
-            sync_engine,
-            schema=SCHEMA,
-            if_exists="append",
-            index=False,
-            dtype={"id": UUIDType()},  # type: ignore[arg-type]
+        df["id"] = df["id"].apply(
+            lambda x: str(uuid.UUID(str(x))) if pd.notnull(x) else None
         )
-        logger.info(f"Inserted {len(df_to_insert)} new rows into {SCHEMA}.{TABLE}")
-    else:
-        logger.info(f"No new rows to insert for {SCHEMA}.{TABLE}")
+
+        try:
+            existing_entries = await api.get_entries(f"{ENDPOINT}/all")
+            existing_ids = {entry["id"] for entry in existing_entries if "id" in entry}
+        except Exception as e:
+            logger.warning(
+                f"Could not fetch existing entries from {ENDPOINT}/all, assuming empty table. Error: {e}"
+            )
+            existing_ids = set()
+
+        df_to_insert = df[~df["id"].isin(existing_ids)]
+
+        if not df_to_insert.empty:
+            records_to_send = df_to_insert.to_dict(orient="records")
+
+            await api.create_multiple_entries(
+                endpoint=f"{ENDPOINT}/new", schema=ActorSegmentSchema, data_list=records_to_send
+            )
+        else:
+            logger.info(f"No new rows to insert for {ENDPOINT}/all")
+
+    except Exception as e:
+        logger.error(f"Failed to run sectors upgrade: {e}")
+        raise e

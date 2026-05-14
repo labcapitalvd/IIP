@@ -5,64 +5,64 @@ import uuid
 from io import StringIO
 
 import pandas as pd
-import requests
-from sqlalchemy import UUID as UUIDType
 
-from shared_db import sync_engine
-from shared_models.targets import TargetTable
 from shared_utils.logger import get_logger
+from shared_schemas import ActorSegmentSchema, ActorSchema
 
 
-logger = get_logger("seed/entities")
+logger = get_logger("seed/sectors")
 
 
-TABLE = TargetTable.ACTORS.table
-SCHEMA = TargetTable.ACTORS.schema
 ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/01_entidades.csv"
-
-GITHUB_TOKEN_FILE = "/run/secrets/github_token_seeds"
-if not os.path.exists(GITHUB_TOKEN_FILE):
-    raise FileNotFoundError(f"GITHUB_TOKEN_FILE file not found at {GITHUB_TOKEN_FILE}")
-with open(GITHUB_TOKEN_FILE, "r") as f:
-    GITHUB_TOKEN = f.read().strip()
-
-headers_gh = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3.raw",
-}
-request_gh = requests.get(ORIGIN_URL, headers=headers_gh)
-request_gh.raise_for_status()  # fail if not 200
+ENDPOINT = "/public"
 
 
-def upgrade(host: str, port: int) -> None:
-    df = pd.read_csv(StringIO(request_gh.text), sep="|")
+async def upgrade(gh, api) -> None:
+    """Fetches sectors CSV from GitHub, checks for existing IDs via API, and seeds missing data."""
+    logger.info("Starting Sectors population...")
 
-    rename_map = {
-        "sector_id": "actor_segment_id",
-    }
+    try:
+        csv_text = await gh.get_raw_text(ORIGIN_URL)
 
-    df = df.rename(columns=rename_map)
+        df = pd.read_csv(StringIO(csv_text), sep="|")
 
-    df["id"] = df["id"].apply(lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None)
-    if "actor_segment_id" in df.columns:
-        df["actor_segment_id"] = df["actor_segment_id"].apply(
-            lambda x: uuid.UUID(str(x)) if pd.notnull(x) else None
+        if df.empty:
+            logger.info("Actors file from GitHub is empty.")
+            return
+
+        df["id"] = df["id"].apply(
+            lambda x: str(uuid.UUID(str(x))) if pd.notnull(x) else None
         )
 
-    query = f'SELECT id FROM "{SCHEMA}"."{TABLE}"'
-    existing_ids = pd.read_sql(query, sync_engine)["id"].tolist()
+        try:
+            existing_actor_segments = await api.get_entries(f"{ENDPOINT}/actor_segments/all")
+            existing_actor_segment_ids = {entry["id"] for entry in existing_actor_segments if "id" in entry}
+        except Exception as e:
+            logger.warning(
+                f"Could not fetch existing entries from {ENDPOINT}/actor_segments/all, assuming empty table. Error: {e}"
+            )
+            existing_actor_segment_ids = set()
 
-    df_to_insert = df[~df["id"].isin(existing_ids)]
+        try:
+            existing_actors = await api.get_entries(f"{ENDPOINT}/actors/all")
+            existing_actor_ids = {entry["id"] for entry in existing_actors if "id" in entry}
+        except Exception as e:
+            logger.warning(
+                f"Could not fetch existing entries from {ENDPOINT}/actors/all, assuming empty table. Error: {e}"
+            )
+            existing_actor_ids = set()
 
-    if not df_to_insert.empty:
-        df_to_insert.to_sql(
-            TABLE,
-            sync_engine,
-            schema=SCHEMA,
-            if_exists="append",
-            index=False,
-            dtype={"id": UUIDType(), "actor_segment_id": UUIDType()},  # type: ignore[arg-type]
-        )
-        logger.info(f"Inserted {len(df_to_insert)} new rows into {SCHEMA}.{TABLE}")
-    else:
-        logger.info(f"No new rows to insert for {SCHEMA}.{TABLE}")
+        df_to_insert = df[~df["id"].isin(existing_actor_ids)]
+
+        if not df_to_insert.empty:
+            records_to_send = df_to_insert.to_dict(orient="records")
+
+            await api.create_multiple_entries(
+                endpoint=f"{ENDPOINT}/actors/new", schema=ActorSchema, data_list=records_to_send
+            )
+        else:
+            logger.info(f"No new rows to insert for {ENDPOINT}/actors/new")
+
+    except Exception as e:
+        logger.error(f"Failed to run sectors upgrade: {e}")
+        raise e
