@@ -14,7 +14,6 @@ logger = get_logger("seed/sectors")
 
 
 ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/00_sectores.csv"
-ENDPOINT = "/public/actor_segments"
 
 
 async def upgrade(gh, api) -> None:
@@ -35,24 +34,26 @@ async def upgrade(gh, api) -> None:
         )
 
         try:
-            existing_entries = await api.get_entries(f"{ENDPOINT}/all")
+            existing_entries = await api.get_entries(f"/actor_segments/all")
             existing_ids = {entry["id"] for entry in existing_entries if "id" in entry}
         except Exception as e:
             logger.warning(
-                f"Could not fetch existing entries from {ENDPOINT}/all, assuming empty table. Error: {e}"
+                f"Could not fetch existing entries from /all, assuming empty table. Error: {e}"
             )
             existing_ids = set()
 
         df_to_insert = df[~df["id"].isin(existing_ids)]
+        print((df_to_insert))
 
         if not df_to_insert.empty:
             records_to_send = df_to_insert.to_dict(orient="records")
+            print((records_to_send))
 
             await api.create_multiple_entries(
-                endpoint=f"{ENDPOINT}/new", schema=ActorSegmentSchema, data_list=records_to_send
+                endpoint=f"/actor_segments/new", schema=ActorSegmentSchema, data_list=records_to_send
             )
         else:
-            logger.info(f"No new rows to insert for {ENDPOINT}/all")
+            logger.info(f"No new rows to insert for /actor_segments/all")
 
     except Exception as e:
         logger.error(f"Failed to run sectors upgrade: {e}")

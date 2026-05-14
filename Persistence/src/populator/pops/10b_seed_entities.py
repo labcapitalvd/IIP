@@ -14,8 +14,6 @@ logger = get_logger("seed/sectors")
 
 
 ORIGIN_URL = "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/Gestión/Migración a DB/output/01_entidades.csv"
-ENDPOINT = "/public"
-
 
 async def upgrade(gh, api) -> None:
     """Fetches sectors CSV from GitHub, checks for existing IDs via API, and seeds missing data."""
@@ -35,20 +33,20 @@ async def upgrade(gh, api) -> None:
         )
 
         try:
-            existing_actor_segments = await api.get_entries(f"{ENDPOINT}/actor_segments/all")
+            existing_actor_segments = await api.get_entries(f"/actor_segments/all")
             existing_actor_segment_ids = {entry["id"] for entry in existing_actor_segments if "id" in entry}
         except Exception as e:
             logger.warning(
-                f"Could not fetch existing entries from {ENDPOINT}/actor_segments/all, assuming empty table. Error: {e}"
+                f"Could not fetch existing entries from /actor_segments/all, assuming empty table. Error: {e}"
             )
             existing_actor_segment_ids = set()
 
         try:
-            existing_actors = await api.get_entries(f"{ENDPOINT}/actors/all")
+            existing_actors = await api.get_entries(f"/actors/all")
             existing_actor_ids = {entry["id"] for entry in existing_actors if "id" in entry}
         except Exception as e:
             logger.warning(
-                f"Could not fetch existing entries from {ENDPOINT}/actors/all, assuming empty table. Error: {e}"
+                f"Could not fetch existing entries from /actors/all, assuming empty table. Error: {e}"
             )
             existing_actor_ids = set()
 
@@ -58,10 +56,10 @@ async def upgrade(gh, api) -> None:
             records_to_send = df_to_insert.to_dict(orient="records")
 
             await api.create_multiple_entries(
-                endpoint=f"{ENDPOINT}/actors/new", schema=ActorSchema, data_list=records_to_send
+                endpoint=f"/actors/new", schema=ActorSchema, data_list=records_to_send
             )
         else:
-            logger.info(f"No new rows to insert for {ENDPOINT}/actors/new")
+            logger.info(f"No new rows to insert for /actors/new")
 
     except Exception as e:
         logger.error(f"Failed to run sectors upgrade: {e}")

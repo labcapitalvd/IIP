@@ -26,12 +26,21 @@ if not os.path.exists(USERS_FILE):
 with open(USERS_FILE, "rb") as f:
     users_toml = tomllib.load(f)
 
+user_list = users_toml.get("users", [])
 
-USERS = [u["username"] for u in users_toml.get("users", [])]
-PASS = [u["password"] for u in users_toml.get("users", [])]
+root_user = next((u for u in user_list if u.get("tier") == "root"), None)
 
-SEED_USER = USERS[0] if USERS else None
-SEED_PASS = PASS[0] if PASS else None
+if root_user:
+    SEED_USER: str = root_user["username"]
+    SEED_PASS: str = root_user["password"]
+    logger.info(f"Using 'root' tier account: {SEED_USER}")
+elif user_list:
+    SEED_USER: str = user_list[0]["username"]
+    SEED_PASS: str = user_list[0]["password"]
+    logger.warning(f"No 'root' tier user found, falling back to: {SEED_USER}")
+else:
+    logger.critical("Seeding aborted: No users found in USERS_FILE.")
+    raise ValueError("No credentials available for seeding.")
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -72,8 +81,8 @@ class ServiceClient:
     """Internal API client to seed data through split FastAPI endpoints."""
 
     def __init__(self, core_host: str, core_port: int, auth_host: str, auth_port: int):
-        self.core_url = f"http://{core_host}:{core_port}".rstrip("/")
-        self.auth_url = f"http://{auth_host}:{auth_port}".rstrip("/")
+        self.core_url = f"http://{core_host}:{core_port}/public".rstrip("/")
+        self.auth_url = f"http://{auth_host}:{auth_port}/public".rstrip("/")
         self.headers = {}
         # Keep track of credentials for auto-reauth if a token expires mid-run
         self._credentials = None
