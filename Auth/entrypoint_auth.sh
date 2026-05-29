@@ -10,9 +10,5 @@ set -e
 # CORS FRONTEND ONLY
 : "${PRIVATE_ORIGINS:?Environment variable PRIVATE_ORIGINS is required}"
 
-# TOKENS
-: "${JWT_EXPIRE_MINUTES_ACCESS:?Environment variable JWT_EXPIRE_MINUTES_ACCESS is required}"
-: "${JWT_EXPIRE_MINUTES_REFRESH:?Environment variable JWT_EXPIRE_MINUTES_REFRESH is required}"
-
 # If validation passes, run the CMD
 exec "$@"
