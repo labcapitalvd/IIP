@@ -15,10 +15,10 @@ logger = get_logger("pop/tables")
 
 # Load configuration from environment
 HOST_AUTH = os.getenv("HOST_AUTH", "api_auth")
-PORT_AUTH = int(os.getenv("PORT_AUTH", 4293))
+PORT_AUTH = int(os.environ["PORT_AUTH"])
 
 HOST_CORE = os.getenv("HOST_CORE", "api_core")
-PORT_CORE = int(os.getenv("PORT_CORE", 4294))
+PORT_CORE = int(os.environ["PORT_CORE"])
 
 USERS_FILE = "/run/secrets/users_file"
 if not os.path.exists(USERS_FILE):
