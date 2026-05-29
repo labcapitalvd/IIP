@@ -6,7 +6,7 @@
 *.env.local
 *.env.*.local
 .env*
-!.env.example
+!example.env
 
 # Secrets and credentials
 Secrets/

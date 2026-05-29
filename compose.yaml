@@ -4,6 +4,9 @@ services:
     image: nginx:latest
     env_file: ./.env
     restart: unless-stopped
+    depends_on:
+      - api_auth
+      - api_core
     secrets:
       - https_public
       - https_private
@@ -40,18 +43,17 @@ services:
       context: .
       dockerfile: Dockerfile
     image: labcapital/apps:IIP-Base
+    env_file: ./.env
 
   persister:
-    container_name: iip_persister
+    container_name: app_persister
     build:
       context: .
       dockerfile: Persistence/Dockerfile
     image: labcapital/apps:IIP-Persister
     depends_on:
-      base:
-        condition: service_started
-      db:
-        condition: service_healthy
+      - api_auth
+      - api_core
     env_file: ./.env
     volumes:
       - "./Persistence/src/migrator/alembic/versions:/api/migrator/alembic/versions"
@@ -66,16 +68,15 @@ services:
       - users_file
     networks:
       - iip_db_net
+      - iip_nginx
 
   api_auth:
-    container_name: iip_api_auth
+    container_name: app_api_auth
     build:
       context: .
       dockerfile: Auth/Dockerfile
     image: labcapital/apps:IIP-Auth
     depends_on:
-      base:
-        condition: service_started
       db:
         condition: service_healthy
     env_file: ./.env
@@ -89,14 +90,12 @@ services:
       - iip_nginx
 
   api_core:
-    container_name: iip_api_core
+    container_name: app_api_core
     build:
       context: .
       dockerfile: Core/Dockerfile
     image: labcapital/apps:IIP-Core
     depends_on:
-      base:
-        condition: service_started
       db:
         condition: service_healthy
     env_file: ./.env

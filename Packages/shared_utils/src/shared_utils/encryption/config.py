@@ -21,7 +21,7 @@ def load_fernet_key() -> bytes:
             raise RuntimeError("Invalid Fernet pass")
         return key
 
-env_key = os.environ.get("FERNET_PASSWORD")
+env_key = os.getenv("FERNET_PASSWORD")
 
 # Ensure FERNET_PASSWORD is always bytes
 if env_key:

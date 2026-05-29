@@ -23,13 +23,13 @@ dependencies = [
     "asyncpg>=0.30.0",
     "bcrypt>=4.3.0",
     "argon2-cffi>=25.1.0",
-    "requests>=2.32.5",
     "shared_db",
     "shared_enums",
     "shared_models",
     "shared_schemas",
     "shared_utils",
     "uuid-utils>=0.14.0",
+    "httpx>=0.28.1",
 ]
 
 [tool.uv.sources]

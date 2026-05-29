@@ -9,7 +9,7 @@ mkdir -p ../Secrets
 if [ ! -f ../.env ]; then
   echo "Please change default values from .env"
   echo "WARN -> Default values are public and well known."
-  cp ../Secrets_Template/env_example ../.env
+  cp ../Secrets_Template/example.env ../.env
   echo "Copied the example .env to ./Secrets/.env"
 fi
 
