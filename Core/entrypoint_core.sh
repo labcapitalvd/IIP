@@ -18,14 +18,5 @@ set -e
 # CORS FRONTEND ONLY
 : "${PRIVATE_ORIGINS:?Environment variable PRIVATE_ORIGINS is required}"
 
-# echo "================================================="
-# echo "  DIAGNOSTIC: PYTHON ENVIRONMENT CHECK"
-# echo "================================================="
-# echo "Using interpreter: $(which python)"
-# python -c 'import sys; from pprint import pprint; pprint(sys.path)'
-
-# ls /api
-
-
 # If validation passes, run the CMD
 exec "$@"

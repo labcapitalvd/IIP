@@ -22,3 +22,10 @@ RUN pip install --no-cache-dir \
     ./shared_models \
     ./shared_schemas \
     ./shared_utils
+
+# -----------------------------
+# setup entrypoint
+# -----------------------------
+COPY entrypoint_base.sh /entrypoint_base.sh
+RUN chmod +x /entrypoint_base.sh
+ENTRYPOINT ["/entrypoint_base.sh"]
