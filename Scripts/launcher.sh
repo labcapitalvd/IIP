@@ -13,6 +13,9 @@ else
   echo "⚠️  Warning: .env file not found, environment variables may be missing."
 fi
 
+USER_VAR="${POSTGRES_USER:-app_user}"
+DB_VAR="${POSTGRES_DB:-app}"
+
 case "$MODE" in
   # ===========================================
   #   Populate system with default values
@@ -24,7 +27,7 @@ case "$MODE" in
     echo "⏳ Waiting for database readiness (max 60s)..."
     TIMEOUT=60
     SECONDS=0
-    until docker compose exec -T db pg_isready -U "$POSTGRES_USER"-app_user -d "$POSTGRES_DB"-app >/dev/null 2>&1; do
+    until docker compose exec -T db pg_isready -U "$USER_VAR" -d "$DB_VAR" >/dev/null 2>&1; do
       sleep 1
       if [ $SECONDS -ge $TIMEOUT ]; then
         echo "❌ Database did not become ready after $TIMEOUT seconds."
@@ -73,7 +76,7 @@ case "$MODE" in
     BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
     echo "Creating database backup: $BACKUP_FILE"
 
-    if docker compose exec -T db pg_dump -U "${DB_USER}" -d "${DB_NAME}" >"$BACKUP_FILE"; then
+    if docker compose exec -T db pg_dump -U "${USER_VAR}" -d "${DB_VAR}" >"$BACKUP_FILE"; then
       echo "✅ Backup completed successfully."
     else
       echo "❌ Backup failed."
@@ -88,7 +91,7 @@ case "$MODE" in
       exit 1
     fi
     echo "Restoring database from $FILE..."
-    docker compose exec -T db psql -U "${DB_USER}" -d "${DB_NAME}" <"$FILE"
+    docker compose exec -T db psql -U "${USER_VAR}" -d "${DB_VAR}" <"$FILE"
     echo "✅ Restore completed."
     ;;
 
@@ -121,4 +124,3 @@ EOF
     ;;
 
 esac
-
