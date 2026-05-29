@@ -1,0 +1,12 @@
+keys:
+  - &yubikey age1yubikey1q29kztksvl8elnwuef80evq3sfwu7yn24dscp7yakg5xyal0suyhxd5hjtf
+  - &jj_laptop age1vv48zjhpe23zerj0lvqts8dmkvyt28pktx49k3ym8ptxhxqthdls8k9ne6
+  - &jhonatan age1fmq7qcgcgv9z7dnmq26mn9zjhe0gpuql88rd0qvwjjlxhwurzgdqn5vtrr
+
+creation_rules:
+  - path_regex: \.(yaml|json|env)$
+    key_groups:
+      - age:
+          - *yubikey
+          - *jj_laptop
+          - *jhonatan
