@@ -24,7 +24,7 @@ case "$MODE" in
     echo "⏳ Waiting for database readiness (max 60s)..."
     TIMEOUT=60
     SECONDS=0
-    until docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do
+    until docker compose exec -T db pg_isready -U "$POSTGRES_USER"-app_user -d "$POSTGRES_DB"-app >/dev/null 2>&1; do
       sleep 1
       if [ $SECONDS -ge $TIMEOUT ]; then
         echo "❌ Database did not become ready after $TIMEOUT seconds."
