@@ -17,7 +17,7 @@ _LOG_LEVELS: dict[str, int] = {
 
 def _get_log_level() -> int:
     # getLevelName can take a string like "DEBUG" and return 10
-    level_name = os.environ.get("LOGLEVEL", "INFO").upper()
+    level_name = os.getenv("LOGLEVEL", "INFO").upper()
     return logging.getLevelNamesMapping().get(level_name, logging.INFO)
 
 

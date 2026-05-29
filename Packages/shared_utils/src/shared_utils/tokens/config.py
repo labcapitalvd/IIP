@@ -7,8 +7,8 @@ from shared_utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-JWT_EXPIRE_MINUTES_ACCESS = int(os.environ["JWT_EXPIRE_MINUTES_ACCESS"])
-JWT_EXPIRE_MINUTES_REFRESH = int(os.environ["JWT_EXPIRE_MINUTES_REFRESH"])
+JWT_EXPIRE_MINUTES_ACCESS = int(os.getenv("JWT_EXPIRE_MINUTES_ACCESS", "15"))
+JWT_EXPIRE_MINUTES_REFRESH = int(os.getenv("JWT_EXPIRE_MINUTES_REFRESH", "10080"))
 
 JWT_PRIVATE_KEY_FILE = "/run/secrets/jwt_private_key"
 JWT_PUBLIC_KEY_FILE = "/run/secrets/jwt_public_key"

@@ -14,11 +14,11 @@ from shared_utils import print_list
 logger = get_logger("pop/tables")
 
 # Load configuration from environment
-HOST_AUTH = os.environ.get("HOST_AUTH", "localhost")
-PORT_AUTH = int(os.environ.get("PORT_AUTH", 4293))
+HOST_AUTH = os.getenv("HOST_AUTH", "api_auth")
+PORT_AUTH = int(os.getenv("PORT_AUTH", 8081))
 
-HOST_CORE = os.environ.get("HOST_CORE", "localhost")
-PORT_CORE = int(os.environ.get("PORT_CORE", 4294))
+HOST_CORE = os.getenv("HOST_CORE", "api_core")
+PORT_CORE = int(os.getenv("PORT_CORE", 8082))
 
 USERS_FILE = "/run/secrets/users_file"
 if not os.path.exists(USERS_FILE):

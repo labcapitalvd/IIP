@@ -45,7 +45,7 @@ services:
     image: labcapital/apps:IIP-Base
 
   persister:
-    container_name: iip_persister
+    container_name: app_persister
     build:
       context: .
       dockerfile: Persistence/Dockerfile
@@ -70,7 +70,7 @@ services:
       - iip_nginx
 
   api_auth:
-    container_name: iip_api_auth
+    container_name: app_api_auth
     build:
       context: .
       dockerfile: Auth/Dockerfile
@@ -89,7 +89,7 @@ services:
       - iip_nginx
 
   api_core:
-    container_name: iip_api_core
+    container_name: app_api_core
     build:
       context: .
       dockerfile: Core/Dockerfile
