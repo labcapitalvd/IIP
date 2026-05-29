@@ -43,6 +43,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: labcapital/apps:IIP-Base
+    env_file: ./.env
 
   persister:
     container_name: app_persister
