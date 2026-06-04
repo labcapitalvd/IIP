@@ -1,7 +1,7 @@
 keys:
   - &yubikey age1yubikey1q29kztksvl8elnwuef80evq3sfwu7yn24dscp7yakg5xyal0suyhxd5hjtf
   - &jj_laptop age1vv48zjhpe23zerj0lvqts8dmkvyt28pktx49k3ym8ptxhxqthdls8k9ne6
-  - &jhonatan age1fmq7qcgcgv9z7dnmq26mn9zjhe0gpuql88rd0qvwjjlxhwurzgdqn5vtrr
+  - &jhonatan age1ks66sntukmkht6mz0545xqs3zg6kzm35c88necpfrqegtlt8wqfsj2myur
   - &con1ead age15sf9l36qzj29u9s7dn9qjteugtue08mgf0azqgg3fgwzanpspplq4rs48x
 
 creation_rules:
