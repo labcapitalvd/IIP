@@ -32,12 +32,3 @@ for table_name, table in Base.metadata.tables.items():
     except Exception as e:
         print(f"  ❌ Failed to write {table_name}: {str(e)}")
 
-print("\n--- 📁 Final Verification of Extracted Files ---")
-try:
-    files = os.listdir(OUTPUT_DIR)
-    if not files:
-        print("⚠️  Directory is empty. No files were written.")
-    for f in files:
-        print(f"  - {f}")
-except Exception as e:
-    print(f"❌ Could not list directory: {e}")

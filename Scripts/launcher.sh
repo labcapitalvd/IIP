@@ -39,14 +39,8 @@ case "$MODE" in
 
     # Execute everything inside a SINGLE container lifecycle
     docker compose run --rm persister sh -c "
-      echo '--- Checking scripts directory ---'
-      ls -la /api/scripts/
-      
       echo '--- Executing extraction script ---'
       cd /api/scripts && python main.py
-      
-      echo '--- Verifying generated files inside container ---'
-      ls -la /api/scripts/extracted/
     "
 
     echo "Terminado!"

@@ -1,8 +1,8 @@
-"""initial
+"""se elimina contact_person_id
 
-Revision ID: f7ee48570d96
+Revision ID: ccfb0411323a
 Revises: 
-Create Date: 2026-05-07 21:55:23.124755
+Create Date: 2026-06-09 16:53:16.648751
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'f7ee48570d96'
+revision: str = 'ccfb0411323a'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -122,6 +122,24 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='reference'
     )
+    op.create_table('actors',
+    sa.Column('actor_segment_id', sa.UUID(), nullable=False),
+    sa.Column('sigep_code', sa.Integer(), nullable=True),
+    sa.Column('treasury_code', sa.Integer(), nullable=True),
+    sa.Column('initials', sa.String(length=50), nullable=True),
+    sa.Column('label', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=False),
+    sa.Column('mission', sa.Text(), nullable=False),
+    sa.Column('vision', sa.Text(), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['actor_segment_id'], ['actors.actor_segments.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('initials'),
+    sa.UniqueConstraint('label'),
+    sa.UniqueConstraint('sigep_code'),
+    sa.UniqueConstraint('treasury_code'),
+    schema='actors'
+    )
     op.create_table('users',
     sa.Column('tier_id', sa.UUID(), nullable=False),
     sa.Column('username', sa.String(length=32), nullable=False),
@@ -137,20 +155,6 @@ def upgrade() -> None:
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username'),
     schema='auth'
-    )
-    op.create_table('actors',
-    sa.Column('actor_segment_id', sa.UUID(), nullable=False),
-    sa.Column('contact_person_id', sa.UUID(), nullable=True),
-    sa.Column('label', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('mission', sa.Text(), nullable=False),
-    sa.Column('vision', sa.Text(), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['actor_segment_id'], ['actors.actor_segments.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['contact_person_id'], ['auth.users.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('label'),
-    schema='actors'
     )
     op.create_table('logs',
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -233,6 +237,31 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='interactions'
     )
+    op.create_table('user_actor_links',
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('actor_id', sa.UUID(), nullable=False),
+    sa.Column('role_id', sa.UUID(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('user_id', 'actor_id', 'role_id', 'id'),
+    schema='links'
+    )
+    op.create_table('submissions',
+    sa.Column('actor_id', sa.UUID(), nullable=False),
+    sa.Column('form_id', sa.UUID(), nullable=False),
+    sa.Column('status_id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['form_id'], ['forms.forms.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['status_id'], ['reference.submission_status_types.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='submissions'
+    )
     op.create_table('user_profiles',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('file_id', sa.UUID(), nullable=True),
@@ -267,17 +296,14 @@ def upgrade() -> None:
     op.create_index('idx_sections_parent_display_order', 'sections', ['parent_id', 'display_order'], unique=False, schema='forms')
     op.create_index('idx_sections_parent_id', 'sections', ['parent_id'], unique=False, schema='forms')
     op.create_index('idx_sections_section_type_id', 'sections', ['section_type_id'], unique=False, schema='forms')
-    op.create_table('user_actor_links',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('actor_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=False),
+    op.create_table('results',
+    sa.Column('submission_id', sa.UUID(), nullable=False),
+    sa.Column('final_score', sa.Numeric(precision=18, scale=4), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('user_id', 'actor_id', 'role_id', 'id'),
-    schema='links'
+    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    schema='grading'
     )
     op.create_table('user_file_links',
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -291,18 +317,17 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('user_id', 'file_id', 'role_id', 'id'),
     schema='links'
     )
-    op.create_table('submissions',
-    sa.Column('actor_id', sa.UUID(), nullable=False),
-    sa.Column('form_id', sa.UUID(), nullable=False),
-    sa.Column('status_id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    op.create_table('user_submission_links',
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('submission_id', sa.UUID(), nullable=False),
+    sa.Column('role_id', sa.UUID(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['form_id'], ['forms.forms.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['status_id'], ['reference.submission_status_types.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='submissions'
+    sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
+    sa.PrimaryKeyConstraint('user_id', 'submission_id', 'role_id', 'id'),
+    schema='links'
     )
     op.create_table('information',
     sa.Column('section_id', sa.UUID(), nullable=False),
@@ -333,27 +358,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['section_id'], ['forms.sections.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
     schema='forms'
-    )
-    op.create_table('results',
-    sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('final_score', sa.Numeric(precision=18, scale=4), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    schema='grading'
-    )
-    op.create_table('user_submission_links',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
-    sa.PrimaryKeyConstraint('user_id', 'submission_id', 'role_id', 'id'),
-    schema='links'
     )
     op.create_table('section_dependencies',
     sa.Column('target_section_id', sa.UUID(), nullable=False),
@@ -577,19 +581,19 @@ def downgrade() -> None:
     op.drop_table('criteria', schema='grading')
     op.drop_table('card_templates', schema='forms')
     op.drop_table('section_dependencies', schema='rules')
-    op.drop_table('user_submission_links', schema='links')
-    op.drop_table('results', schema='grading')
     op.drop_table('questions', schema='forms')
     op.drop_table('information', schema='forms')
-    op.drop_table('submissions', schema='submissions')
+    op.drop_table('user_submission_links', schema='links')
     op.drop_table('user_file_links', schema='links')
-    op.drop_table('user_actor_links', schema='links')
+    op.drop_table('results', schema='grading')
     op.drop_index('idx_sections_section_type_id', table_name='sections', schema='forms')
     op.drop_index('idx_sections_parent_id', table_name='sections', schema='forms')
     op.drop_index('idx_sections_parent_display_order', table_name='sections', schema='forms')
     op.drop_index('idx_sections_form_id', table_name='sections', schema='forms')
     op.drop_table('sections', schema='forms')
     op.drop_table('user_profiles', schema='auth')
+    op.drop_table('submissions', schema='submissions')
+    op.drop_table('user_actor_links', schema='links')
     op.drop_table('notifications', schema='interactions')
     op.drop_table('comments', schema='interactions')
     op.drop_index(op.f('ix_files_files_filehash'), table_name='files', schema='files')
@@ -597,8 +601,8 @@ def downgrade() -> None:
     op.drop_table('user_details', schema='auth')
     op.drop_table('refresh_sessions', schema='auth')
     op.drop_table('logs', schema='audit')
-    op.drop_table('actors', schema='actors')
     op.drop_table('users', schema='auth')
+    op.drop_table('actors', schema='actors')
     op.drop_table('user_tiers', schema='reference')
     op.drop_table('submission_status_types', schema='reference')
     op.drop_table('rule_types', schema='reference')
