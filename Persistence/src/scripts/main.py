@@ -18,17 +18,16 @@ print_list("Tables Found in Metadata", list(Base.metadata.tables.keys()))
 for table_name, table in Base.metadata.tables.items():
     # Get column names as headers
     columns = [column.name for column in table.columns]
-    
+
     # Create an empty DataFrame with these columns
     df = pd.DataFrame(columns=columns)
-    
+
     # Define the absolute output path
-    file_path = os.path.join(OUTPUT_DIR, f"{table_name}_template.xlsx")
-    
+    file_path = os.path.join(OUTPUT_DIR, f"{table_name}_template.csv")
+
     try:
         # Save to an individual Excel file
-        df.to_excel(file_path, index=False, engine='openpyxl')
-        print(f"  ✅ Created template: {table_name}_template.xlsx")
+        df.to_csv(file_path, index=False, sep="|")
+        print(f"  ✅ Created template: {table_name}_template.csv")
     except Exception as e:
         print(f"  ❌ Failed to write {table_name}: {str(e)}")
-

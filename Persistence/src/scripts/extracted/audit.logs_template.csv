@@ -1,1 +1,1 @@
-user_id~log_action_type_id~target~target_id~description~timestamp~id
+user_id|log_action_type_id|target|target_id|description|timestamp|id
