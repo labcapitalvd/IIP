@@ -16,6 +16,7 @@ COPY Persistence/src/migrator ./migrator
 COPY Persistence/src/schemer ./schemer
 COPY Persistence/src/seeder ./seeder
 COPY Persistence/src/populator ./populator
+COPY Persistence/src/scripts ./scripts
 
 # -----------------------------
 # 5. setup entrypoint

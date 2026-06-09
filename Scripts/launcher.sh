@@ -18,6 +18,41 @@ DB_VAR="${POSTGRES_DB:-app}"
 
 case "$MODE" in
   # ===========================================
+  #    Populate system with default values
+  # ===========================================
+  --extract)
+    MSG="${1:-default}"
+    echo "Extrae exceles de db segun modelos"
+    docker compose up -d db
+    echo "⏳ Waiting for database readiness (max 60s)..."
+    TIMEOUT=60
+    SECONDS=0
+    until docker compose exec -T db pg_isready -U "$USER_VAR" -d "$DB_VAR" >/dev/null 2>&1; do
+      sleep 1
+      if [ $SECONDS -ge $TIMEOUT ]; then
+        echo "❌ Database did not become ready after $TIMEOUT seconds."
+        exit 1
+      fi
+      echo "   ...still waiting ($SECONDS s)"
+    done
+    echo "✅ Database is ready!"
+
+    # Execute everything inside a SINGLE container lifecycle
+    docker compose run --rm persister sh -c "
+      echo '--- Checking scripts directory ---'
+      ls -la /api/scripts/
+      
+      echo '--- Executing extraction script ---'
+      cd /api/scripts && python main.py
+      
+      echo '--- Verifying generated files inside container ---'
+      ls -la /api/scripts/extracted/
+    "
+
+    echo "Terminado!"
+    docker compose up -d
+    ;;
+  # ===========================================
   #   Populate system with default values
   # ===========================================
   --setup)
