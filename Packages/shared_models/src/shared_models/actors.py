@@ -1,3 +1,4 @@
+from shared_db.column_abstractions import column_integer
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
@@ -17,10 +18,10 @@ class Actor(Base):
     actor_segment_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ACTOR_SEGMENTS.fq_name}.id", ondelete="CASCADE"
     )
-    contact_person_id: Mapped[Optional[UUID]] = column_fk(
-        target=f"{TargetTable.USERS.fq_name}.id", ondelete="SET NULL", nullable=True
-    )
 
+    sigep_code: Mapped[int] = column_integer(nullable=True, unique=True)
+    treasury_code: Mapped[int] = column_integer(nullable=True, unique=True)
+    initials: Mapped[str] = column_short_text(length=50, nullable=True, unique=True)
     label: Mapped[str] = column_short_text(length=255, unique=True)
     description: Mapped[str] = column_long_text()
     mission: Mapped[str] = column_long_text()

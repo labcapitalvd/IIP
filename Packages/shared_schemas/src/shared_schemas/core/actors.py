@@ -45,11 +45,6 @@ class ActorSchemaFK(ActorSchema):
         title="Segmento.",
         description="Segmento al que pertenece el actor.",
     )
-    contact_person_id: UUID_STR | None = Field(
-        default=None,
-        title="Contacto.",
-        description="Persona de contacto del actor.",
-    )
 
 
 class ActorSchemaRel(ActorSchema):
