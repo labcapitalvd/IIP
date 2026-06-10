@@ -1,8 +1,7 @@
 keys:
   - &yubikey age1yubikey1q29kztksvl8elnwuef80evq3sfwu7yn24dscp7yakg5xyal0suyhxd5hjtf
-  - &jj_laptop age1vv48zjhpe23zerj0lvqts8dmkvyt28pktx49k3ym8ptxhxqthdls8k9ne6
+  - &jj_laptop age18n5zera0mtd6uzmvxuu7f7ep9lrulvayjvpw0g53h99jv0508q2sjh9jtf
   - &jhonatan age1ks66sntukmkht6mz0545xqs3zg6kzm35c88necpfrqegtlt8wqfsj2myur
-  - &con1ead age15sf9l36qzj29u9s7dn9qjteugtue08mgf0azqgg3fgwzanpspplq4rs48x
 
 creation_rules:
   - path_regex: \.(yaml|json|env)$
@@ -11,4 +10,3 @@ creation_rules:
           - *yubikey
           - *jj_laptop
           - *jhonatan
-          - *con1ead
