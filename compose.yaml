@@ -1,7 +1,7 @@
 services:
   nginx:
-    container_name: iip_nginx
-    image: nginx:latest
+    container_name: app_nginx
+    image: docker.io/nginx:latest
     env_file: ./.env
     restart: unless-stopped
     depends_on:
@@ -11,7 +11,7 @@ services:
       - https_public
       - https_private
     networks:
-      - iip_nginx
+      - app_nginx
     ports:
       - "${PORT_AUTH}:${PORT_AUTH}"
       - "${PORT_CORE}:${PORT_CORE}"
@@ -19,8 +19,8 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
 
   db:
-    container_name: iip_db
-    image: postgres:18-bookworm
+    container_name: app_db
+    image: docker.io/postgres:18-bookworm
     env_file: ./.env
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -29,22 +29,25 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - iip_db_net
-      - pgadmin_net
+      - app_db_net
     volumes:
       - postgresql:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-app_user} -d $${POSTGRES_DB:-app}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER:-app_user} -d $${POSTGRES_DB:-app}",
+        ]
       interval: 5s
       timeout: 3s
       retries: 5
 
   base:
-    container_name: iip_base
+    container_name: app_base
     build:
       context: .
       dockerfile: Dockerfile
-    image: labcapital/apps:IIP-Base
+    image: docker.io/labcapital/apps:app-Base
     env_file: ./.env
 
   persister:
@@ -52,7 +55,7 @@ services:
     build:
       context: .
       dockerfile: Persistence/Dockerfile
-    image: labcapital/apps:IIP-Persister
+    image: docker.io/labcapital/apps:app-Persister
     depends_on:
       - api_auth
       - api_core
@@ -70,15 +73,15 @@ services:
       - github_token_seeds
       - users_file
     networks:
-      - iip_db_net
-      - iip_nginx
+      - app_db_net
+      - app_nginx
 
   api_auth:
     container_name: app_api_auth
     build:
       context: .
       dockerfile: Auth/Dockerfile
-    image: labcapital/apps:IIP-Auth
+    image: docker.io/labcapital/apps:app-Auth
     depends_on:
       db:
         condition: service_healthy
@@ -89,15 +92,15 @@ services:
       - postgres_password
       - fernet_password
     networks:
-      - iip_db_net
-      - iip_nginx
+      - app_db_net
+      - app_nginx
 
   api_core:
     container_name: app_api_core
     build:
       context: .
       dockerfile: Core/Dockerfile
-    image: labcapital/apps:IIP-Core
+    image: docker.io/labcapital/apps:app-Core
     depends_on:
       db:
         condition: service_healthy
@@ -108,21 +111,17 @@ services:
       - postgres_password
       - fernet_password
     networks:
-      - iip_db_net
-      - iip_nginx
+      - app_db_net
+      - app_nginx
 
 networks:
-  iip_db_net:
+  app_db_net:
     driver: bridge
-    name: iip_db_network
+    name: app_db_network
 
-  iip_nginx:
+  app_nginx:
     driver: bridge
-    name: iip_nginx_network
-
-  pgadmin_net:
-    name: pgadmin_network
-    external: true
+    name: app_nginx_network
 
 volumes:
   postgresql:
@@ -130,15 +129,15 @@ volumes:
 
 secrets:
   postgres_password:
-    environment: POSTGRES_PASSWORD
+    file: ./Secrets/postgres_password
   fernet_password:
-    environment: FERNET_PASSWORD
+    file: ./Secrets/fernet_password
   github_token_commons:
-    environment: GITHUB_TOKEN_COMMONS
+    file: ./Secrets/github_token_commons
   github_token_iip:
-    environment: GITHUB_TOKEN_IIP
+    file: ./Secrets/github_token_iip
   github_token_seeds:
-    environment: GITHUB_TOKEN_SEEDS
+    file: ./Secrets/github_token_seeds
   jwt_public_key:
     file: ./Secrets/jwt_public.pem
   jwt_private_key:

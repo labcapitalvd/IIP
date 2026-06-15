@@ -15,14 +15,14 @@ class ActorSchema(UuidSchema, LabelSchema, DescriptionSchema):
     mission: str | None = Field(
         default=None,
         min_length=1,
-        max_length=256,
+        max_length=2048,
         title="Misión.",
         description="Misión del actor.",
     )
     vision: str | None = Field(
         default=None,
         min_length=1,
-        max_length=256,
+        max_length=2048,
         title="Visión",
         description="Visión del actor.",
     )
