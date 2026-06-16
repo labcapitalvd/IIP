@@ -1,6 +1,9 @@
 keys:
   - &yubikey age1yubikey1q29kztksvl8elnwuef80evq3sfwu7yn24dscp7yakg5xyal0suyhxd5hjtf
-  - &jj_laptop age18n5zera0mtd6uzmvxuu7f7ep9lrulvayjvpw0g53h99jv0508q2sjh9jtf
+  - &desktop_age age1luv3hsf6mqvtl029jmx28n885nxjc7px6rvrdpqg6pwfmkwkv4ssgpmc8e
+  - &desktop_ssh age1xajsgkf62kasd3xrnm3arraq3vwlc5cy3lmmfjsc566c978dkswqjpx7e5
+  - &laptop_age age13prhg0esax6f5vphxznn2r5lunq6hpsgqnjvx48laa2v5z3gff3qz5ylwz
+  - &laptop_ssh age18n5zera0mtd6uzmvxuu7f7ep9lrulvayjvpw0g53h99jv0508q2sjh9jtf
   - &jhonatan age1ks66sntukmkht6mz0545xqs3zg6kzm35c88necpfrqegtlt8wqfsj2myur
 
 creation_rules:
@@ -8,5 +11,8 @@ creation_rules:
     key_groups:
       - age:
           - *yubikey
-          - *jj_laptop
+          - *desktop_age
+          - *desktop_ssh
+          - *laptop_age
+          - *laptop_ssh
           - *jhonatan
