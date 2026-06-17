@@ -25,6 +25,10 @@ if TYPE_CHECKING:
 
 
 class CardTemplate(Base):
+    '''
+    Used to represent a card template aka it contains a field field_group and the fields a loop card is to have. An answer links to one.
+    '''
+
     __tablename__ = TargetTable.CARD_TEMPLATES.table
     __table_args__ = {"schema": TargetTable.CARD_TEMPLATES.schema}
 
@@ -56,6 +60,10 @@ class CardTemplate(Base):
 
 
 class Field(Base):
+    '''
+    Used to represent the tasks to be achieved withing the framework defined by the question.
+    '''
+
     __tablename__ = TargetTable.FIELDS.table
     __table_args__ = {"schema": TargetTable.FIELDS.schema}
 
@@ -102,6 +110,10 @@ class Field(Base):
 
 
 class FieldChoice(Base):
+    '''
+    Used to represent the different predefined options a user may pick.
+    '''
+
     __tablename__ = TargetTable.FIELD_CHOICES.table
     __table_args__ = {"schema": TargetTable.FIELD_CHOICES.schema}
 
@@ -125,6 +137,10 @@ class FieldChoice(Base):
 
 
 class FieldGroup(Base):
+    '''
+    Used to represent a group of fields. It has a title only to hold whole group titles and descriptions.
+    '''
+
     __tablename__ = TargetTable.FIELD_GROUPS.table
     __table_args__ = {"schema": TargetTable.FIELD_GROUPS.schema}
 
@@ -156,6 +172,10 @@ class FieldGroup(Base):
 
 
 class Form(Base):
+    '''
+    Used to represent form entries. Literally forms aka the root of it all.
+    '''
+
     __tablename__ = TargetTable.FORMS.table
     __table_args__ = {"schema": TargetTable.FORMS.schema}
 
@@ -166,25 +186,11 @@ class Form(Base):
     sections: Mapped[List["Section"]] = relationship("Section", back_populates="form")
 
 
-class Info(Base):
-    __tablename__ = TargetTable.INFORMATIONS.table
-    __table_args__ = {"schema": TargetTable.INFORMATIONS.schema}
-
-    section_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.SECTIONS.fq_name}.id", ondelete="SET NULL"
-    )
-    file_id: Mapped[Optional[UUID]] = column_fk(
-        target=f"{TargetTable.FILES.fq_name}.id", ondelete="CASCADE", nullable=True
-    )
-
-    label: Mapped[str] = column_short_text(255)
-    description: Mapped[str] = column_long_text()
-    display_order: Mapped[int] = column_integer(default=0)
-
-    section: Mapped["Section"] = relationship("Section", back_populates="infos")
-
-
 class Question(Base):
+    '''
+    Used to represent a question.
+    '''
+
     __tablename__ = TargetTable.QUESTIONS.table
     __table_args__ = {"schema": TargetTable.QUESTIONS.schema}
 
@@ -222,6 +228,10 @@ class Question(Base):
 
 
 class Section(Base):
+    '''
+    Used to represent a section where questions are placed.
+    '''
+
     __tablename__ = TargetTable.SECTIONS.table
     __table_args__ = (
         Index("idx_sections_form_id", "form_id"),
@@ -255,7 +265,6 @@ class Section(Base):
     questions: Mapped[List["Question"]] = relationship(
         "Question", back_populates="section"
     )
-    infos: Mapped[List["Info"]] = relationship("Info", back_populates="section")
 
     children: Mapped[List["Section"]] = relationship(
         "Section", back_populates="parent", cascade="all, delete-orphan"
@@ -279,6 +288,10 @@ class Section(Base):
 
 
 class SectionType(Base):
+    '''
+    Used to represent the different types of sections.
+    '''
+
     __tablename__ = TargetTable.SECTION_TYPES.table
     __table_args__ = {"schema": TargetTable.SECTION_TYPES.schema}
 

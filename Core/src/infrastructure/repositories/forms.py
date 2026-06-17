@@ -7,7 +7,6 @@ from shared_models import (
     FieldChoice,
     FieldGroup,
     Form,
-    Info,
     Question,
     Section,
     SectionType,
@@ -100,22 +99,6 @@ class FormRepository:
         self.session.add(entry)
 
     def delete(self, entry: Form) -> None:
-        self.session.delete(entry)
-
-
-class InfoRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
-    async def get_by_id(self, id: UUID) -> Info | None:
-        stmt = select(Info).where(Info.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    def add(self, entry: Info) -> None:
-        self.session.add(entry)
-
-    def delete(self, entry: Info) -> None:
         self.session.delete(entry)
 
 

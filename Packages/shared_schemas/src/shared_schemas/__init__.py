@@ -46,7 +46,6 @@ from .core.forms import (
     FieldChoiceSchema,
     FieldGroupSchema,
     FormSchema,
-    InfoSchema,
     QuestionSchema,
     SectionSchema,
     # fk
@@ -55,7 +54,6 @@ from .core.forms import (
     FieldChoiceSchemaFK,
     FieldGroupSchemaFK,
     FormSchemaFK,
-    InfoSchemaFK,
     QuestionSchemaFK,
     SectionSchemaFK,
     # rel
@@ -64,7 +62,6 @@ from .core.forms import (
     FieldChoiceSchemaRel,
     FieldGroupSchemaRel,
     FormSchemaRel,
-    InfoSchemaRel,
     QuestionSchemaRel,
     SectionSchemaRel,
     # extended
@@ -73,7 +70,6 @@ from .core.forms import (
     FieldChoiceSchemaExtended,
     FieldGroupSchemaExtended,
     FormSchemaExtended,
-    InfoSchemaExtended,
     QuestionSchemaExtended,
     SectionSchemaExtended,
 )
@@ -112,7 +108,6 @@ __all__ = [
     "FieldChoiceSchema",
     "FieldGroupSchema",
     "FormSchema",
-    "InfoSchema",
     "QuestionSchema",
     "SectionSchema",
     # core fk
@@ -123,7 +118,6 @@ __all__ = [
     "FieldChoiceSchemaFK",
     "FieldGroupSchemaFK",
     "FormSchemaFK",
-    "InfoSchemaFK",
     "QuestionSchemaFK",
     "SectionSchemaFK",
     # core rel
@@ -134,7 +128,6 @@ __all__ = [
     "FieldChoiceSchemaRel",
     "FieldGroupSchemaRel",
     "FormSchemaRel",
-    "InfoSchemaRel",
     "QuestionSchemaRel",
     "SectionSchemaRel",
     # core extended
@@ -145,7 +138,6 @@ __all__ = [
     "FieldChoiceSchemaExtended",
     "FieldGroupSchemaExtended",
     "FormSchemaExtended",
-    "InfoSchemaExtended",
     "QuestionSchemaExtended",
     "SectionSchemaExtended",
 ]

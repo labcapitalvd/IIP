@@ -21,9 +21,9 @@ from .targets import TargetTable
 
 
 class Role(Base):
-    """
-    name: canonical role code (matches RoleCode enum)
-    """
+    '''
+    Used to represent the entried of the roles a user can have.
+    '''
 
     __tablename__ = TargetTable.ROLES.table
     __table_args__ = {"schema": TargetTable.ROLES.schema}
@@ -34,6 +34,10 @@ class Role(Base):
 
 
 class UserTier(Base):
+    '''
+    Used to represent the types of users the app allows.
+    '''
+
     __tablename__ = TargetTable.USER_TIERS.table
     __table_args__ = {"schema": TargetTable.USER_TIERS.schema}
 
@@ -49,6 +53,10 @@ class UserTier(Base):
 
 
 class RefreshSession(Base):
+    '''
+    Used to represent an entry to the RefreshSessions table which basically holds JWT refresh tokens.
+    '''
+
     __tablename__ = TargetTable.REFRESH_SESSIONS.table
     __table_args__ = {"schema": TargetTable.REFRESH_SESSIONS.schema}
 
@@ -63,6 +71,10 @@ class RefreshSession(Base):
 
 
 class UserDetails(Base):
+    '''
+    Used to represent the different details a users might have.
+    '''
+
     __tablename__ = TargetTable.USER_DETAILS.table
     __table_args__ = {"schema": TargetTable.USER_DETAILS.schema}
 
@@ -80,6 +92,10 @@ class UserDetails(Base):
 
 
 class UserProfile(Base):
+    '''
+    Used to represent the profile a user has.
+    '''
+
     __tablename__ = TargetTable.USER_PROFILES.table
     __table_args__ = {"schema": TargetTable.USER_PROFILES.schema}
 
@@ -102,6 +118,10 @@ class UserProfile(Base):
 
 
 class User(Base):
+    '''
+    Used to represent the basis of a user entry.
+    '''
+
     __tablename__ = TargetTable.USERS.table
     __table_args__ = {"schema": TargetTable.USERS.schema}
 

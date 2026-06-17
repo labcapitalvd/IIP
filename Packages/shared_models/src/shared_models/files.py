@@ -16,6 +16,10 @@ from .targets import TargetTable
 
 
 class FileType(Base):
+    '''
+    Used to represent the different filetypes the platform supports.
+    '''
+
     __tablename__ = TargetTable.FILE_TYPES.table
     __table_args__ = {"schema": TargetTable.FILE_TYPES.schema}
 
@@ -29,6 +33,10 @@ class FileType(Base):
 
 
 class File(Base):
+    '''
+    Used to represent file entries to the File table.
+    '''
+
     __tablename__ = TargetTable.FILES.table
     __table_args__ = {"schema": TargetTable.FILES.schema}
 
