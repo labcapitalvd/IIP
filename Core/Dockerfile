@@ -1,7 +1,7 @@
 # =================================================
 # Stage 1: Start application
 # =================================================
-FROM labcapital/apps:IIP-Base
+FROM docker.io/labcapital/apps:app-Base
 
 # -----------------------------
 # 4. Copy app
