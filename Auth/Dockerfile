@@ -30,4 +30,4 @@ ENTRYPOINT ["/entrypoint_auth.sh"]
 # -----------------------------
 # 6. Run uvicorn
 # -----------------------------
-CMD ["sh", "-c", "uvicorn main:api --host 0.0.0.0 --port ${PORT_AUTH:-8000}"]
+CMD ["sh", "-c", "exec uvicorn main:api --host 0.0.0.0 --port $PORT_AUTH"]
