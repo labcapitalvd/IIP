@@ -86,8 +86,12 @@ class Grade(Base):
     user: Mapped["User"] = relationship("User")
     submission: Mapped["Submission"] = relationship("Submission")
     criterion: Mapped["Criterion"] = relationship("Criterion", back_populates="grades")
-    card_entry: Mapped[Optional["AnswerCardEntry"]] = relationship("AnswerCardEntry")
-    answer: Mapped[Optional["Answer"]] = relationship("Answer")
+    card_entry: Mapped[Optional["AnswerCardEntry"]] = relationship(
+        "AnswerCardEntry", foreign_keys=[card_entry_id]
+    )
+    answer: Mapped[Optional["Answer"]] = relationship(
+        "Answer", foreign_keys=[answer_id]
+    )
 
 
 class Result(Base):

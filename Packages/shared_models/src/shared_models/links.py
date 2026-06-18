@@ -32,7 +32,7 @@ class UserFileLink(Base):
 
     user = relationship("User", back_populates="file_links")
     file = relationship("File", back_populates="user_links")
-    role = relationship("Role")
+    role = relationship("Role", back_populates="user_file_link")
 
 
 class MultiChoiceOptionLink(Base):

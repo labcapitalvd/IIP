@@ -82,7 +82,7 @@ class Field(Base):
     updated_at: Mapped[datetime] = column_updated_at()
 
     field_type: Mapped["FieldType"] = relationship(
-        "FieldType", back_populates="field", uselist=False
+        "FieldType", back_populates="fields", uselist=False
     )
     field_group: Mapped["FieldGroup"] = relationship(
         "FieldGroup", back_populates="fields"

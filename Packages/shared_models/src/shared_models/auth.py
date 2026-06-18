@@ -20,22 +20,22 @@ from .targets import TargetTable
 
 
 class Role(Base):
-    '''
+    """
     Used to represent the entried of the roles a user can have.
-    '''
+    """
 
     __tablename__ = TargetTable.ROLES.table
     __table_args__ = {"schema": TargetTable.ROLES.schema}
 
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
-    user_file_link = relationship("UserFileLink", back_populates="roles")
+    user_file_link = relationship("UserFileLink", back_populates="role")
 
 
 class UserTier(Base):
-    '''
+    """
     Used to represent the types of users the app allows.
-    '''
+    """
 
     __tablename__ = TargetTable.USER_TIERS.table
     __table_args__ = {"schema": TargetTable.USER_TIERS.schema}
@@ -52,9 +52,9 @@ class UserTier(Base):
 
 
 class RefreshSession(Base):
-    '''
+    """
     Used to represent an entry to the RefreshSessions table which basically holds JWT refresh tokens.
-    '''
+    """
 
     __tablename__ = TargetTable.REFRESH_SESSIONS.table
     __table_args__ = {"schema": TargetTable.REFRESH_SESSIONS.schema}
@@ -70,9 +70,9 @@ class RefreshSession(Base):
 
 
 class UserDetails(Base):
-    '''
+    """
     Used to represent the different details a users might have.
-    '''
+    """
 
     __tablename__ = TargetTable.USER_DETAILS.table
     __table_args__ = {"schema": TargetTable.USER_DETAILS.schema}
@@ -91,9 +91,9 @@ class UserDetails(Base):
 
 
 class UserProfile(Base):
-    '''
+    """
     Used to represent the profile a user has.
-    '''
+    """
 
     __tablename__ = TargetTable.USER_PROFILES.table
     __table_args__ = {"schema": TargetTable.USER_PROFILES.schema}
@@ -117,9 +117,9 @@ class UserProfile(Base):
 
 
 class User(Base):
-    '''
+    """
     Used to represent the basis of a user entry.
-    '''
+    """
 
     __tablename__ = TargetTable.USERS.table
     __table_args__ = {"schema": TargetTable.USERS.schema}
@@ -145,3 +145,5 @@ class User(Base):
     comments = relationship("Comment", back_populates="user")
     file_links = relationship("UserFileLink", back_populates="user")
     refresh_sessions = relationship("RefreshSession", back_populates="user")
+    actor_links = relationship("UserActorLink", back_populates="user")
+    submission_links = relationship("UserSubmissionLink", back_populates="user")
