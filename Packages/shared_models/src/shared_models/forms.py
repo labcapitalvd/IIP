@@ -124,7 +124,7 @@ class FieldChoice(Base):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    answer_links: Mapped[list["MultiChoiceOptionLink"]] = relationship(
+    answer_links: Mapped[List["MultiChoiceOptionLink"]] = relationship(
         "MultiChoiceOptionLink", back_populates="choice"
     )
     answer_link: Mapped[List["AnswerSingleChoice"]] = relationship(

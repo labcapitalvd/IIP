@@ -91,6 +91,7 @@ class AnswerCardEntry(Answer):
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
     __mapper_args__ = {
         "polymorphic_identity": AnswerType.CARD.value,
+        "inherit_condition": id == Answer.id,
     }
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id",

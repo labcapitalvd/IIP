@@ -1,8 +1,8 @@
-"""se elimina contact_person_id
+"""cambios generalistas
 
-Revision ID: ccfb0411323a
+Revision ID: 12144567e31b
 Revises: 
-Create Date: 2026-06-09 16:53:16.648751
+Create Date: 2026-06-18 17:53:51.011796
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'ccfb0411323a'
+revision: str = '12144567e31b'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -240,13 +240,13 @@ def upgrade() -> None:
     op.create_table('user_actor_links',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('actor_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=False),
+    sa.Column('role_id', sa.UUID(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('user_id', 'actor_id', 'role_id', 'id'),
+    sa.PrimaryKeyConstraint('user_id', 'actor_id', 'id'),
     schema='links'
     )
     op.create_table('submissions',
@@ -298,51 +298,39 @@ def upgrade() -> None:
     op.create_index('idx_sections_section_type_id', 'sections', ['section_type_id'], unique=False, schema='forms')
     op.create_table('results',
     sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('final_score', sa.Numeric(precision=18, scale=4), nullable=False),
+    sa.Column('final_score', sa.Numeric(precision=8, scale=2), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ),
+    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('submission_id'),
     schema='grading'
     )
     op.create_table('user_file_links',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=False),
+    sa.Column('role_id', sa.UUID(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('user_id', 'file_id', 'role_id', 'id'),
+    sa.PrimaryKeyConstraint('user_id', 'file_id', 'id'),
     schema='links'
     )
     op.create_table('user_submission_links',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=False),
+    sa.Column('role_id', sa.UUID(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
-    sa.PrimaryKeyConstraint('user_id', 'submission_id', 'role_id', 'id'),
+    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('user_id', 'submission_id', 'id'),
     schema='links'
     )
-    op.create_table('information',
-    sa.Column('section_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=True),
-    sa.Column('label', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('display_order', sa.Integer(), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['section_id'], ['forms.sections.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='forms'
-    )
     op.create_table('questions',
-    sa.Column('form_id', sa.UUID(), nullable=False),
     sa.Column('section_id', sa.UUID(), nullable=False),
     sa.Column('file_id', sa.UUID(), nullable=True),
     sa.Column('label', sa.String(length=255), nullable=False),
@@ -354,7 +342,6 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['form_id'], ['forms.forms.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['section_id'], ['forms.sections.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
     schema='forms'
@@ -380,48 +367,32 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('question_id'),
     schema='forms'
     )
     op.create_table('criteria',
-    sa.Column('question_id', sa.UUID(), nullable=True),
+    sa.Column('question_id', sa.UUID(), nullable=False),
     sa.Column('description', sa.String(length=255), nullable=False),
-    sa.Column('weight', sa.Numeric(precision=18, scale=4), nullable=False),
+    sa.Column('weight', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
+    sa.Column('max_score', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='grading'
     )
     op.create_table('field_groups',
-    sa.Column('form_id', sa.UUID(), nullable=False),
-    sa.Column('question_id', sa.UUID(), nullable=False),
-    sa.Column('card_template_id', sa.UUID(), nullable=True),
+    sa.Column('card_template_id', sa.UUID(), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['card_template_id'], ['forms.card_templates.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['form_id'], ['forms.forms.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='forms'
     )
-    op.create_table('grades',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('criterion_id', sa.UUID(), nullable=False),
-    sa.Column('grade', sa.Numeric(precision=5, scale=2), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['criterion_id'], ['grading.criteria.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id'),
-    schema='grading'
-    )
     op.create_table('fields',
-    sa.Column('form_id', sa.UUID(), nullable=False),
     sa.Column('field_group_id', sa.UUID(), nullable=False),
     sa.Column('field_type_id', sa.UUID(), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
@@ -432,7 +403,6 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['field_group_id'], ['forms.field_groups.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['field_type_id'], ['reference.field_types.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['form_id'], ['forms.forms.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
     schema='forms'
     )
@@ -484,6 +454,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
+    op.create_index('idx_answers_submission_field', 'answers', ['submission_id', 'field_id'], unique=False, schema='submissions')
     op.create_table('answers_boolean',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('value', sa.Boolean(), nullable=False),
@@ -546,6 +517,23 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
+    op.create_table('grades',
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('submission_id', sa.UUID(), nullable=False),
+    sa.Column('criterion_id', sa.UUID(), nullable=False),
+    sa.Column('card_entry_id', sa.UUID(), nullable=True),
+    sa.Column('answer_id', sa.UUID(), nullable=True),
+    sa.Column('grade', sa.Numeric(precision=5, scale=2), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['answer_id'], ['submissions.answers.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['card_entry_id'], ['submissions.answers_card_entry.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['criterion_id'], ['grading.criteria.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id'),
+    schema='grading'
+    )
     op.create_table('choice_multichoice_links',
     sa.Column('choice_id', sa.UUID(), nullable=False),
     sa.Column('multi_choice_answer_id', sa.UUID(), nullable=False),
@@ -563,6 +551,7 @@ def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('choice_multichoice_links', schema='links')
+    op.drop_table('grades', schema='grading')
     op.drop_table('answers_texts', schema='submissions')
     op.drop_table('answers_single_choice', schema='submissions')
     op.drop_table('answers_numeric', schema='submissions')
@@ -571,18 +560,17 @@ def downgrade() -> None:
     op.drop_table('answers_date', schema='submissions')
     op.drop_table('answers_card_entry', schema='submissions')
     op.drop_table('answers_boolean', schema='submissions')
+    op.drop_index('idx_answers_submission_field', table_name='answers', schema='submissions')
     op.drop_table('answers', schema='submissions')
     op.drop_table('field_rules', schema='rules')
     op.drop_table('field_dependencies', schema='rules')
     op.drop_table('field_choices', schema='forms')
     op.drop_table('fields', schema='forms')
-    op.drop_table('grades', schema='grading')
     op.drop_table('field_groups', schema='forms')
     op.drop_table('criteria', schema='grading')
     op.drop_table('card_templates', schema='forms')
     op.drop_table('section_dependencies', schema='rules')
     op.drop_table('questions', schema='forms')
-    op.drop_table('information', schema='forms')
     op.drop_table('user_submission_links', schema='links')
     op.drop_table('user_file_links', schema='links')
     op.drop_table('results', schema='grading')
