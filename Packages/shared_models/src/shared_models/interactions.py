@@ -27,7 +27,10 @@ class NotificationType(Base):
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
 
-    notification = relationship("Notification", back_populates="type", uselist=False)
+
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification", back_populates="type"
+    )
 
 
 class Notification(Base):
@@ -43,14 +46,12 @@ class Notification(Base):
 
     label: Mapped[str] = column_short_text(255)
     content: Mapped[str] = column_long_text()
-
     is_read: Mapped[bool] = column_bool(default=False)
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     user = relationship("User", back_populates="notifications")
-    type = relationship(
-        "NotificationType", back_populates="notification", uselist=False
+    type: Mapped["NotificationType"] = relationship(
+        "NotificationType", back_populates="notifications"
     )
 
 
@@ -61,7 +62,7 @@ class CommentType(Base):
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
 
-    comment = relationship("Comment", back_populates="type", uselist=False)
+    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="type")
 
 
 class Comment(Base):
@@ -78,8 +79,7 @@ class Comment(Base):
 
     label: Mapped[str] = column_short_text(255)
     content: Mapped[str] = column_long_text()
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     user = relationship("User", back_populates="comments")
-    type = relationship("CommentType", back_populates="comment", uselist=False)
+    type: Mapped["CommentType"] = relationship("CommentType", back_populates="comments")

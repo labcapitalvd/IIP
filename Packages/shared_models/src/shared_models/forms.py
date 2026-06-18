@@ -25,15 +25,15 @@ if TYPE_CHECKING:
 
 
 class CardTemplate(Base):
-    '''
+    """
     Used to represent a card template aka it contains a field field_group and the fields a loop card is to have. An answer links to one.
-    '''
+    """
 
     __tablename__ = TargetTable.CARD_TEMPLATES.table
     __table_args__ = {"schema": TargetTable.CARD_TEMPLATES.schema}
 
     question_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
+        target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE", unique=True
     )
 
     label: Mapped[str] = column_short_text(length=255)
@@ -43,7 +43,7 @@ class CardTemplate(Base):
     updated_at: Mapped[datetime] = column_updated_at()
 
     question: Mapped["Question"] = relationship(
-        "Question", back_populates="card_templates"
+        "Question", back_populates="card_template"
     )
     field_groups: Mapped[List["FieldGroup"]] = relationship(
         "FieldGroup", back_populates="card_template"
@@ -60,16 +60,13 @@ class CardTemplate(Base):
 
 
 class Field(Base):
-    '''
+    """
     Used to represent the tasks to be achieved withing the framework defined by the question.
-    '''
+    """
 
     __tablename__ = TargetTable.FIELDS.table
     __table_args__ = {"schema": TargetTable.FIELDS.schema}
 
-    form_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.FORMS.fq_name}.id", ondelete="SET NULL"
-    )
     field_group_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.FIELD_GROUPS.fq_name}.id", ondelete="CASCADE"
     )
@@ -110,9 +107,9 @@ class Field(Base):
 
 
 class FieldChoice(Base):
-    '''
+    """
     Used to represent the different predefined options a user may pick.
-    '''
+    """
 
     __tablename__ = TargetTable.FIELD_CHOICES.table
     __table_args__ = {"schema": TargetTable.FIELD_CHOICES.schema}
@@ -137,23 +134,17 @@ class FieldChoice(Base):
 
 
 class FieldGroup(Base):
-    '''
+    """
     Used to represent a group of fields. It has a title only to hold whole group titles and descriptions.
-    '''
+    """
 
     __tablename__ = TargetTable.FIELD_GROUPS.table
     __table_args__ = {"schema": TargetTable.FIELD_GROUPS.schema}
 
-    form_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.FORMS.fq_name}.id", ondelete="SET NULL"
-    )
-    question_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
-    )
     card_template_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.CARD_TEMPLATES.fq_name}.id",
         ondelete="CASCADE",
-        nullable=True,
+        nullable=False,
     )
 
     label: Mapped[str] = column_short_text(length=255)
@@ -162,9 +153,6 @@ class FieldGroup(Base):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    question: Mapped["Question"] = relationship(
-        "Question", back_populates="field_groups"
-    )
     card_template: Mapped["CardTemplate"] = relationship(
         "CardTemplate", back_populates="field_groups"
     )
@@ -172,9 +160,9 @@ class FieldGroup(Base):
 
 
 class Form(Base):
-    '''
+    """
     Used to represent form entries. Literally forms aka the root of it all.
-    '''
+    """
 
     __tablename__ = TargetTable.FORMS.table
     __table_args__ = {"schema": TargetTable.FORMS.schema}
@@ -187,16 +175,13 @@ class Form(Base):
 
 
 class Question(Base):
-    '''
+    """
     Used to represent a question.
-    '''
+    """
 
     __tablename__ = TargetTable.QUESTIONS.table
     __table_args__ = {"schema": TargetTable.QUESTIONS.schema}
 
-    form_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.FORMS.fq_name}.id", ondelete="SET NULL"
-    )
     section_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.SECTIONS.fq_name}.id", ondelete="SET NULL"
     )
@@ -214,11 +199,12 @@ class Question(Base):
     updated_at: Mapped[datetime] = column_updated_at()
 
     section: Mapped["Section"] = relationship("Section", back_populates="questions")
-    field_groups: Mapped[List["FieldGroup"]] = relationship(
-        "FieldGroup", back_populates="question"
-    )
-    card_templates: Mapped[List["CardTemplate"]] = relationship(
-        "CardTemplate", back_populates="question"
+
+    card_template: Mapped["CardTemplate"] = relationship(
+        "CardTemplate",
+        back_populates="question",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
     criteria: Mapped[List["Criterion"]] = relationship(
         "Criterion",
@@ -228,9 +214,9 @@ class Question(Base):
 
 
 class Section(Base):
-    '''
+    """
     Used to represent a section where questions are placed.
-    '''
+    """
 
     __tablename__ = TargetTable.SECTIONS.table
     __table_args__ = (
@@ -288,9 +274,9 @@ class Section(Base):
 
 
 class SectionType(Base):
-    '''
+    """
     Used to represent the different types of sections.
-    '''
+    """
 
     __tablename__ = TargetTable.SECTION_TYPES.table
     __table_args__ = {"schema": TargetTable.SECTION_TYPES.schema}

@@ -29,7 +29,7 @@ class FileType(Base):
     category: Mapped[str] = column_short_text(length=255)
     max_size: Mapped[Decimal] = column_decimal(precision=15, scale=0)
 
-    file = relationship("File", back_populates="type", uselist=False)
+    file = relationship("File", back_populates="type")
 
 
 class File(Base):

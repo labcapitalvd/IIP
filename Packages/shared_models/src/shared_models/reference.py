@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from shared_db import (
     Base,
@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from .submissions import Submission
 
 
-
 class FieldType(Base):
     __tablename__ = TargetTable.FIELD_TYPES.table
     __table_args__ = {"schema": TargetTable.FIELD_TYPES.schema}
@@ -23,9 +22,7 @@ class FieldType(Base):
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
 
-    field: Mapped["Field"] = relationship(
-        "Field", back_populates="field_type", uselist=False
-    )
+    fields: Mapped[List["Field"]] = relationship("Field", back_populates="field_type")
 
 
 class RelationalOperator(Base):
@@ -35,12 +32,11 @@ class RelationalOperator(Base):
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
 
-    field_dependency: Mapped["FieldDependency"] = relationship(
-        "FieldDependency", back_populates="operator_type", uselist=False
+    field_dependencies: Mapped[List["FieldDependency"]] = relationship(
+        "FieldDependency", back_populates="operator_type"
     )
-
-    section_dependency: Mapped["SectionDependency"] = relationship(
-        "SectionDependency", back_populates="operator_type", uselist=False
+    section_dependencies: Mapped[List["SectionDependency"]] = relationship(
+        "SectionDependency", back_populates="operator_type"
     )
 
 
@@ -53,8 +49,8 @@ class RuleType(Base):
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
 
-    field_rule: Mapped["FieldRule"] = relationship(
-        "FieldRule", back_populates="rule", uselist=False
+    field_rules: Mapped[List["FieldRule"]] = relationship(
+        "FieldRule", back_populates="rule"
     )
 
 
@@ -65,6 +61,6 @@ class SubmissionStatusType(Base):
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
 
-    submission: Mapped["Submission"] = relationship(
-        "Submission", back_populates="status", uselist=False
+    submissions: Mapped[List["Submission"]] = relationship(
+        "Submission", back_populates="status"
     )

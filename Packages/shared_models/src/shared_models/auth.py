@@ -2,20 +2,19 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import relationship
 from shared_db import (
     Base,
     column_bool,
+    column_datetime,
     column_decimal,
     column_fk,
+    column_integer,
+    column_long_text,
     column_short_text,
     column_updated_at,
-    column_long_text,
-    column_datetime,
     column_uuid,
-    column_integer,
 )
+from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable
 
@@ -49,7 +48,7 @@ class UserTier(Base):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user = relationship("User", back_populates="tier", uselist=False)
+    user = relationship("User", back_populates="tier")
 
 
 class RefreshSession(Base):

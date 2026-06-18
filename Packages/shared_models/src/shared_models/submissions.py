@@ -6,29 +6,38 @@ from uuid import UUID
 from shared_db import (
     Base,
     column_bool,
+    column_created_at,
     column_date,
     column_decimal,
     column_fk,
     column_integer,
     column_long_text,
     column_short_text,
-    column_created_at,
     column_updated_at,
 )
-from sqlalchemy.orm import Mapped, column_property, relationship
-
 from shared_enums import FieldTypesEnum as AnswerType
+from sqlalchemy import Index
+from sqlalchemy.orm import Mapped, relationship
+
 from .targets import TargetTable
 
 if TYPE_CHECKING:
+    from .files import File
     from .forms import CardTemplate, Field, FieldChoice
     from .links import MultiChoiceOptionLink, UserSubmissionLink
     from .reference import SubmissionStatusType
 
 
 class Answer(Base):
+    """
+    Base polymorphic table for all captured values.
+    """
+
     __tablename__ = TargetTable.ANSWERS.table
-    __table_args__ = {"schema": TargetTable.ANSWERS.schema}
+    __table_args__ = (
+        Index("idx_answers_submission_field", "submission_id", "field_id"),
+        {"schema": TargetTable.ANSWERS.schema},
+    )
     __mapper_args__ = {"polymorphic_on": "discriminator"}
 
     submission_id: Mapped[UUID] = column_fk(
@@ -46,13 +55,10 @@ class Answer(Base):
         use_alter=True,
         name="fk_answers_card_entry_instance",
     )
-    # discriminator is required by SQLAlchemy for Joined Table Inheritance because
-    # our Python identities are strings (e.g. "AnswerBoolean") but type_id is a UUID.
-    # It acts as the local type identifier.
     discriminator: Mapped[str] = column_short_text(length=50, nullable=False)
-
     updated_at: Mapped[datetime] = column_updated_at()
 
+    # Relationships
     submission: Mapped["Submission"] = relationship(
         "Submission", back_populates="answers"
     )
@@ -60,7 +66,7 @@ class Answer(Base):
     card_entry: Mapped[Optional["AnswerCardEntry"]] = relationship(
         "AnswerCardEntry",
         foreign_keys=[card_entry_id],
-        back_populates="answers",
+        back_populates="child_answers",
         post_update=True,
     )
 
@@ -73,27 +79,24 @@ class AnswerBoolean(Answer):
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-
     value: Mapped[bool] = column_bool()
 
 
 class AnswerCardEntry(Answer):
+    """
+    A concrete answer item representing an instantiated card boundary block.
+    """
+
     __tablename__ = TargetTable.ANSWERS_CARD_ENTRY.table
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
     __mapper_args__ = {
         "polymorphic_identity": AnswerType.CARD.value,
-        "inherit_condition": id == Answer.id,
     }
-
-    id: Mapped[UUID] = column_property(
-        column_fk(
-            target=f"{TargetTable.ANSWERS.fq_name}.id",
-            primary_key=True,
-            ondelete="CASCADE",
-        ),
-        Answer.id,
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id",
+        primary_key=True,
+        ondelete="CASCADE",
     )
-
     question_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
     )
@@ -102,14 +105,16 @@ class AnswerCardEntry(Answer):
         ondelete="CASCADE",
         nullable=False,
     )
-
     title: Mapped[str] = column_short_text(length=255)
-    card_index: Mapped[int] = column_integer()
+    card_index: Mapped[int] = column_integer(default=0)
 
+    # Relationships
     card_template: Mapped["CardTemplate"] = relationship(
         "CardTemplate", back_populates="card_entries"
     )
-    answers: Mapped[List["Answer"]] = relationship(
+
+    # Cleaned: Named uniquely to avoid column/relationship collision shadows
+    child_answers: Mapped[List["Answer"]] = relationship(
         "Answer", foreign_keys="Answer.card_entry_id", back_populates="card_entry"
     )
 
@@ -122,7 +127,6 @@ class AnswerDate(Answer):
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-
     value: Mapped[date] = column_date(nullable=True)
 
 
@@ -134,13 +138,11 @@ class AnswerFile(Answer):
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-
-    value_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.FILES.fq_name}.id",
-        ondelete="CASCADE",
-        unique=False,
-        nullable=True,
+    value_id: Mapped[Optional[UUID]] = column_fk(
+        target=f"{TargetTable.FILES.fq_name}.id", ondelete="CASCADE", nullable=True
     )
+
+    file: Mapped[Optional["File"]] = relationship("File")
 
 
 class AnswerMultiChoice(Answer):
@@ -151,8 +153,7 @@ class AnswerMultiChoice(Answer):
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-
-    option_links: Mapped[list["MultiChoiceOptionLink"]] = relationship(
+    option_links: Mapped[List["MultiChoiceOptionLink"]] = relationship(
         "MultiChoiceOptionLink", back_populates="answer", cascade="all, delete-orphan"
     )
 
@@ -177,7 +178,6 @@ class AnswerSingleChoice(Answer):
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-
     value_id: Mapped[UUID] = column_fk(target=f"{TargetTable.FIELD_CHOICES.fq_name}.id")
 
     choice: Mapped["FieldChoice"] = relationship(
@@ -193,7 +193,6 @@ class AnswerText(Answer):
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-
     value: Mapped[str] = column_long_text()
 
 
@@ -208,25 +207,30 @@ class Submission(Base):
         target=f"{TargetTable.FORMS.fq_name}.id", ondelete="SET NULL"
     )
     status_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.SUBMISSION_STATUS_TYPES.fq_name}.id",
-        ondelete="SET NULL",
+        target=f"{TargetTable.SUBMISSION_STATUS_TYPES.fq_name}.id", ondelete="SET NULL"
     )
+
     created_at: Mapped[datetime] = column_created_at()
     updated_at: Mapped[datetime] = column_updated_at()
 
+    # Relationships
     status: Mapped["SubmissionStatusType"] = relationship(
-        "SubmissionStatusType", back_populates="submission", uselist=False
+        "SubmissionStatusType", back_populates="submissions"
     )
-
-    user_links: Mapped["UserSubmissionLink"] = relationship(
+    user_links: Mapped[List["UserSubmissionLink"]] = relationship(
         "UserSubmissionLink", back_populates="submission"
     )
+
     answers: Mapped[List["Answer"]] = relationship(
-        "Answer", back_populates="submission", cascade="all, delete-orphan"
+        "Answer",
+        primaryjoin="Submission.id == Answer.submission_id",
+        back_populates="submission",
+        cascade="all, delete-orphan",
     )
+
+    # Updated viewonly collection to isolate instanced canvas groupings safely
     card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
         "AnswerCardEntry",
-        back_populates="submission",
+        primaryjoin="and_(Submission.id == AnswerCardEntry.submission_id, AnswerCardEntry.discriminator == 'CARD')",
         viewonly=True,
-        foreign_keys="Answer.submission_id",
     )

@@ -1,24 +1,17 @@
 from datetime import datetime
-from uuid import UUID
 from typing import TYPE_CHECKING
+from uuid import UUID
 
-from shared_db import (
-    Base,
-    column_fk,
-    column_updated_at,
-)
+from shared_db import Base, column_fk, column_updated_at
 from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable
 
 if TYPE_CHECKING:
-    from .submissions import (
-        AnswerMultiChoice,
-        Submission,
-    )
-    from .forms import FieldChoice
     from .actors import Actor
-    from shared_models import User, Role
+    from .auth import Role, User
+    from .forms import FieldChoice
+    from .submissions import AnswerMultiChoice, Submission
 
 
 class UserFileLink(Base):
@@ -26,26 +19,20 @@ class UserFileLink(Base):
     __table_args__ = {"schema": TargetTable.LINK_USER_FILE.schema}
 
     user_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.USERS.fq_name}.id",
-        primary_key=True,
-        ondelete="CASCADE",
+        target=f"{TargetTable.USERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
     file_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.FILES.fq_name}.id",
-        primary_key=True,
-        ondelete="CASCADE",
+        target=f"{TargetTable.FILES.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
     role_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ROLES.fq_name}.id",
-        primary_key=True,
-        ondelete="SET NULL",
+        target=f"{TargetTable.ROLES.fq_name}.id", nullable=True, ondelete="SET NULL"
     )
 
     updated_at: Mapped[datetime] = column_updated_at()
 
     user = relationship("User", back_populates="file_links")
     file = relationship("File", back_populates="user_links")
-    roles = relationship("Role", back_populates="user_file_link")
+    role = relationship("Role")
 
 
 class MultiChoiceOptionLink(Base):
@@ -78,26 +65,20 @@ class UserActorLink(Base):
     __table_args__ = {"schema": TargetTable.LINK_USER_ACTOR.schema}
 
     user_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.USERS.fq_name}.id",
-        primary_key=True,
-        ondelete="CASCADE",
+        target=f"{TargetTable.USERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
     actor_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ACTORS.fq_name}.id",
-        primary_key=True,
-        ondelete="CASCADE",
+        target=f"{TargetTable.ACTORS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
     role_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ROLES.fq_name}.id",
-        primary_key=True,
-        ondelete="SET NULL",
+        target=f"{TargetTable.ROLES.fq_name}.id", nullable=True, ondelete="SET NULL"
     )
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user: Mapped["User"] = relationship("User", backref="actor_links")
+    user: Mapped["User"] = relationship("User", back_populates="actor_links")
     actor: Mapped["Actor"] = relationship("Actor", back_populates="user_links")
-    roles: Mapped["Role"] = relationship("Role", backref="user_actor_link")
+    role: Mapped["Role"] = relationship("Role")
 
 
 class UserSubmissionLink(Base):
@@ -105,21 +86,21 @@ class UserSubmissionLink(Base):
     __table_args__ = {"schema": TargetTable.LINK_USER_SUBMISSION.schema}
 
     user_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.USERS.fq_name}.id", primary_key=True
+        target=f"{TargetTable.USERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
     submission_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.SUBMISSIONS.fq_name}.id", primary_key=True
+        target=f"{TargetTable.SUBMISSIONS.fq_name}.id",
+        primary_key=True,
+        ondelete="CASCADE",
     )
     role_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ROLES.fq_name}.id",
-        primary_key=True,
-        ondelete="SET NULL",
+        target=f"{TargetTable.ROLES.fq_name}.id", nullable=True, ondelete="SET NULL"
     )
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user: Mapped["User"] = relationship("User", backref="submission_links")
+    user: Mapped["User"] = relationship("User", back_populates="submission_links")
     submission: Mapped["Submission"] = relationship(
         "Submission", back_populates="user_links"
     )
-    roles: Mapped["Role"] = relationship("Role", backref="user_submission_link")
+    role: Mapped["Role"] = relationship("Role")
