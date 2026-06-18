@@ -68,9 +68,7 @@ def active_years() -> tuple[int, ...]:
         try:
             years.append(int(value))
         except ValueError as exc:
-            raise ValueError(
-                f"Año inválido en IIP_ACTIVE_YEARS: {value!r}"
-            ) from exc
+            raise ValueError(f"Año inválido en IIP_ACTIVE_YEARS: {value!r}") from exc
 
     if not years or len(years) != len(set(years)):
         raise ValueError(
@@ -98,9 +96,7 @@ def normalize(value):
         return None
     value = unicodedata.normalize("NFKD", value)
     value = "".join(
-        character
-        for character in value
-        if not unicodedata.combining(character)
+        character for character in value if not unicodedata.combining(character)
     )
     value = value.casefold()
     value = re.sub(r"\s+", " ", value)
@@ -128,8 +124,7 @@ def truncate(value, max_length):
 def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     if sheet_name not in excel.sheet_names:
         raise ValueError(
-            f"No existe la hoja {sheet_name!r}. "
-            f"Hojas disponibles: {excel.sheet_names}"
+            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
         )
 
     frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
@@ -146,10 +141,7 @@ def display_order_from_question(value) -> int:
     if not match:
         return 0
 
-    parts = [
-        int(part)
-        for part in match.group(1).replace(",", ".").split(".")
-    ]
+    parts = [int(part) for part in match.group(1).replace(",", ".").split(".")]
 
     if len(parts) == 1:
         return parts[0] * 1000
@@ -180,13 +172,9 @@ def load_questions(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
         }
         missing = required - set(frame.columns)
         if missing:
-            raise ValueError(
-                f"Faltan columnas en la hoja {year}: {sorted(missing)}"
-            )
+            raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
 
-        has_loop_columns = (
-            "Bucle" in frame.columns and f"Bucle {year}" in frame.columns
-        )
+        has_loop_columns = "Bucle" in frame.columns and f"Bucle {year}" in frame.columns
 
         data = pd.DataFrame(
             {
@@ -254,18 +242,14 @@ def load_questions(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
                     f"{existing['source_row']} y {candidate['source_row']}."
                 )
 
-            existing["is_loop"] = (
-                existing["is_loop"] or candidate["is_loop"]
-            )
+            existing["is_loop"] = existing["is_loop"] or candidate["is_loop"]
 
         year_records = list(registry.values())
         if not year_records:
             raise ValueError(f"La hoja {year} no produjo preguntas válidas.")
 
         records.extend(year_records)
-        logger.info(
-            f"Year {year}: {len(year_records)} preguntas principales."
-        )
+        logger.info(f"Year {year}: {len(year_records)} preguntas principales.")
 
     return records
 
@@ -399,7 +383,6 @@ async def get_existing_questions(
             """
             SELECT
                 question.id::text AS question_id,
-                question.form_id::text AS form_id,
                 question.section_id::text AS section_id,
                 question.label,
                 question.description,
@@ -408,8 +391,10 @@ async def get_existing_questions(
                 question.is_loop,
                 form.anno
             FROM forms.questions question
-            JOIN forms.forms form
-              ON form.id = question.form_id
+            JOIN forms.sections section 
+              ON section.id = question.section_id
+            JOIN forms.forms form 
+              ON form.id = section.form_id
             ORDER BY form.anno, question.label, question.id;
             """
         )
@@ -429,9 +414,7 @@ async def get_existing_questions(
                 f"{[row['question_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["question_id"]):
-            raise ValueError(
-                f"Pregunta existente sin UUIDv7: {rows[0]['question_id']}"
-            )
+            raise ValueError(f"Pregunta existente sin UUIDv7: {rows[0]['question_id']}")
         existing[key] = rows[0]
 
     return existing
@@ -443,7 +426,6 @@ async def save_question(conn, record: dict, update: bool) -> None:
             """
             UPDATE forms.questions
             SET
-                form_id = CAST(:form_id AS uuid),
                 section_id = CAST(:section_id AS uuid),
                 file_id = NULL,
                 label = :label,
@@ -461,7 +443,6 @@ async def save_question(conn, record: dict, update: bool) -> None:
             """
             INSERT INTO forms.questions (
                 id,
-                form_id,
                 section_id,
                 file_id,
                 label,
@@ -474,7 +455,6 @@ async def save_question(conn, record: dict, update: bool) -> None:
             )
             VALUES (
                 CAST(:id AS uuid),
-                CAST(:form_id AS uuid),
                 CAST(:section_id AS uuid),
                 NULL,
                 :label,
@@ -502,7 +482,6 @@ async def validate_loaded(
             """
             SELECT
                 question.id::text AS question_id,
-                question.form_id::text AS form_id,
                 question.section_id::text AS section_id,
                 question.label,
                 question.description,
@@ -512,10 +491,10 @@ async def validate_loaded(
                 form.anno,
                 section_type.label AS section_type
             FROM forms.questions question
-            JOIN forms.forms form
-              ON form.id = question.form_id
-            LEFT JOIN forms.sections section
+            JOIN forms.sections section
               ON section.id = question.section_id
+            JOIN forms.forms form
+              ON form.id = section.form_id
             LEFT JOIN forms.section_types section_type
               ON section_type.id = section.section_type_id
             ORDER BY form.anno, question.label;
@@ -545,8 +524,7 @@ async def validate_loaded(
         )
         expected_section_id = indicators[hierarchy_key]
 
-        if row["form_id"] != forms[source["year"]]:
-            raise ValueError(f"form_id incorrecto para {key}.")
+        # Validación corregida: ya no se busca row["form_id"]
         if row["section_id"] != expected_section_id:
             raise ValueError(f"section_id incorrecto para {key}.")
         if normalize(row["description"]) != normalize(source["question_text"]):
@@ -591,7 +569,6 @@ async def upgrade(gh=None, api=None) -> None:
         columns = await table_columns(conn, "forms", "questions")
         required_columns = {
             "id",
-            "form_id",
             "section_id",
             "file_id",
             "label",
@@ -604,9 +581,7 @@ async def upgrade(gh=None, api=None) -> None:
         }
         missing = required_columns - set(columns)
         if missing:
-            raise ValueError(
-                f"Faltan columnas en forms.questions: {sorted(missing)}"
-            )
+            raise ValueError(f"Faltan columnas en forms.questions: {sorted(missing)}")
 
         forms = await get_forms(conn, years)
         indicators = await get_indicator_map(conn, years)
@@ -636,9 +611,7 @@ async def upgrade(gh=None, api=None) -> None:
             )
             old = existing.get(natural_key)
 
-            question_id = (
-                old["question_id"] if old else new_uuidv7()
-            )
+            question_id = old["question_id"] if old else new_uuidv7()
             if not is_uuidv7(question_id):
                 raise ValueError(f"ID no UUIDv7: {question_id}")
 
@@ -647,9 +620,7 @@ async def upgrade(gh=None, api=None) -> None:
                 "id": question_id,
                 "form_id": forms[source["year"]],
                 "section_id": section_id,
-                "label": truncate(
-                    source["question"], columns["label"]["max_length"]
-                ),
+                "label": truncate(source["question"], columns["label"]["max_length"]),
                 "description": truncate(
                     source["question_text"],
                     columns["description"]["max_length"],
