@@ -1,7 +1,7 @@
 # =================================================
 # Stage 1: Start application
 # =================================================
-FROM labcapital/apps:IIP-Base
+FROM docker.io/labcapital/apps:app-Base
 
 # -----------------------------
 # 4. Copy app
@@ -30,4 +30,4 @@ ENTRYPOINT ["/entrypoint_core.sh"]
 # -----------------------------
 # 6. Run uvicorn
 # -----------------------------
-CMD ["sh", "-c", "uvicorn main:api --host 0.0.0.0 --port ${PORT_CORE:-8000}"]
+CMD ["sh", "-c", "exec uvicorn main:api --host 0.0.0.0 --port $PORT_CORE"]

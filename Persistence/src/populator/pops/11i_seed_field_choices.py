@@ -1,17 +1,31 @@
 """Puebla forms.field_choices para los IIP 2019, 2021 y 2023.
 
-Debe ejecutarse después de 11h_seed_fields.py. Para garantizar que la lógica de
-campos y opciones sea idéntica, este archivo reutiliza las funciones puras de
-11h mediante importlib. No depende de helpers de preguntas, grupos o tarjetas.
+Dependencia previa:
+    11h_seed_fields.py
+
+Convención de almacenamiento:
+- label: letra o número corto de la opción.
+    Ejemplos: "A", "B", "1", "2".
+- description: texto completo de la opción, sin repetir el prefijo cuando el
+  texto ya comienza por A., B., 1., 2., etc.
+- display_order: Orden_opcion del Excel.
+- No se almacenan Valor_maximo ni ponderaciones en description.
+- Solo se crean opciones para SINGLE_CHOICE y MULTI_CHOICE.
+- Los campos BOOLEAN no usan forms.field_choices.
+
+El script reutiliza la interpretación del instrumento definida en
+11h_seed_fields.py para garantizar que las opciones queden asociadas al field
+correcto.
 """
 
 from __future__ import annotations
 
 import asyncio
 import importlib.util
-import math
+import re
 from collections import defaultdict
 from pathlib import Path
+from uuid import UUID
 
 from sqlalchemy import text
 from uuid_utils import uuid7
@@ -21,25 +35,51 @@ from shared_utils.logger import get_logger
 
 
 logger = get_logger("pop/field_choices")
-CHOICE_TYPES = {"SINGLE_CHOICE", "MULTI_CHOICE"}
-OPTIONAL_SCORE_COLUMNS = ("maximum_value", "max_value", "score", "weight")
+CHOICE_FIELD_TYPES = {"SINGLE_CHOICE", "MULTI_CHOICE"}
+EXPECTED_CHOICE_COUNTS = {2019: 46, 2021: 46, 2023: 49}
+
+
+# -----------------------------------------------------------------------------
+# CARGA DE LA LÓGICA COMPARTIDA DE 11h
+# -----------------------------------------------------------------------------
 
 
 def load_fields_module():
     path = Path(__file__).with_name("11h_seed_fields.py")
     if not path.is_file():
         raise FileNotFoundError(
-            f"No se encontró {path}. 11i requiere el 11h corregido en la misma carpeta."
+            f"No se encontró {path}. 11i debe estar en la misma carpeta que 11h."
         )
-    spec = importlib.util.spec_from_file_location("iip_seed_fields_shared", path)
+
+    spec = importlib.util.spec_from_file_location(
+        "iip_seed_fields_shared",
+        path,
+    )
     if spec is None or spec.loader is None:
         raise RuntimeError(f"No fue posible cargar {path}.")
+
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
 H = load_fields_module()
+
+
+# -----------------------------------------------------------------------------
+# UTILIDADES
+# -----------------------------------------------------------------------------
+
+
+def is_uuidv7(value) -> bool:
+    try:
+        return UUID(str(value)).version == 7
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+def new_uuidv7() -> str:
+    return str(uuid7())
 
 
 def parse_option_order(value, context: str) -> int:
@@ -49,54 +89,63 @@ def parse_option_order(value, context: str) -> int:
     try:
         numeric = float(value.replace(",", "."))
     except ValueError as exc:
-        raise ValueError(f"Orden_opcion inválido en {context}: {value!r}") from exc
+        raise ValueError(
+            f"Orden_opcion inválido en {context}: {value!r}"
+        ) from exc
     if not numeric.is_integer() or numeric <= 0:
-        raise ValueError(f"Orden_opcion inválido en {context}: {value!r}")
+        raise ValueError(
+            f"Orden_opcion inválido en {context}: {value!r}"
+        )
     return int(numeric)
 
 
-def parse_score(value):
+def split_option(value: str, order: int) -> tuple[str, str]:
+    """Separa un prefijo corto de la opción.
+
+    Ejemplos:
+        A. Ciudadanía -> ("A", "Ciudadanía")
+        10. Completo  -> ("10", "Completo")
+        Sí            -> ("1", "Sí")
+    """
     value = H.clean(value)
     if value is None:
-        return None
-    try:
-        return float(value.replace(" ", "").replace(",", "."))
-    except ValueError as exc:
-        raise ValueError(f"Valor_maximo inválido: {value!r}") from exc
+        raise ValueError("Texto_opcion vacío.")
+
+    match = re.match(
+        r"^\s*([A-Za-z]|\d+(?:[.,]\d+)*)\s*[\.)]\s*(.*)$",
+        value,
+    )
+    if match:
+        code = match.group(1).replace(",", ".").upper()
+        description = H.clean(match.group(2))
+        if description:
+            return code, description
+
+    return str(order), value
 
 
-def build_choice_specs(field_specs, responses):
-    """Añade las opciones a cada field de selección usando su fila fuente."""
-    # Índice de grupos de respuesta por (año, pregunta, fila inicial).
-    response_groups = {}
-    for year, by_question in responses.items():
-        for question_code, rows in by_question.items():
-            for group in H.group_rows_by_subquestion(rows):
-                definition = H.choose_definition(group)
-                response_groups[
-                    (year, question_code, int(definition["source_row_first"]))
-                ] = definition["rows"]
+# -----------------------------------------------------------------------------
+# CONSTRUCCIÓN DE OPCIONES
+# -----------------------------------------------------------------------------
 
-    choices = []
+
+def build_choice_specs(field_specs: list[dict]) -> list[dict]:
+    choices: list[dict] = []
+
     for field in field_specs:
-        if field["field_type_label"] not in CHOICE_TYPES:
+        if field["field_type_label"] not in CHOICE_FIELD_TYPES:
             continue
 
-        key = (
-            field["year"],
-            field.get("response_question_code", field["question_code"]),
-            int(field["source_row_first"]),
-        )
-        rows = response_groups.get(key)
-        if not rows:
-            raise ValueError(
-                f"No se encontraron filas fuente para las opciones de {key}."
-            )
-
-        option_rows = [row for row in rows if H.clean(row["option_text"]) is not None]
+        option_rows = [
+            row
+            for row in field["option_rows"]
+            if H.clean(row["option_text"]) is not None
+        ]
         if not option_rows:
             raise ValueError(
-                f"El field de selección {key} no tiene Texto_opcion."
+                f"El field de selección {field['year']} / "
+                f"{field['question_code']} / {field['group_kind']} / "
+                f"orden {field['display_order']} no tiene Texto_opcion."
             )
 
         seen_orders = set()
@@ -107,9 +156,17 @@ def build_choice_specs(field_specs, responses):
             )
             if order in seen_orders:
                 raise ValueError(
-                    f"Orden_opcion {order} repetido para {key}."
+                    f"Orden_opcion {order} repetido para "
+                    f"{field['year']} / {field['question_code']} / "
+                    f"field {field['display_order']}."
                 )
             seen_orders.add(order)
+
+            label, description = split_option(
+                row["option_text"],
+                order,
+            )
+
             choices.append(
                 {
                     "year": field["year"],
@@ -118,284 +175,256 @@ def build_choice_specs(field_specs, responses):
                     "field_display_order": int(field["display_order"]),
                     "field_type_label": field["field_type_label"],
                     "display_order": order,
-                    "label": row["option_text"],
-                    "maximum_value": parse_score(row["maximum_value"]),
-                    "source_sheet": row["source_sheet"],
-                    "source_row": int(row["source_row"]),
+                    "label": label,
+                    "description": description,
                 }
             )
 
-    expected_by_year = {2019: 46, 2021: 46, 2023: 49}
-    actual_by_year = defaultdict(int)
+    counts = defaultdict(int)
     for choice in choices:
-        actual_by_year[choice["year"]] += 1
+        counts[choice["year"]] += 1
 
-    if dict(actual_by_year) != expected_by_year:
+    if dict(counts) != EXPECTED_CHOICE_COUNTS:
         raise ValueError(
-            f"Conteos de field_choices inesperados. "
-            f"Esperado={expected_by_year}; obtenido={dict(actual_by_year)}"
+            f"Conteos de field_choices inesperados. Esperado="
+            f"{EXPECTED_CHOICE_COUNTS}; obtenido={dict(counts)}"
         )
 
     return choices
 
 
-async def get_choice_table_columns(conn):
-    columns = await H.table_columns(conn, "forms", "field_choices")
-    required = {
-        "id", "field_id", "label", "description", "display_order", "updated_at"
-    }
-    missing = required - set(columns)
-    if missing:
-        raise ValueError(f"Faltan columnas en forms.field_choices: {sorted(missing)}")
-
-    score_column = None
-    for candidate in OPTIONAL_SCORE_COLUMNS:
-        if candidate in columns:
-            score_column = candidate
-            break
-    return columns, score_column
+# -----------------------------------------------------------------------------
+# POSTGRESQL
+# -----------------------------------------------------------------------------
 
 
-async def load_field_map(conn, main_questions, loops):
-    """Obtiene field_id por año, código, tipo de grupo y display_order."""
+async def get_existing_choices(conn) -> dict[tuple[str, int], dict]:
     result = await conn.execute(
         text(
             """
-            SELECT fld.id::text field_id,
-                   fld.display_order field_display_order,
-                   UPPER(TRIM(ft.label)) field_type_label,
-                   fg.card_template_id::text card_template_id,
-                   q.label question_label,
-                   f.anno
-            FROM forms.fields fld
-            JOIN reference.field_types ft ON ft.id=fld.field_type_id
-            JOIN forms.field_groups fg ON fg.id=fld.field_group_id
-            JOIN forms.questions q ON q.id=fg.question_id
-            JOIN forms.forms f ON f.id=fld.form_id
-            WHERE f.anno IN (2019,2021,2023)
-            ORDER BY f.anno, q.label, fg.card_template_id, fld.display_order;
+            SELECT
+                id::text AS choice_id,
+                field_id::text AS field_id,
+                label,
+                description,
+                display_order
+            FROM forms.field_choices
+            ORDER BY field_id, display_order, id;
             """
         )
     )
 
-    expected_labels = {
-        (year, H.normalize_text(item["raw_code"]))
-        for year, items in main_questions.items()
-        for item in items
-    }
-    expected_labels.update((2023, H.normalize_text(code)) for code in loops)
-
-    field_map = {}
+    grouped: dict[tuple[str, int], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        year = int(row["anno"])
-        question_key = (year, H.normalize_text(row["question_label"]))
-        if question_key not in expected_labels:
-            continue
-        group_kind = "DIRECT" if row["card_template_id"] is None else "CARD"
-        key = (
-            year,
-            H.clean(row["question_label"]),
-            group_kind,
-            int(row["field_display_order"]),
-        )
-        # Se reindexa también por label normalizado para evitar diferencias de mayúsculas.
-        normalized_key = (
-            year,
-            H.normalize_text(row["question_label"]),
-            group_kind,
-            int(row["field_display_order"]),
-        )
-        if normalized_key in field_map:
-            raise ValueError(f"Field duplicado para {normalized_key}.")
-        field_map[normalized_key] = {
-            "field_id": row["field_id"],
-            "field_type_label": row["field_type_label"],
-        }
+        grouped[
+            (row["field_id"], int(row["display_order"]))
+        ].append(dict(row))
 
-    return field_map
-
-
-async def load_existing_choices(conn):
-    result = await conn.execute(
-        text(
-            """
-            SELECT id::text id, field_id::text field_id,
-                   label, description, display_order
-            FROM forms.field_choices;
-            """
-        )
-    )
-    by_key = defaultdict(list)
-    for row in result.mappings().all():
-        row = dict(row)
-        by_key[(row["field_id"], int(row["display_order"]))].append(row)
-    return by_key
-
-
-def choice_description(choice, max_length):
-    score = (
-        "pendiente"
-        if choice["maximum_value"] is None
-        else format(float(choice["maximum_value"]), ".15g")
-    )
-    value = (
-        f"Fuente: {choice['source_sheet']}, fila {choice['source_row']}. "
-        f"Valor máximo: {score}."
-    )
-    return H.truncate(value, max_length)
-
-
-async def save_choices(conn, choices, field_map, columns, score_column):
-    existing_by_key = await load_existing_choices(conn)
-    inserted = 0
-    updated = 0
-
-    for choice in choices:
-        field_key = (
-            choice["year"],
-            H.normalize_text(choice["question_code"]),
-            choice["group_kind"],
-            int(choice["field_display_order"]),
-        )
-        field = field_map.get(field_key)
-        if field is None:
+    lookup: dict[tuple[str, int], dict] = {}
+    for key, rows in grouped.items():
+        if len(rows) > 1:
             raise ValueError(
-                f"No se encontró forms.fields para {field_key}. "
-                "Ejecuta primero el 11h corregido."
+                f"field_choices duplicados para field/orden {key}: "
+                f"{[row['choice_id'] for row in rows]}"
             )
-        if field["field_type_label"] != choice["field_type_label"]:
+        if not is_uuidv7(rows[0]["choice_id"]):
             raise ValueError(
-                f"Tipo incorrecto para {field_key}: SQL={field['field_type_label']}; "
-                f"Excel={choice['field_type_label']}"
+                f"field_choice existente no UUIDv7: {rows[0]['choice_id']}"
             )
+        lookup[key] = rows[0]
 
-        field_id = field["field_id"]
-        key = (field_id, int(choice["display_order"]))
-        existing = existing_by_key.get(key, [])
-        if len(existing) > 1:
-            raise ValueError(f"field_choices duplicados para field/orden {key}.")
-
-        choice_id = existing[0]["id"] if existing else str(uuid7())
-        params = {
-            "id": choice_id,
-            "field_id": field_id,
-            "label": H.truncate(choice["label"], columns["label"]["max_length"]),
-            "description": choice_description(
-                choice, columns["description"]["max_length"]
-            ),
-            "display_order": int(choice["display_order"]),
-            "score": choice["maximum_value"],
-        }
-
-        score_set = f", {score_column}=:score" if score_column else ""
-        score_insert_column = f", {score_column}" if score_column else ""
-        score_insert_value = ", :score" if score_column else ""
-
-        if existing:
-            await conn.execute(
-                text(
-                    f"""
-                    UPDATE forms.field_choices
-                    SET field_id=CAST(:field_id AS uuid), label=:label,
-                        description=:description, display_order=:display_order,
-                        updated_at=NOW(){score_set}
-                    WHERE id=CAST(:id AS uuid);
-                    """
-                ),
-                params,
-            )
-            updated += 1
-        else:
-            await conn.execute(
-                text(
-                    f"""
-                    INSERT INTO forms.field_choices
-                        (id, field_id, label, description, display_order,
-                         updated_at{score_insert_column})
-                    VALUES
-                        (CAST(:id AS uuid), CAST(:field_id AS uuid),
-                         :label, :description, :display_order,
-                         NOW(){score_insert_value});
-                    """
-                ),
-                params,
-            )
-            inserted += 1
-
-    return inserted, updated
+    return lookup
 
 
-async def validate_choices(conn):
-    result = await conn.execute(
-        text(
+async def save_choice(conn, record: dict, update: bool) -> None:
+    if update:
+        statement = text(
             """
-            SELECT f.anno, COUNT(*) total
-            FROM forms.field_choices fc
-            JOIN forms.fields fld ON fld.id=fc.field_id
-            JOIN forms.forms f ON f.id=fld.form_id
-            WHERE f.anno IN (2019,2021,2023)
-            GROUP BY f.anno ORDER BY f.anno;
+            UPDATE forms.field_choices
+            SET
+                field_id = CAST(:field_id AS uuid),
+                label = :label,
+                description = :description,
+                display_order = :display_order,
+                updated_at = NOW()
+            WHERE id = CAST(:id AS uuid);
             """
         )
-    )
-    actual = {int(row["anno"]): int(row["total"]) for row in result.mappings().all()}
-    expected = {2019: 46, 2021: 46, 2023: 49}
-    if actual != expected:
-        raise ValueError(
-            f"Validación de forms.field_choices falló. "
-            f"Esperado={expected}; obtenido={actual}"
+    else:
+        statement = text(
+            """
+            INSERT INTO forms.field_choices (
+                id,
+                field_id,
+                label,
+                description,
+                display_order,
+                updated_at
+            )
+            VALUES (
+                CAST(:id AS uuid),
+                CAST(:field_id AS uuid),
+                :label,
+                :description,
+                :display_order,
+                NOW()
+            );
+            """
         )
+    await conn.execute(statement, record)
 
-    invalid = await conn.execute(
-        text(
-            """
-            SELECT COUNT(*) total
-            FROM forms.field_choices fc
-            JOIN forms.fields fld ON fld.id=fc.field_id
-            JOIN reference.field_types ft ON ft.id=fld.field_type_id
-            JOIN forms.forms f ON f.id=fld.form_id
-            WHERE f.anno IN (2019,2021,2023)
-              AND UPPER(TRIM(ft.label)) NOT IN ('SINGLE_CHOICE','MULTI_CHOICE');
-            """
-        )
-    )
-    if int(invalid.scalar_one()) != 0:
-        raise ValueError("Hay field_choices asociados a fields no seleccionables.")
+
+# -----------------------------------------------------------------------------
+# ENTRADA PRINCIPAL
+# -----------------------------------------------------------------------------
 
 
 async def upgrade(gh=None, api=None) -> None:
     del gh, api
-    path = H.resolve_excel_path()
-    logger.info(f"[11i] Archivo: {path}")
-    print(f"[11i] Archivo Excel: {path}", flush=True)
 
-    excel = H.pd.ExcelFile(path)
-    main_questions, loops = H.load_structure(excel)
-    responses = H.load_response_groups(excel)
-    field_specs = H.build_field_specs(main_questions, loops, responses)
-    choices = build_choice_specs(field_specs, responses)
+    path = Path(H.FILE_PATH)
+    if not path.is_file():
+        raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    print(
-        f"[11i] Opciones construidas: 2019=46, 2021=46, 2023=49, "
-        f"total={len(choices)}",
-        flush=True,
-    )
+    logger.info(f"Starting forms.field_choices population from {path}")
+
+    main_questions, loops, responses, field_specs = H.load_instrument(path)
+    choice_specs = build_choice_specs(field_specs)
 
     async with async_engine.begin() as conn:
-        columns, score_column = await get_choice_table_columns(conn)
-        field_map = await load_field_map(conn, main_questions, loops)
-        inserted, updated = await save_choices(
-            conn, choices, field_map, columns, score_column
+        columns = await H.table_columns(conn, "forms", "field_choices")
+        required_columns = {
+            "id",
+            "field_id",
+            "label",
+            "description",
+            "display_order",
+            "updated_at",
+        }
+        missing = required_columns - set(columns)
+        if missing:
+            raise ValueError(
+                f"Faltan columnas en forms.field_choices: {sorted(missing)}"
+            )
+
+        questions = await H.get_questions(conn, main_questions, loops)
+        direct_groups, card_groups = await H.get_groups(
+            conn,
+            questions,
+            main_questions,
+            loops,
         )
-        await validate_choices(conn)
+        field_map = await H.get_field_map_for_specs(
+            conn,
+            field_specs,
+            direct_groups,
+            card_groups,
+        )
+        existing = await get_existing_choices(conn)
+
+        inserted = 0
+        updated = 0
+
+        for source in choice_specs:
+            field_key = (
+                source["year"],
+                source["question_code"],
+                source["group_kind"],
+                int(source["field_display_order"]),
+            )
+            field = field_map.get(field_key)
+            if field is None:
+                raise ValueError(
+                    f"No se encontró forms.fields para {field_key}. "
+                    "Ejecuta antes 11h_seed_fields.py."
+                )
+            if field["field_type_label"] != source["field_type_label"]:
+                raise ValueError(
+                    f"Tipo de field incorrecto para {field_key}: "
+                    f"SQL={field['field_type_label']}; "
+                    f"Excel={source['field_type_label']}."
+                )
+
+            natural_key = (
+                field["field_id"],
+                int(source["display_order"]),
+            )
+            old = existing.get(natural_key)
+
+            choice_id = old["choice_id"] if old else new_uuidv7()
+            if not is_uuidv7(choice_id):
+                raise ValueError(f"ID no UUIDv7: {choice_id}")
+
+            db_record = {
+                "id": choice_id,
+                "field_id": field["field_id"],
+                "label": H.truncate(
+                    source["label"], columns["label"]["max_length"]
+                ),
+                "description": H.truncate(
+                    source["description"],
+                    columns["description"]["max_length"],
+                ),
+                "display_order": int(source["display_order"]),
+            }
+
+            await save_choice(conn, db_record, update=old is not None)
+            if old:
+                updated += 1
+            else:
+                inserted += 1
+
+        # Validación focalizada sobre las opciones esperadas.
+        reloaded = await get_existing_choices(conn)
+        for source in choice_specs:
+            field_key = (
+                source["year"],
+                source["question_code"],
+                source["group_kind"],
+                int(source["field_display_order"]),
+            )
+            field = field_map[field_key]
+            choice_key = (
+                field["field_id"],
+                int(source["display_order"]),
+            )
+            row = reloaded.get(choice_key)
+            if row is None:
+                raise ValueError(f"No se cargó field_choice {choice_key}.")
+            if H.normalize_text(row["label"]) != H.normalize_text(
+                source["label"]
+            ):
+                raise ValueError(f"label incorrecto para {choice_key}.")
+            if H.normalize_text(row["description"]) != H.normalize_text(
+                source["description"]
+            ):
+                raise ValueError(f"description incorrecta para {choice_key}.")
+            if not is_uuidv7(row["choice_id"]):
+                raise ValueError(f"UUID no es versión 7 para {choice_key}.")
+
+        invalid = await conn.execute(
+            text(
+                """
+                SELECT COUNT(*) AS total
+                FROM forms.field_choices choice
+                JOIN forms.fields field
+                  ON field.id = choice.field_id
+                JOIN reference.field_types field_type
+                  ON field_type.id = field.field_type_id
+                WHERE UPPER(TRIM(field_type.label))
+                      NOT IN ('SINGLE_CHOICE', 'MULTI_CHOICE');
+                """
+            )
+        )
+        if int(invalid.scalar_one()) != 0:
+            raise ValueError(
+                "Hay field_choices asociados a fields que no son de selección."
+            )
 
     logger.info(
-        f"[11i] forms.field_choices completado. "
-        f"Insertados={inserted}; actualizados={updated}."
-    )
-    print(
-        f"[11i] OK. Insertados={inserted}; actualizados={updated}; total=141.",
-        flush=True,
+        "forms.field_choices population finished successfully. "
+        f"Inserted: {inserted}. Updated: {updated}. "
+        f"Expected: {len(choice_specs)}."
     )
 
 

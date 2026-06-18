@@ -20,6 +20,9 @@ TargetTableEnum = generate_table_enum("TargetTableEnum", CoreTargetTable, Target
 
 
 class LogActionType(Base):
+    '''
+    Used to determine the log actions that can be done.
+    '''
     __tablename__ = TargetTable.LOG_ACTION_TYPES.table
     __table_args__ = {"schema": TargetTable.LOG_ACTION_TYPES.schema}
 
@@ -30,6 +33,9 @@ class LogActionType(Base):
 
 
 class ActivityLog(Base):
+    '''
+    Used to represent a log entry.
+    '''
     __tablename__ = TargetTable.LOGS.table
     __table_args__ = {"schema": TargetTable.LOGS.schema}
 

@@ -50,10 +50,6 @@ class FormSchema(UuidSchema, LabelSchema, DescriptionSchema):
     )
 
 
-class InfoSchema(UuidSchema, LabelSchema, DescriptionSchema, DisplayOrderSchema):
-    """Modelo para representar un Info."""
-
-
 class QuestionSchema(
     UuidSchema,
     LabelSchema,
@@ -210,34 +206,6 @@ class FormSchemaRel(FormSchema):
 
 class FormSchemaExtended(FormSchemaFK, FormSchemaRel):
     """Modelo para representar un Form."""
-
-
-###############################################################################
-# Info
-###############################################################################
-
-
-class InfoSchemaFK(InfoSchema):
-    """Modelo para representar un Info."""
-
-    section_id: UUID_STR | None = Field(
-        default=None,
-        title="ID.",
-        description="Id de section.",
-    )
-    file_id: UUID_STR | None = Field(
-        default=None,
-        title="ID.",
-        description="Id de file.",
-    )
-
-
-class InfoSchemaRel(InfoSchema):
-    """Modelo para representar un Info."""
-
-
-class InfoSchemaExtended(InfoSchemaFK, InfoSchemaRel):
-    """Modelo para representar un Info."""
 
 
 ###############################################################################

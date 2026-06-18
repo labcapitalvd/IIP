@@ -12,6 +12,10 @@ if TYPE_CHECKING:
 
 
 class Actor(Base):
+    '''
+    Used to represent an actor or an entity that answers to a form.
+    '''
+
     __tablename__ = TargetTable.ACTORS.table
     __table_args__ = {"schema": TargetTable.ACTORS.schema}
 
@@ -37,6 +41,10 @@ class Actor(Base):
 
 
 class ActorSegment(Base):
+    '''
+    Used to classify an actor or an entity that answers to a form.
+    '''
+
     __tablename__ = TargetTable.ACTOR_SEGMENTS.table
     __table_args__ = {"schema": TargetTable.ACTOR_SEGMENTS.schema}
 

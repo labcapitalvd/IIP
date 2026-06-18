@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 (
-  docker push labcapital/apps:IIP-Persister
+  podman push docker.io/labcapital/apps:app-Core
 )
 
 (
-  docker push labcapital/apps:IIP-Core
+  podman push docker.io/labcapital/apps:app-Core
 )
 
 (
-  docker push labcapital/apps:IIP-IA-Agent
+  podman push docker.io/labcapital/apps:app-Persister
 )
 
-(
-  docker push labcapital/apps:IIP-Stats
-)

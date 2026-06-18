@@ -1,198 +1,508 @@
-"""Poblado de actor_segments desde carpeta local jhonatan.
+"""Puebla ``actors.actor_segments`` desde la fuente única ``Entidades.csv``.
 
-Por defecto lee:
-    /api/populator/pops/jhonatan/actors.actor_segments_template.csv
+Fuente local predeterminada:
+    /api/populator/pops/jhonatan/Entidades.csv
 
-La llamada a GitHub queda disponible, pero apagada por defecto.
-Para usar GitHub en el futuro:
-    POPULATOR_SOURCE=github
+Columnas de la fuente utilizadas:
+    sector              -> actors.actor_segments.label
+    descripcion_sector  -> actors.actor_segments.description
+
+Columnas usadas únicamente para control de calidad:
+    actor_segment_id    -> identificador legado del sector en la fuente
+
+Criterios de población:
+    - Se genera un solo sector por cada valor único de ``sector``.
+    - Un sector debe tener una sola descripción y un solo actor_segment_id
+      legado en todo el archivo.
+    - El actor_segment_id del CSV no se inserta porque la fuente actual usa
+      UUIDv4. Los registros nuevos reciben UUIDv7.
+    - Si el sector ya existe, se conserva su UUIDv7 y se actualizan label y
+      description con la fuente oficial.
+    - La idempotencia se basa en el label normalizado del sector.
+    - No se eliminan sectores adicionales que ya existan en PostgreSQL.
+    - No se utiliza helper ni se depende de la API HTTP.
 """
 
+from __future__ import annotations
+
+import asyncio
+import csv
+import io
 import os
-from io import StringIO
+import re
+import unicodedata
 from pathlib import Path
 from uuid import UUID
 
-import pandas as pd
+from sqlalchemy import text
 from uuid_utils import uuid7
 
+from shared_db import async_engine
 from shared_utils.logger import get_logger
-from shared_schemas import ActorSegmentSchema
 
 
 logger = get_logger("pop/actor_segments")
 
-
-ORIGIN_URL = (
-    "https://api.github.com/repos/LABCapital-VD/IIP-Cuadernos-Jupyter/contents/"
-    "Gestión/Migración a DB/output/actors.actor_segments_template.csv"
+ENTITIES_FILE = Path(
+    os.getenv(
+        "ENTITIES_FILE",
+        "/api/populator/pops/jhonatan/Entidades.csv",
+    )
 )
 
-LOCAL_FILE = os.getenv(
-    "ACTOR_SEGMENTS_FILE",
-    "/api/populator/pops/jhonatan/actors.actor_segments_template.csv",
-)
+SOURCE_REQUIRED_COLUMNS = {
+    "actor_segment_id",
+    "sector",
+    "descripcion_sector",
+}
 
-SOURCE = os.getenv("POPULATOR_SOURCE", "local").lower()
 
-
-def clean_text(value):
-    if pd.isna(value):
+def clean_text(value: object) -> str | None:
+    """Convierte valores vacíos en ``None`` sin alterar el contenido interno."""
+    if value is None:
         return None
 
-    value = str(value).strip()
+    cleaned = str(value).replace("\ufeff", "").strip()
+    return cleaned or None
 
-    if value == "":
+
+def normalize_key(value: object) -> str | None:
+    """Crea una llave textual robusta para cruces e idempotencia."""
+    cleaned = clean_text(value)
+    if cleaned is None:
         return None
 
-    return value
+    normalized = unicodedata.normalize("NFKD", cleaned)
+    normalized = "".join(
+        char for char in normalized if not unicodedata.combining(char)
+    )
+    normalized = normalized.casefold()
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized or None
 
 
-def is_uuidv7(value) -> bool:
-    if value is None or str(value).strip() == "":
+def is_uuid(value: object) -> bool:
+    cleaned = clean_text(value)
+    if cleaned is None:
         return False
 
     try:
-        return UUID(str(value).strip()).version == 7
-    except Exception:
+        UUID(cleaned)
+        return True
+    except (ValueError, TypeError, AttributeError):
         return False
 
 
-def normalize_uuidv7(value) -> str:
-    if is_uuidv7(value):
-        return str(UUID(str(value).strip()))
+def is_uuidv7(value: object) -> bool:
+    cleaned = clean_text(value)
+    if cleaned is None:
+        return False
 
+    try:
+        return UUID(cleaned).version == 7
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+def new_uuidv7() -> str:
     return str(uuid7())
 
 
-def read_csv_auto(path_or_text: str, from_text: bool = False) -> pd.DataFrame:
-    if from_text:
-        return pd.read_csv(
-            StringIO(path_or_text),
-            sep=None,
-            engine="python",
-            dtype=str,
-        )
+def normalize_column_name(value: object) -> str:
+    cleaned = clean_text(value) or ""
+    normalized = unicodedata.normalize("NFKD", cleaned)
+    normalized = "".join(
+        char for char in normalized if not unicodedata.combining(char)
+    )
+    normalized = normalized.casefold().replace("-", " ")
+    normalized = re.sub(r"\s+", "_", normalized).strip("_")
 
-    path = Path(path_or_text)
+    aliases = {
+        "actorsegmentid": "actor_segment_id",
+        "actor_segmentid": "actor_segment_id",
+        "descripcionsector": "descripcion_sector",
+        "description_sector": "descripcion_sector",
+    }
+    return aliases.get(normalized, normalized)
 
-    if not path.exists():
-        raise FileNotFoundError(f"No existe el archivo local: {path}")
+
+def decode_csv(path: Path) -> str:
+    if not path.is_file():
+        raise FileNotFoundError(f"No existe el archivo de entidades: {path}")
+
+    raw = path.read_bytes()
+    errors: list[str] = []
 
     for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin1"):
         try:
-            return pd.read_csv(
-                path,
-                sep=None,
-                engine="python",
-                dtype=str,
-                encoding=encoding,
+            return raw.decode(encoding)
+        except UnicodeDecodeError as exc:
+            errors.append(f"{encoding}: {exc}")
+
+    raise ValueError(
+        f"No fue posible decodificar {path}. Intentos: {' | '.join(errors)}"
+    )
+
+
+def detect_delimiter(csv_text: str) -> str:
+    sample = csv_text[:20000]
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=";,|\t").delimiter
+    except csv.Error:
+        return ";"
+
+
+def load_source_rows(path: Path) -> list[dict[str, str | None]]:
+    csv_text = decode_csv(path)
+    delimiter = detect_delimiter(csv_text)
+    reader = csv.DictReader(io.StringIO(csv_text), delimiter=delimiter)
+
+    if reader.fieldnames is None:
+        raise ValueError(f"El archivo {path} no contiene encabezados.")
+
+    normalized_headers = [normalize_column_name(name) for name in reader.fieldnames]
+    if len(normalized_headers) != len(set(normalized_headers)):
+        raise ValueError(
+            "El archivo contiene encabezados duplicados después de normalizarlos: "
+            f"{normalized_headers}"
+        )
+
+    missing = SOURCE_REQUIRED_COLUMNS - set(normalized_headers)
+    if missing:
+        raise ValueError(
+            f"Faltan columnas obligatorias en {path.name}: {sorted(missing)}"
+        )
+
+    rows: list[dict[str, str | None]] = []
+    for line_number, raw_row in enumerate(reader, start=2):
+        row = {
+            normalized_headers[index]: clean_text(raw_row.get(original_header))
+            for index, original_header in enumerate(reader.fieldnames)
+        }
+        row["_line_number"] = str(line_number)
+
+        if all(value is None for key, value in row.items() if key != "_line_number"):
+            continue
+        rows.append(row)
+
+    if not rows:
+        raise ValueError(f"El archivo {path} no contiene registros útiles.")
+
+    return rows
+
+
+def build_sector_records(
+    rows: list[dict[str, str | None]],
+) -> list[dict[str, str]]:
+    """Deduplica la fuente y valida la relación sector-descripción-ID legado."""
+    sectors: dict[str, dict[str, str]] = {}
+    legacy_id_to_sector_key: dict[str, str] = {}
+
+    for row in rows:
+        line_number = row["_line_number"]
+        sector = clean_text(row.get("sector"))
+        description = clean_text(row.get("descripcion_sector"))
+        legacy_id = clean_text(row.get("actor_segment_id"))
+        sector_key = normalize_key(sector)
+
+        if sector is None:
+            raise ValueError(f"Fila {line_number}: sector vacío.")
+        if description is None:
+            raise ValueError(
+                f"Fila {line_number}: descripcion_sector vacía para {sector!r}."
             )
-        except UnicodeDecodeError:
+        if legacy_id is None or not is_uuid(legacy_id):
+            raise ValueError(
+                f"Fila {line_number}: actor_segment_id inválido para {sector!r}: "
+                f"{legacy_id!r}."
+            )
+        if sector_key is None:
+            raise ValueError(f"Fila {line_number}: sector inválido: {sector!r}.")
+
+        previous_key = legacy_id_to_sector_key.get(legacy_id)
+        if previous_key is not None and previous_key != sector_key:
+            raise ValueError(
+                "El mismo actor_segment_id legado está asociado a dos sectores: "
+                f"{legacy_id}."
+            )
+        legacy_id_to_sector_key[legacy_id] = sector_key
+
+        current = sectors.get(sector_key)
+        if current is None:
+            sectors[sector_key] = {
+                "source_key": sector_key,
+                "label": sector,
+                "description": description,
+                "legacy_actor_segment_id": legacy_id,
+            }
             continue
 
-    raise ValueError(f"No fue posible leer el archivo: {path}")
-
-
-async def load_dataframe(gh) -> pd.DataFrame:
-    if SOURCE == "github":
-        logger.info("Loading actor_segments from GitHub...")
-        csv_text = await gh.get_raw_text(ORIGIN_URL)
-        return read_csv_auto(csv_text, from_text=True)
-
-    logger.info(f"Loading actor_segments from local file: {LOCAL_FILE}")
-    return read_csv_auto(LOCAL_FILE, from_text=False)
-
-
-def prepare_actor_segments(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df.columns = [str(col).strip() for col in df.columns]
-
-    required_columns = {"label", "description", "id"}
-    missing_columns = required_columns - set(df.columns)
-
-    if missing_columns:
-        raise ValueError(
-            f"Faltan columnas obligatorias en actor_segments: {sorted(missing_columns)}"
-        )
-
-    df = df[["label", "description", "id"]]
-    df = df.dropna(how="all")
-
-    for col in ["label", "description", "id"]:
-        df[col] = df[col].apply(clean_text)
-
-    df = df[df["label"].notna()].copy()
-
-    if df.empty:
-        return df
-
-    duplicated_labels = df[df["label"].duplicated(keep=False)]["label"].tolist()
-    if duplicated_labels:
-        raise ValueError(
-            f"Hay sectores duplicados por label: {sorted(set(duplicated_labels))}"
-        )
-
-    df["description"] = df["description"].fillna("Sin descripción registrada.")
-
-    too_long_labels = df[df["label"].str.len() > 255]["label"].tolist()
-    if too_long_labels:
-        raise ValueError(
-            f"Hay labels de sectores con más de 255 caracteres: {too_long_labels}"
-        )
-
-    df["id"] = df["id"].apply(normalize_uuidv7)
-
-    return df
-
-
-async def upgrade(gh, api) -> None:
-    logger.info("Starting actor_segments population...")
-
-    try:
-        df_raw = await load_dataframe(gh)
-        df = prepare_actor_segments(df_raw)
-
-        if df.empty:
-            logger.info("actor_segments file is empty after cleaning.")
-            return
-
-        try:
-            existing_entries = await api.get_entries("/actor_segments/all")
-            existing_labels = {
-                str(entry.get("label")).strip()
-                for entry in existing_entries
-                if entry.get("label")
-            }
-        except Exception as e:
-            logger.warning(
-                "Could not fetch existing actor_segments, assuming empty table. "
-                f"Error: {e}"
+        if current["label"] != sector:
+            raise ValueError(
+                "Existen variantes distintas del mismo sector normalizado: "
+                f"{current['label']!r} y {sector!r}."
             )
-            existing_labels = set()
+        if current["description"] != description:
+            raise ValueError(
+                f"El sector {sector!r} tiene más de una descripcion_sector."
+            )
+        if current["legacy_actor_segment_id"] != legacy_id:
+            raise ValueError(
+                f"El sector {sector!r} tiene más de un actor_segment_id legado."
+            )
 
-        df_to_insert = df[~df["label"].isin(existing_labels)].copy()
+    return sorted(sectors.values(), key=lambda item: item["label"].casefold())
 
-        if df_to_insert.empty:
-            logger.info("No new rows to insert for /actor_segments/new.")
-            return
 
-        records_to_send = (
-            df_to_insert
-            .where(pd.notna(df_to_insert), None)
-            .to_dict(orient="records")
+async def get_table_columns(conn) -> dict[str, dict[str, object]]:
+    result = await conn.execute(
+        text(
+            """
+            SELECT
+                column_name,
+                data_type,
+                character_maximum_length,
+                is_nullable
+            FROM information_schema.columns
+            WHERE table_schema = 'actors'
+              AND table_name = 'actor_segments'
+            ORDER BY ordinal_position;
+            """
+        )
+    )
+    rows = result.mappings().all()
+    if not rows:
+        raise ValueError("No existe la tabla actors.actor_segments.")
+
+    return {
+        row["column_name"]: {
+            "data_type": row["data_type"],
+            "max_length": row["character_maximum_length"],
+            "nullable": row["is_nullable"] == "YES",
+        }
+        for row in rows
+    }
+
+
+def validate_target_columns(columns: dict[str, dict[str, object]]) -> None:
+    required = {"id", "label", "description"}
+    missing = required - set(columns)
+    if missing:
+        raise ValueError(
+            "actors.actor_segments no tiene todas las columnas requeridas. "
+            f"Faltan: {sorted(missing)}"
         )
 
-        await api.create_multiple_entries(
-            endpoint="/actor_segments/new",
-            schema=ActorSegmentSchema,
-            data_list=records_to_send,
+
+def validate_lengths(
+    records: list[dict[str, str]],
+    columns: dict[str, dict[str, object]],
+) -> None:
+    for field in ("label", "description"):
+        max_length = columns[field]["max_length"]
+        if max_length is None:
+            continue
+
+        too_long = [
+            record[field]
+            for record in records
+            if len(record[field]) > int(max_length)
+        ]
+        if too_long:
+            raise ValueError(
+                f"Hay valores de {field} que superan {max_length} caracteres: "
+                f"{too_long[:10]}"
+            )
+
+
+async def get_existing_segments(conn) -> dict[str, dict[str, str]]:
+    result = await conn.execute(
+        text(
+            """
+            SELECT id::text AS id, label, description
+            FROM actors.actor_segments
+            ORDER BY label, id;
+            """
+        )
+    )
+
+    lookup: dict[str, dict[str, str]] = {}
+    for raw_row in result.mappings().all():
+        row = dict(raw_row)
+        key = normalize_key(row["label"])
+        if key is None:
+            raise ValueError(
+                f"Existe un actor_segment con label inválido: {row['id']}"
+            )
+        if key in lookup:
+            raise ValueError(
+                "Existen sectores duplicados por label normalizado en PostgreSQL: "
+                f"{lookup[key]['label']!r} y {row['label']!r}."
+            )
+        if not is_uuidv7(row["id"]):
+            raise ValueError(
+                "El sector existente no tiene UUIDv7. Debe corregirse antes de "
+                f"continuar: {row['label']!r} -> {row['id']}"
+            )
+        lookup[key] = row
+
+    return lookup
+
+
+async def persist_segments(
+    conn,
+    records: list[dict[str, str]],
+    existing: dict[str, dict[str, str]],
+    columns: dict[str, dict[str, object]],
+) -> tuple[int, int, list[dict[str, str]]]:
+    inserted = 0
+    updated = 0
+    expected: list[dict[str, str]] = []
+    has_updated_at = "updated_at" in columns
+
+    for source in records:
+        previous = existing.get(source["source_key"])
+        record_id = previous["id"] if previous else new_uuidv7()
+
+        if not is_uuidv7(record_id):
+            raise ValueError(f"ID no UUIDv7 preparado para sector: {record_id}")
+
+        if previous:
+            updated_at_sql = ", updated_at = NOW()" if has_updated_at else ""
+            await conn.execute(
+                text(
+                    f"""
+                    UPDATE actors.actor_segments
+                    SET label = :label,
+                        description = :description
+                        {updated_at_sql}
+                    WHERE id = CAST(:id AS uuid);
+                    """
+                ),
+                {
+                    "id": record_id,
+                    "label": source["label"],
+                    "description": source["description"],
+                },
+            )
+            updated += 1
+        else:
+            columns_sql = "id, label, description"
+            values_sql = "CAST(:id AS uuid), :label, :description"
+            if has_updated_at:
+                columns_sql += ", updated_at"
+                values_sql += ", NOW()"
+
+            await conn.execute(
+                text(
+                    f"""
+                    INSERT INTO actors.actor_segments ({columns_sql})
+                    VALUES ({values_sql});
+                    """
+                ),
+                {
+                    "id": record_id,
+                    "label": source["label"],
+                    "description": source["description"],
+                },
+            )
+            inserted += 1
+
+        expected.append(
+            {
+                "id": record_id,
+                "label": source["label"],
+                "description": source["description"],
+                "source_key": source["source_key"],
+            }
         )
 
-        logger.info(
-            f"actor_segments population finished: {len(records_to_send)} rows sent."
-        )
+    return inserted, updated, expected
 
-    except Exception as e:
-        logger.error(f"Failed to run actor_segments upgrade: {e}")
-        raise
+
+async def validate_loaded_segments(conn, expected: list[dict[str, str]]) -> None:
+    result = await conn.execute(
+        text(
+            """
+            SELECT id::text AS id, label, description
+            FROM actors.actor_segments;
+            """
+        )
+    )
+
+    loaded: dict[str, dict[str, str]] = {}
+    for raw_row in result.mappings().all():
+        row = dict(raw_row)
+        key = normalize_key(row["label"])
+        if key is None:
+            continue
+        if key in loaded:
+            raise ValueError(
+                f"Sector duplicado por label normalizado después de cargar: {key}"
+            )
+        loaded[key] = row
+
+    missing: list[str] = []
+    for record in expected:
+        row = loaded.get(record["source_key"])
+        if row is None:
+            missing.append(record["label"])
+            continue
+        if row["id"] != record["id"]:
+            raise ValueError(
+                f"El UUID cambió inesperadamente para {record['label']!r}."
+            )
+        if not is_uuidv7(row["id"]):
+            raise ValueError(
+                f"El sector {record['label']!r} no quedó con UUIDv7."
+            )
+        if clean_text(row["label"]) != record["label"]:
+            raise ValueError(f"Label incorrecto para {record['label']!r}.")
+        if clean_text(row["description"]) != record["description"]:
+            raise ValueError(f"Descripción incorrecta para {record['label']!r}.")
+
+    if missing:
+        raise ValueError(f"No se cargaron los sectores: {missing}")
+
+
+async def upgrade(gh=None, api=None) -> None:
+    """Carga los sectores derivados de ``Entidades.csv``."""
+    del gh, api
+
+    logger.info(f"Starting actor_segments population from {ENTITIES_FILE}")
+    source_rows = load_source_rows(ENTITIES_FILE)
+    sector_records = build_sector_records(source_rows)
+
+    print(
+        f"[10a] Fuente={ENTITIES_FILE}; filas={len(source_rows)}; "
+        f"sectores únicos={len(sector_records)}.",
+        flush=True,
+    )
+
+    async with async_engine.begin() as conn:
+        columns = await get_table_columns(conn)
+        validate_target_columns(columns)
+        validate_lengths(sector_records, columns)
+        existing = await get_existing_segments(conn)
+        inserted, updated, expected = await persist_segments(
+            conn=conn,
+            records=sector_records,
+            existing=existing,
+            columns=columns,
+        )
+        await validate_loaded_segments(conn, expected)
+
+    logger.info(
+        "actor_segments population finished successfully. "
+        f"Inserted={inserted}; updated={updated}; total_source={len(expected)}."
+    )
+    print(
+        f"[10a] OK. Insertados={inserted}; actualizados={updated}; "
+        f"sectores_fuente={len(expected)}.",
+        flush=True,
+    )
+
+
+if __name__ == "__main__":
+    asyncio.run(upgrade())

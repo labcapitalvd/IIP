@@ -5,7 +5,6 @@ from ..repositories import (
     FieldGroupRepository,
     FieldRepository,
     FormRepository,
-    InfoRepository,
     QuestionRepository,
     SectionRepository,
 )
@@ -23,7 +22,6 @@ class FormDesignUoW(UnitOfWork):
     fields: FieldRepository
     field_groups: FieldGroupRepository
     field_choices: FieldChoiceRepository
-    infos: InfoRepository
     card_templates: CardTemplateRepository
 
     async def __aenter__(self):
@@ -36,6 +34,5 @@ class FormDesignUoW(UnitOfWork):
         self.fields = FieldRepository(self.session)
         self.field_groups = FieldGroupRepository(self.session)
         self.field_choices = FieldChoiceRepository(self.session)
-        self.infos = InfoRepository(self.session)
         self.card_templates = CardTemplateRepository(self.session)
         return self
