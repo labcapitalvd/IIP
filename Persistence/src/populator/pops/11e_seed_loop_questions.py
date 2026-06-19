@@ -30,6 +30,7 @@ import re
 import unicodedata
 from collections import OrderedDict, defaultdict
 from pathlib import Path
+from typing import Any, TypedDict
 from uuid import UUID
 
 import pandas as pd
@@ -143,7 +144,25 @@ def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 
 
-def load_loops(excel: pd.ExcelFile) -> list[dict]:
+class SubquestionDict(TypedDict):
+    order: int
+    text: str
+
+
+class LoopRecord(TypedDict):
+    source_row: int
+    component: Any
+    variable: Any
+    indicator: Any
+    parent_question: Any
+    parent_text: Any
+    loop_question: str
+    loop_text: Any
+    is_mixed: bool
+    subquestions: OrderedDict[int, Any] | list[SubquestionDict]
+
+
+def load_loops(excel: pd.ExcelFile) -> list[LoopRecord]:
     frame = read_sheet(excel, str(YEAR))
     required = {
         "Componente",
@@ -198,11 +217,12 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
         & data["subquestion_text"].notna()
     ].copy()
 
-    registry: OrderedDict[str, dict] = OrderedDict()
+    # Registry now explicitly stores LoopRecord values
+    registry: OrderedDict[str, LoopRecord] = OrderedDict()
 
     for _, row in data.iterrows():
-        loop_question = row["loop_question"]
-        candidate = {
+        loop_question = str(row["loop_question"])
+        candidate: LoopRecord = {
             "source_row": int(row["source_row"]),
             "component": row["component"],
             "variable": row["variable"],
@@ -230,8 +250,8 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
             )
             conflicts = []
             for field in fields:
-                left = current[field]
-                right = candidate[field]
+                left = current[field]  # type: ignore
+                right = candidate[field]  # type: ignore
                 equal = (
                     left == right
                     if field == "is_mixed"
@@ -250,31 +270,38 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
             f"Orden_subpregunta_bucle, fila {int(row['source_row'])}",
         )
         text_value = row["subquestion_text"]
-        previous = current["subquestions"].get(order)
-        if previous is not None and normalize(previous) != normalize(text_value):
-            raise ValueError(
-                f"Subpregunta contradictoria en {loop_question}, orden {order}."
-            )
-        current["subquestions"][order] = text_value
+
+        # Safely capture reference as an OrderedDict prior to transformation
+        subquestions_dict = current["subquestions"]
+        if isinstance(subquestions_dict, OrderedDict):
+            previous = subquestions_dict.get(order)
+            if previous is not None and normalize(previous) != normalize(text_value):
+                raise ValueError(
+                    f"Subpregunta contradictoria en {loop_question}, orden {order}."
+                )
+            subquestions_dict[order] = text_value
 
     records = list(registry.values())
     records.sort(key=lambda item: question_order(item["loop_question"]))
 
     total_subquestions = 0
     for record in records:
-        orders = sorted(record["subquestions"])
-        if orders != list(range(1, len(orders) + 1)):
-            raise ValueError(
-                f"Órdenes no consecutivos en {record['loop_question']}: {orders}"
-            )
-        record["subquestions"] = [
-            {
-                "order": order,
-                "text": record["subquestions"][order],
-            }
-            for order in orders
-        ]
-        total_subquestions += len(orders)
+        # Cast/Verify the internal dictionary for the sequential check
+        subq_map = record["subquestions"]
+        if isinstance(subq_map, OrderedDict):
+            orders = sorted(subq_map.keys())
+            if orders != list(range(1, len(orders) + 1)):
+                raise ValueError(
+                    f"Órdenes no consecutivos en {record['loop_question']}: {orders}"
+                )
+            record["subquestions"] = [
+                {
+                    "order": int(order),
+                    "text": subq_map[order],
+                }
+                for order in orders
+            ]
+            total_subquestions += len(orders)
 
     if len(records) != EXPECTED_LOOP_COUNT:
         raise ValueError(
@@ -508,7 +535,7 @@ async def update_mixed_loop(
 
 async def validate_loaded(
     conn,
-    loops: list[dict],
+    loops: list[LoopRecord],
     form_id: str,
     indicators: dict[tuple[str, str, str], str],
 ) -> None:

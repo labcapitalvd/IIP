@@ -115,7 +115,7 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
 
     registry: OrderedDict[str, dict] = OrderedDict()
 
-    for index, row in frame.iterrows():
+    for row_idx, (index, row) in enumerate(frame.iterrows(), start=2):
         loop_question = clean(row["Bucle"])
         loop_text = clean(row[f"Bucle {YEAR}"])
         parent_question = clean(row["Pregunta"])
@@ -123,7 +123,7 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
         if loop_question is None:
             continue
         if loop_text is None or parent_question is None:
-            raise ValueError(f"Bucle incompleto en fila {int(index) + 2}.")
+            raise ValueError(f"Bucle incompleto en fila {row_idx}.")
 
         candidate = {
             "loop_question": loop_question,
