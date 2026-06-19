@@ -48,7 +48,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: docker.io/labcapital/apps:app-Base
+    image: docker.io/labcapital/apps:app-base
     env_file: ./.env
 
   persister:
@@ -56,7 +56,7 @@ services:
     build:
       context: .
       dockerfile: Persistence/Dockerfile
-    image: docker.io/labcapital/apps:app-Persister
+    image: docker.io/labcapital/apps:app-persister
     depends_on:
       - api_core
     env_file: ./.env
@@ -82,7 +82,7 @@ services:
     build:
       context: .
       dockerfile: Auth/Dockerfile
-    image: docker.io/labcapital/apps:app-Auth
+    image: docker.io/labcapital/apps:app-auth
     depends_on:
       base:
         condition: service_started
@@ -103,7 +103,7 @@ services:
     build:
       context: .
       dockerfile: Core/Dockerfile
-    image: docker.io/labcapital/apps:app-Core
+    image: docker.io/labcapital/apps:app-core
     depends_on:
       - api_auth
     env_file: ./.env
