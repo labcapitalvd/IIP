@@ -16,8 +16,8 @@ from shared_db import (
     column_updated_at,
 )
 from shared_enums import FieldTypesEnum as AnswerType
-from sqlalchemy import Index
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy import ForeignKey, Index, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .targets import TargetTable
 
@@ -89,15 +89,23 @@ class AnswerCardEntry(Answer):
 
     __tablename__ = TargetTable.ANSWERS_CARD_ENTRY.table
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
+
+    id: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{TargetTable.ANSWERS.fq_name}.id", ondelete="CASCADE"),
+        primary_key=True,
+        use_existing_column=True,
+    )
+
     __mapper_args__ = {
         "polymorphic_identity": AnswerType.CARD.value,
-        "inherit_condition": id == Answer.id,
+        "inherit_condition": (
+            lambda: (
+                Base.metadata.tables[TargetTable.ANSWERS_CARD_ENTRY.fq_name].c.id
+                == Base.metadata.tables[TargetTable.ANSWERS.fq_name].c.id
+            )
+        ),
     }
-    id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ANSWERS.fq_name}.id",
-        primary_key=True,
-        ondelete="CASCADE",
-    )
+
     question_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE"
     )
@@ -114,7 +122,6 @@ class AnswerCardEntry(Answer):
         "CardTemplate", back_populates="card_entries"
     )
 
-    # Cleaned: Named uniquely to avoid column/relationship collision shadows
     child_answers: Mapped[List["Answer"]] = relationship(
         "Answer", foreign_keys="Answer.card_entry_id", back_populates="card_entry"
     )
