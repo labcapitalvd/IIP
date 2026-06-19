@@ -99,29 +99,33 @@ case "$MODE" in
   # ===========================================
   --backup)
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-    BACKUP_DIR="./Backups"
+    BACKUP_DIR="./Persistence/src/backups"
+
     mkdir -p "$BACKUP_DIR"
 
-    BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
-    echo "Creating database backup: $BACKUP_FILE"
+    echo "Creating database backup inside $BACKUP_DIR..."
 
-    if docker compose exec -T db pg_dump -U "${USER_VAR}" -d "${DB_VAR}" >"$BACKUP_FILE"; then
-      echo "✅ Backup completed successfully."
+    if docker compose exec -T db sh -c "pg_dump -U \"${USER_VAR}\" -d \"${DB_VAR}\" > /backups/db_backup_$TIMESTAMP.sql"; then
+      echo "✅ Backup completed successfully: $BACKUP_DIR/db_backup_$TIMESTAMP.sql"
     else
       echo "❌ Backup failed."
-      rm -f "$BACKUP_FILE"
     fi
     ;;
 
   --restore)
-    FILE="${1:-}"
-    if [ -z "$FILE" ]; then
-      echo "Usage: ./launcher.sh --restore <path_to_backup.sql>"
+    FILE_NAME="${1:-}"
+    if [ -z "$FILE_NAME" ]; then
+      echo "Usage: ./launcher.sh --restore <backup_filename.sql>"
+      echo "Example: ./launcher.sh --restore db_backup_20260618_231706.sql"
       exit 1
     fi
-    echo "Restoring database from $FILE..."
-    docker compose exec -T db psql -U "${USER_VAR}" -d "${DB_VAR}" <"$FILE"
-    echo "✅ Restore completed."
+
+    echo "Restoring database from $FILE_NAME..."
+    if docker compose exec -T db sh -c "psql -U \"${USER_VAR}\" -d \"${DB_VAR}\" < /backups/$FILE_NAME"; then
+      echo "✅ Restore completed successfully."
+    else
+      echo "❌ Restore failed. Make sure the file exists in ./Persistence/backups/"
+    fi
     ;;
 
   # ===========================================
