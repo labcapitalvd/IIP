@@ -113,18 +113,22 @@ case "$MODE" in
     ;;
 
   --restore)
-    FILE_NAME="${1:-}"
-    if [ -z "$FILE_NAME" ]; then
-      echo "Usage: ./launcher.sh --restore <backup_filename.sql>"
-      echo "Example: ./launcher.sh --restore db_backup_20260618_231706.sql"
+    INPUT_FILE="${1:-}"
+    if [ -z "$INPUT_FILE" ]; then
+      echo "Usage: ./launcher.sh --restore <backup_filename.sql or path>"
+      echo "Example: ./launcher.sh --restore db_backup_20260618_232418.sql"
       exit 1
     fi
 
+    FILE_NAME=$(basename "$INPUT_FILE")
+
     echo "Restoring database from $FILE_NAME..."
-    if docker compose exec -T db sh -c "psql -U \"${USER_VAR}\" -d \"${DB_VAR}\" < /backups/$FILE_NAME"; then
+
+    # Inject PGPASSWORD so Postgres authenticates automatically without prompting
+    if docker compose exec -T db sh -c "PGPASSWORD=\"\${POSTGRES_PASSWORD}\" psql -h db -U \"${USER_VAR}\" -d \"${DB_VAR}\" < /backups/$FILE_NAME"; then
       echo "✅ Restore completed successfully."
     else
-      echo "❌ Restore failed. Make sure the file exists in ./Persistence/backups/"
+      echo "❌ Restore failed. Make sure $FILE_NAME exists in your backups directory."
     fi
     ;;
 
