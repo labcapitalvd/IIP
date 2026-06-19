@@ -6,10 +6,10 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from shared_db import SessionSync
-from shared_models import User, UserTier
-from shared_utils import hash_password, sanitize_text
-from shared_utils.logger import get_logger
+from shared.db import SessionSync
+from shared.models import User, UserTier
+from shared.utils import hash_password, sanitize_text
+from shared.utils.logger import get_logger
 from uuid_utils import uuid7
 
 logger = get_logger("seed/users")

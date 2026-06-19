@@ -7,9 +7,9 @@ from fastapi import APIRouter
 # )
 # from utils.allowed_types import FileTypeEnum
 
-# from shared_db import get_session
-# from shared_schemas import ResponseMessage
-# from shared_utils.tokens import TokenContext
+# from shared.db import get_session
+# from shared.schemas import ResponseMessage
+# from shared.utils.tokens import TokenContext
 
 router = APIRouter(tags=["Archivos"], prefix="/files")
 

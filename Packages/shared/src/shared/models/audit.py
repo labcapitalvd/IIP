@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from shared_db import (
+from shared.db import (
     Base,
     column_enum,
     column_fk,

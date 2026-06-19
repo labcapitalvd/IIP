@@ -1,4 +1,4 @@
-from shared_schemas import (
+from shared.schemas import (
     ActorSchema,
     ActorSegmentSchema,
     ActorSchemaRel,
@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from typing import List, Any
 from uuid import UUID
 
-from shared_models import Submission, Answer, AnswerCardEntry, Actor, ActorSegment
+from shared.models import Submission, Answer, AnswerCardEntry, Actor, ActorSegment
 from domain.factories.answer_factory import AnswerFactory
 from infrastructure.uow import IdentityUoW
 

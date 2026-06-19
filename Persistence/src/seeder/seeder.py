@@ -2,8 +2,8 @@ import importlib.util
 import os
 import traceback
 
-from shared_utils.logger import get_logger
-from shared_utils import print_list
+from shared.utils.logger import get_logger
+from shared.utils import print_list
 
 
 logger = get_logger("seed/tables")

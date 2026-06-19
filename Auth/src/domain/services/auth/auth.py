@@ -1,5 +1,5 @@
-from shared_utils.hashing import hash_password, verify_password
-from shared_models import User
+from shared.utils.hashing import hash_password, verify_password
+from shared.models import User
 
 from infrastructure.uow import AuthUoW
 

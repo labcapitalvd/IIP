@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
-from shared_utils.logger import get_logger
+from shared.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

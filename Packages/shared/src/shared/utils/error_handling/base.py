@@ -3,7 +3,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from shared_utils.logger import get_logger
+from shared.utils.logger import get_logger
 
 
 logger = get_logger(__name__)

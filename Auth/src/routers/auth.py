@@ -4,8 +4,8 @@ from application import AuthAppService
 from schemas.auth import RequestRegister, RequestLogin
 
 
-from shared_schemas import ResponseAuthSchema, ResponseMessageSchema
-from shared_utils import SessionContext
+from shared.schemas import ResponseAuthSchema, ResponseMessageSchema
+from shared.utils import SessionContext
 
 router = APIRouter(tags=["Autenticación"], prefix="/auth")
 

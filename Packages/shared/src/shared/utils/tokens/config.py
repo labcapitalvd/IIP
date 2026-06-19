@@ -3,7 +3,7 @@ import os
 from joserfc import jws
 from joserfc.jwk import OKPKey
 
-from shared_utils.logger import get_logger
+from shared.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

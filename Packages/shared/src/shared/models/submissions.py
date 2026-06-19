@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from shared_db import (
+from shared.db import (
     Base,
     column_bool,
     column_created_at,
@@ -15,7 +15,7 @@ from shared_db import (
     column_short_text,
     column_updated_at,
 )
-from shared_enums import FieldTypesEnum as AnswerType
+from shared.enums import FieldTypesEnum as AnswerType
 from sqlalchemy import ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

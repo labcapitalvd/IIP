@@ -1,6 +1,6 @@
 from cryptography.fernet import Fernet
 
-from shared_utils.logger import get_logger
+from shared.utils.logger import get_logger
 
 from .config import FERNET_PASSWORD
 from .errors import (

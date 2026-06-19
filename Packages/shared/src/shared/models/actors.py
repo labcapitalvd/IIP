@@ -1,8 +1,8 @@
-from shared_db.column_abstractions import column_integer
+from shared.db.column_abstractions import column_integer
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
-from shared_db import Base, column_fk, column_long_text, column_short_text
+from shared.db import Base, column_fk, column_long_text, column_short_text
 from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable

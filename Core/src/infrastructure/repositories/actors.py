@@ -1,7 +1,7 @@
 from typing import Sequence
 from uuid import UUID
 
-from shared_models import Actor, ActorSegment, UserActorLink
+from shared.models import Actor, ActorSegment, UserActorLink
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload

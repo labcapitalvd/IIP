@@ -1,10 +1,10 @@
 """Poblado de file types"""
 
-from shared_db import SessionSync
-from shared_models import FileType
-from shared_utils.logger import get_logger
+from shared.db import SessionSync
+from shared.models import FileType
+from shared.utils.logger import get_logger
 
-from shared_enums import FileTypesEnum as Types
+from shared.enums import FileTypesEnum as Types
 
 
 logger = get_logger("seed/file_types")

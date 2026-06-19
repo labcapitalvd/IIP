@@ -3,7 +3,7 @@ from annotated_types import Len
 from pydantic import Field
 from fastapi import UploadFile
 
-from shared_schemas import UuidSchema
+from shared.schemas import UuidSchema
 
 ##############################################################################################
 # Requests

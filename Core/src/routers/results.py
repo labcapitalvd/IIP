@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from shared_utils import AccessContext
+from shared.utils import AccessContext
 
 from schemas.results import RequestResult
 

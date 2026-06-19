@@ -7,8 +7,8 @@ from sqlalchemy.orm import joinedload
 from domain import FormService
 from infrastructure.uow import FormDesignUoW
 
-from shared_models import Actor, ActorSegment
-from shared_schemas import ActorSchema, ActorSegmentSchema
+from shared.models import Actor, ActorSegment
+from shared.schemas import ActorSchema, ActorSegmentSchema
 
 
 class FormDesignAppService:

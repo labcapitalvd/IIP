@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from shared_db import (
+from shared.db import (
     Base,
     column_decimal,
     column_fk,

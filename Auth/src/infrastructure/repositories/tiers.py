@@ -1,4 +1,4 @@
-from shared_models import UserTier
+from shared.models import UserTier
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

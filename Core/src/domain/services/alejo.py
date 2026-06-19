@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from shared_models import (
+from shared.models import (
     Form,
     Section,
     Question,

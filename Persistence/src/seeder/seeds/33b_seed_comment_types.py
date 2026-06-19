@@ -1,10 +1,10 @@
 """Poblado de comment types"""
 
-from shared_db import SessionSync
-from shared_models import CommentType
-from shared_utils.logger import get_logger
+from shared.db import SessionSync
+from shared.models import CommentType
+from shared.utils.logger import get_logger
 
-from shared_enums import CommentTypesEnum as Types
+from shared.enums import CommentTypesEnum as Types
 
 logger = get_logger("seed/comment_types")
 

@@ -4,7 +4,7 @@ import shutil
 import aiofiles
 from fastapi import UploadFile
 
-from shared_utils.logger import get_logger
+from shared.utils.logger import get_logger
 
 from .errors import FileError, FileNameError, FileOSError
 

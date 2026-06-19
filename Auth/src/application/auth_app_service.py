@@ -1,7 +1,7 @@
 from domain import AuthService, TokenService
 from infrastructure.uow import AuthUoW
 
-from shared_models import User
+from shared.models import User
 
 
 class AuthAppService:

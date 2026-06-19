@@ -1,4 +1,4 @@
-from shared_db import TableInfo
+from shared.db import TableInfo
 
 
 class CoreTargetTable:

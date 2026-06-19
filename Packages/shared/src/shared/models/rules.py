@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from shared_db import (
+from shared.db import (
     Base,
     column_fk,
     column_jsonb,

@@ -1,6 +1,6 @@
 from typing import cast
 
-from shared_models import RefreshSession
+from shared.models import RefreshSession
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session

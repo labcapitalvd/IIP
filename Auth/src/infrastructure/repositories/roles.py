@@ -1,4 +1,4 @@
-from shared_models import Role
+from shared.models import Role
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

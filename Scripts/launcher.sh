@@ -87,7 +87,7 @@ case "$MODE" in
     fi
 
     echo "🔍 Comparing Models vs Database..."
-    # We run this through the 'persister' service which has access to shared_models
+    # We run this through the 'persister' service which has access to shared.models
     docker compose run --rm persister sh -c \
       "cd /api/migrator && alembic revision --autogenerate -m \"$DESC\""
 

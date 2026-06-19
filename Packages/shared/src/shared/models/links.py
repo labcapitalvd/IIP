@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from shared_db import Base, column_fk, column_updated_at
+from shared.db import Base, column_fk, column_updated_at
 from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable

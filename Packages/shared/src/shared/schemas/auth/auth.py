@@ -1,4 +1,4 @@
-from shared_schemas import BaseSchema
+from shared.schemas import BaseSchema
 from pydantic import Field, EmailStr, SecretStr
 
 ##############################################################################################

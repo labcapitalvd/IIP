@@ -1,13 +1,13 @@
 from uuid import UUID
 from datetime import datetime, timezone
 
-from shared_models import RefreshSession
-from shared_utils.tokens import generate_token, decode_token
-from shared_utils.hashing import hash_token, verify_token
+from shared.models import RefreshSession
+from shared.utils.tokens import generate_token, decode_token
+from shared.utils.hashing import hash_token, verify_token
 
 from infrastructure.uow import AuthUoW
 
-from shared_utils import get_logger
+from shared.utils import get_logger
 from .errors import TokenRevoked, TokenExpired, TokenError
 
 

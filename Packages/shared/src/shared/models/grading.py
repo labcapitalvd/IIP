@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from shared_db import (
+from shared.db import (
     Base,
     column_decimal,
     column_fk,

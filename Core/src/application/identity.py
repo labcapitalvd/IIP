@@ -7,8 +7,8 @@ from sqlalchemy.orm import joinedload
 from domain import ActorService
 from infrastructure.uow import IdentityUoW
 
-from shared_models import Actor, ActorSegment
-from shared_schemas import (
+from shared.models import Actor, ActorSegment
+from shared.schemas import (
     ActorSchema,
     ActorSegmentSchema,
     ActorSchemaRel,

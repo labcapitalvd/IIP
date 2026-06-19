@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List
 
-from shared_db import (
+from shared.db import (
     Base,
     column_long_text,
     column_short_text,

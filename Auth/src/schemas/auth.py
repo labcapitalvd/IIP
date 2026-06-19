@@ -1,11 +1,11 @@
 from pydantic import EmailStr, SecretStr, field_validator
-from shared_schemas import (
+from shared.schemas import (
     BaseSchema,
     UserEmailSchema,
     UsernameSchema,
     UserPasswordSchema,
 )
-from shared_utils import sanitize_text, sanitize_email
+from shared.utils import sanitize_text, sanitize_email
 
 ##############################################################################################
 # Requests

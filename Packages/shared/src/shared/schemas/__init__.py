@@ -1,4 +1,4 @@
-# shared_schemas/__init__.py
+# shared.schemas/__init__.py
 # Unified exports for schemas, avoiding circular imports.
 
 from .base.base import (

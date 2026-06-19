@@ -19,7 +19,7 @@ from joserfc.errors import (
     JoseError,
 )
 
-from shared_schemas import ResponseAuthSchema
+from shared.schemas import ResponseAuthSchema
 
 from .config import (
     JWT_EXPIRE_MINUTES_ACCESS,
