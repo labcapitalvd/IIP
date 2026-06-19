@@ -1,135 +1,118 @@
+Ah, good catch! My bad. I see exactly how this hangs together now. `secrets.sh` doesn't just hold credentials—it actively generates your `.env`, sets up the localized configurations, and uses `openssl` to spin up self-signed TLS dev certificates alongside your asymmetric `ED25519` key pairs for JWT signing.
+
+And `launcher.sh` isn't just a generic starter; it's a critical CLI wrapper managing database connectivity states, automating structural setup, parsing model extractions via Docker containers, and managing database revisions via Alembic.
+
+Here is the revised, accurate `README.md` reflecting your real pipeline workflows.
+
+---
+
 # IIP Platform Monorepo
 
-Welcome to the **IIP** monorepo. This repository contains a multi-service, domain-driven Python architecture managed with modern tooling like **Nix**, **uv**, and **Docker Compose**. The project is split into distinct services (`Auth`, `Core`, `Persistence`) backed by a unified `shared` package containing core business entities, data models, and utilities.
+Welcome to the **IIP** monorepo. This repository contains a multi-service, domain-driven Python architecture managed with **Nix**, **uv**, and orchestrated via **Docker Compose**. The project is split into explicit services (`Auth`, `Core`, `Persistence`) backed by a local `shared` package containing unified business entities, data models, and core utilities.
 
 ---
 
 ## 📂 Repository Architecture
 
-The codebase follows **Domain-Driven Design (DDD)** principles and a clean architecture layout. Below is a breakdown of the primary directories:
+The codebase follows **Domain-Driven Design (DDD)** principles and a clean architecture layout:
 
 ```text
 .
 ├── Auth/               # Authentication & Authorization Microservice
 ├── Core/               # Core Platform Microservice (Forms, Submissions, Grading)
-├── Packages/shared/    # Shared library (DB engines, shared schemas, models, utilities)
+├── Packages/shared/    # Shared library (DB engines, enums, models, schemas)
 ├── Persistence/        # DB Migrations (Alembic), Seed data processors, and data loaders
-├── Scripts/            # Shell utilities for orchestrating application launches
-├── Secrets/            # Git-ignored local development credentials and certificates
+├── Scripts/            # Operations engineering scripts (Setup, Launchers, Secrets)
 └── compose.yaml        # Local multi-service orchestration layer
 
 ```
 
 ### Core Services Breakdown
 
-- **`Auth` Service**: Handles identity management, token distribution, file storage records, and role-based access control.
-- **`Core` Service**: Implements the main business domain—dynamic form structures, submission logic, rule dependencies, and automated evaluation/grading systems.
-- **`Packages/shared`**: A local python package shared across `Auth` and `Core` to eliminate duplicate model definitions. Includes shared database connection engines, central enums, global Pydantic schemas, and security engines (JWT, Fernet encryption, Argon2 hashing).
-- **`Persistence`**: Dedicated environment containing **Alembic** migrations (`migrator`), structural spreadsheet parsing loaders (`populator`), and raw schema seeds (`seeder`).
+- **`Auth` Service**: Handles identity management, token generation, file storage records, and role-based access control.
+- **`Core` Service**: Implements the primary business domain—dynamic form structures, submission logic, dependency rules, and evaluation/grading systems.
+- **`Packages/shared`**: A local shared Python module used by both microservices to eliminate duplicate code. Houses core SQLAlchemy definitions, system-wide enums, global Pydantic schemas, and security/hashing layers.
+- **`Persistence`**: Dedicated data architecture environment containing **Alembic** migrations (`migrator`), structural spreadsheet data parsers (`populator`), and reference data scripts (`seeder`).
 
 ---
 
 ## 🛠️ Tech Stack & Tooling
 
 - **Language Runtime:** Python 3.12.13
-- **Package Management:** [uv](https://github.com/astral-sh/uv) (utilizing `uv.lock` and workspace-driven `pyproject.toml`)
+- **Package Management:** [uv](https://github.com/astral-sh/uv) (utilizing workspace-driven dependencies)
 - **Environment Isolation:** [Nix Flakes](https://nixos.wiki/wiki/Flakes) (`flake.nix` for deterministic development tools)
 - **Gateway / Proxy:** Nginx (`nginx.conf`)
-- **Database Tooling:** Alembic (Migrations) + SQLAlchemy (Data Mapping Models)
-- **Containerization:** Docker & Docker Compose
+- **Database Pipeline:** Alembic + SQLAlchemy + PostgreSQL
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Prerequisites
+Follow these steps in sequence to safely bootstrap your local development environment.
 
-Ensure you have the following tools installed locally:
+### 1. Generate Configuration & Certificates
 
-- Docker & Docker Compose
-- _Optional but highly recommended:_ Nix package manager (with flake support enabled) or Python 3.12+ with `uv` installed.
-
-### 2. Environment & Secrets Configuration
-
-Before initializing the applications, populate your cryptographic keys and environmental configuration blocks:
-
-1. Copy the layout template to create your secrets baseline:
+The platform requires specific environment variables and cryptographic keypairs. Run the automated secrets generator script from within the `Scripts` directory:
 
 ```bash
-cp -r Secrets_Template/* Secrets/
+cd Scripts
+chmod +x secrets.sh launcher.sh
+./secrets.sh
 
 ```
 
-2. Generate or fill in the required cryptographic files inside `./Secrets`:
+**What this script does:**
 
-- `jwt_private.pem` & `jwt_public.pem` (For asymmetric Auth tokens)
-- `fernet_password` (For field-level data-at-rest encryption)
-- `postgres_password` (Database root password)
+- Creates a root-level `.env` scaffolding file populated from the templates.
+- Copies default operational user setups (`users.toml`) into your `./Secrets` directory.
+- Automatically issues local self-signed testing certificates (`cert.crt` / `cert.key`) via `openssl` for secure local HTTPS termination.
+- Generates an **ED25519 asymmetric key pair** (`jwt_private.pem` / `jwt_public.pem`) for cryptographic validation of authorization tokens.
 
-### 3. Pure-Nix Development Environment (Alternative)
+> ⚠️ **Important:** Review and modify the newly created root `.env` and `./Secrets/users.toml` files to change any default passwords prior to launching services in a public environment.
 
-If you use Nix, drop straight into a pre-configured shell containing Python 3.12, `uv`, and system dependencies by running:
+### 2. Fast Setup & Initialization Pipeline
+
+To stand up the database infrastructure, generate schemas, apply database migrations, and parse spreadsheet datasets in one unified command, use the setup engine tool:
+
+```bash
+./launcher.sh --setup
+
+```
+
+This automates the following steps under the hood:
+
+1. Bootstraps the PostgreSQL instance container.
+2. Code-checks and waits up to 60 seconds for active database responsiveness.
+3. Generates global structural definitions using `schemer.py`.
+4. Executes Alembic migrations (`upgrade head`).
+5. Sequentially applies reference lookup values (`seeder.py`) and dynamic form configurations/metrics (`populator.py`).
+6. Spins up remaining background system microservices automatically.
+
+---
+
+## 🎛️ Operations CLI Tool (`launcher.sh`)
+
+The `launcher.sh` script acts as an administrative entrypoint for database maintenance and container cycles. Ensure you run commands from inside the `Scripts/` folder.
+
+### Database Operations
+
+| Command                                          | Description                                                                                                                                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `./launcher.sh --setup`                          | Compiles architecture schemas, upgrades migrations, executes seed data loading pipelines, and starts application services.                                                           |
+| `./launcher.sh --revision "your_migration_name"` | Compares your active SQLAlchemy definitions against the running database instance and autogenerates an Alembic migration script inside `Persistence/src/migrator/alembic/versions/`. |
+| `./launcher.sh --extract`                        | Pulls existing structural spreadsheet profiles directly out of active database models.                                                                                               |
+| `./launcher.sh --backup`                         | Performs a localized data dump of your core state into a timestamped file located in `./Backups/`.                                                                                   |
+| `./launcher.sh --restore <path_to_backup.sql>`   | Streams raw structural `.sql` statements to quickly restore database state profiles.                                                                                                 |
+
+---
+
+## ❄️ Nix Integration (Optional)
+
+If your host operating system utilizes Nix flakes, you can instantly load all native system dependencies (such as Python 3.12, `uv`, and `openssl` runtimes) by invoking:
 
 ```bash
 nix develop
-# or if using direnv
+# or let direnv auto-load it when navigating code blocks
 direnv allow
-
-```
-
----
-
-## 🐳 Docker Deployment & Orchestration
-
-The platform relies on a base context orchestration setup alongside service-specific overlays.
-
-### Running the Infrastructure Stack
-
-To spin up all microservices, database backends, and the Nginx reverse proxy simultaneously:
-
-```bash
-docker compose up --build
-
-```
-
-### Service-Specific Launchers
-
-You can execute automated configuration wrappers explicitly via the provided launcher scripts:
-
-```bash
-chmod +x Scripts/launcher.sh Scripts/secrets.sh
-./Scripts/launcher.sh
-
-```
-
----
-
-## 🗄️ Database Migrations & Data Seeding
-
-Database management operations reside entirely inside the `Persistence/` workspace block.
-
-### Running Database Migrations
-
-Migrations automatically map database states using SQLAlchemy models imported out of the `shared` module:
-
-```bash
-cd Persistence
-uv run alembic upgrade head
-
-```
-
-### Executing Database Seeders & Populators
-
-The project incorporates a robust, staged pipeline for loading initial lookup types and structural layout schemas (e.g., parsing `Estructura_IIP.xlsx` and template CSVs):
-
-- **Static Type Seeds** (`00a_...` to `33b_...`): System reference metrics (e.g., file types, operational rules, system roles).
-- **Domain Structural Populators** (`10a_...` to `13a_...`): Dynamic form layouts, field constraints, sectors, and grading criteria templates.
-
-To parse dynamic structures and apply all seed maps sequentially, run the following sequence:
-
-```bash
-cd Persistence/src
-uv run populator/populator.py
-uv run seeder/seeder.py
 
 ```
