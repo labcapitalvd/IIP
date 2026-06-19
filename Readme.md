@@ -1,11 +1,3 @@
-Ah, good catch! My bad. I see exactly how this hangs together now. `secrets.sh` doesn't just hold credentials—it actively generates your `.env`, sets up the localized configurations, and uses `openssl` to spin up self-signed TLS dev certificates alongside your asymmetric `ED25519` key pairs for JWT signing.
-
-And `launcher.sh` isn't just a generic starter; it's a critical CLI wrapper managing database connectivity states, automating structural setup, parsing model extractions via Docker containers, and managing database revisions via Alembic.
-
-Here is the revised, accurate `README.md` reflecting your real pipeline workflows.
-
----
-
 # IIP Platform Monorepo
 
 Welcome to the **IIP** monorepo. This repository contains a multi-service, domain-driven Python architecture managed with **Nix**, **uv**, and orchestrated via **Docker Compose**. The project is split into explicit services (`Auth`, `Core`, `Persistence`) backed by a local `shared` package containing unified business entities, data models, and core utilities.
