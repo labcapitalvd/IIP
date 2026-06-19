@@ -55,7 +55,6 @@ services:
     build:
       context: .
       dockerfile: Persistence/Dockerfile
-      pull: false
     image: docker.io/labcapital/apps:app-Persister
     depends_on:
       - api_core
@@ -83,6 +82,8 @@ services:
       dockerfile: Auth/Dockerfile
     image: docker.io/labcapital/apps:app-Auth
     depends_on:
+      base:
+        condition: service_started
       db:
         condition: service_healthy
     env_file: ./.env

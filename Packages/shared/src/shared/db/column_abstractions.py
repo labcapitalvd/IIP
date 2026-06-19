@@ -33,22 +33,19 @@ def column_fk(
     ondelete: str | None = None,
     index: bool = False,
     primary_key: bool = False,
-    use_alter: bool = False,  # New parameter
-    name: str | None = None,  # New parameter
+    use_alter: bool = False,
+    name: str | None = None,
+    use_existing_column: bool = False,
 ) -> Mapped[UUID]:
     assert "." in target, "FK target must be 'table.column'"
     return mapped_column(
         UUIDType(as_uuid=True),
-        ForeignKey(
-            target,
-            ondelete=ondelete,
-            use_alter=use_alter,
-            name=name
-        ),
+        ForeignKey(target, ondelete=ondelete, use_alter=use_alter, name=name),
         nullable=nullable,
         unique=unique,
         index=index,
         primary_key=primary_key,
+        use_existing_column=use_existing_column,
     )
 
 

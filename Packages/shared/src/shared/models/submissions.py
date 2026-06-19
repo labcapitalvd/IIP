@@ -90,20 +90,16 @@ class AnswerCardEntry(Answer):
     __tablename__ = TargetTable.ANSWERS_CARD_ENTRY.table
     __table_args__ = {"schema": TargetTable.ANSWERS_CARD_ENTRY.schema}
 
-    id: Mapped[UUID] = mapped_column(
-        ForeignKey(f"{TargetTable.ANSWERS.fq_name}.id", ondelete="CASCADE"),
+    id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id",
         primary_key=True,
+        ondelete="CASCADE",
         use_existing_column=True,
     )
 
     __mapper_args__ = {
         "polymorphic_identity": AnswerType.CARD.value,
-        "inherit_condition": (
-            lambda: (
-                Base.metadata.tables[TargetTable.ANSWERS_CARD_ENTRY.fq_name].c.id
-                == Base.metadata.tables[TargetTable.ANSWERS.fq_name].c.id
-            )
-        ),
+        "inherit_condition": id == Answer.id,
     }
 
     question_id: Mapped[UUID] = column_fk(
