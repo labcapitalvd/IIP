@@ -83,8 +83,6 @@ services:
       dockerfile: Auth/Dockerfile
     image: docker.io/labcapital/apps:app-Auth
     depends_on:
-      base:
-        condition: service_healthy
       db:
         condition: service_healthy
     env_file: ./.env

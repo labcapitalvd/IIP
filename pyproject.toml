@@ -23,27 +23,15 @@ dependencies = [
     "asyncpg>=0.30.0",
     "bcrypt>=4.3.0",
     "argon2-cffi>=25.1.0",
-    "shared.db",
-    "shared.enums",
-    "shared.models",
-    "shared.schemas",
-    "shared.utils",
+    "shared",
     "uuid-utils>=0.14.0",
     "httpx>=0.28.1",
 ]
 
 [tool.uv.sources]
-shared.db = { workspace = true }
-shared.enums = { workspace = true }
-shared.models = { workspace = true }
-shared.schemas = { workspace = true }
-shared.utils = { workspace = true }
+shared = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "Packages/shared.db",
-    "Packages/shared.enums",
-    "Packages/shared.models",
-    "Packages/shared.schemas",
-    "Packages/shared.utils",
+    "Packages/shared",
 ]
