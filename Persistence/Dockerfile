@@ -1,4 +1,4 @@
-FROM docker.io/labcapital/apps:app-Base
+FROM docker.io/labcapital/apps:app-base
 
 ARG APPLICATION=1
 WORKDIR /api
