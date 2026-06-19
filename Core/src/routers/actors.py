@@ -2,7 +2,7 @@ from typing import Any, List, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path
-from shared_schemas import (
+from shared.schemas import (
     ResponseMessageSchema,
     ActorSegmentSchema,
     ActorSchema,
@@ -10,7 +10,7 @@ from shared_schemas import (
     ActorSegmentSchemaRel,
     ActorSchemaFK,
 )
-from shared_utils import AccessContext, get_claims
+from shared.utils import AccessContext, get_claims
 
 from application import IdentityAppService
 

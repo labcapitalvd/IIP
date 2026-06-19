@@ -30,15 +30,14 @@ import re
 import unicodedata
 from collections import OrderedDict, defaultdict
 from pathlib import Path
+from typing import Any, TypedDict
 from uuid import UUID
 
 import pandas as pd
+from shared.db import async_engine
+from shared.utils.logger import get_logger
 from sqlalchemy import text
 from uuid_utils import uuid7
-
-from shared_db import async_engine
-from shared_utils.logger import get_logger
-
 
 logger = get_logger("pop/loop_questions")
 
@@ -76,9 +75,7 @@ def normalize(value):
         return None
     value = unicodedata.normalize("NFKD", value)
     value = "".join(
-        character
-        for character in value
-        if not unicodedata.combining(character)
+        character for character in value if not unicodedata.combining(character)
     )
     value = value.casefold()
     value = re.sub(r"\s+", " ", value)
@@ -123,10 +120,7 @@ def question_order(value) -> int:
     match = re.search(r"(\d+(?:[.,]\d+)*)", value)
     if not match:
         return 0
-    parts = [
-        int(part)
-        for part in match.group(1).replace(",", ".").split(".")
-    ]
+    parts = [int(part) for part in match.group(1).replace(",", ".").split(".")]
     if len(parts) == 1:
         return parts[0] * 1000
     order = parts[0] * 1000 + parts[1]
@@ -138,8 +132,7 @@ def question_order(value) -> int:
 def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     if sheet_name not in excel.sheet_names:
         raise ValueError(
-            f"No existe la hoja {sheet_name!r}. "
-            f"Hojas disponibles: {excel.sheet_names}"
+            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
         )
     frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
     frame.columns = [str(column).strip() for column in frame.columns]
@@ -151,7 +144,25 @@ def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 
 
-def load_loops(excel: pd.ExcelFile) -> list[dict]:
+class SubquestionDict(TypedDict):
+    order: int
+    text: str
+
+
+class LoopRecord(TypedDict):
+    source_row: int
+    component: Any
+    variable: Any
+    indicator: Any
+    parent_question: Any
+    parent_text: Any
+    loop_question: str
+    loop_text: Any
+    is_mixed: bool
+    subquestions: OrderedDict[int, Any] | list[SubquestionDict]
+
+
+def load_loops(excel: pd.ExcelFile) -> list[LoopRecord]:
     frame = read_sheet(excel, str(YEAR))
     required = {
         "Componente",
@@ -166,9 +177,7 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
     }
     missing = required - set(frame.columns)
     if missing:
-        raise ValueError(
-            f"Faltan columnas en la hoja {YEAR}: {sorted(missing)}"
-        )
+        raise ValueError(f"Faltan columnas en la hoja {YEAR}: {sorted(missing)}")
 
     data = pd.DataFrame(
         {
@@ -208,11 +217,12 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
         & data["subquestion_text"].notna()
     ].copy()
 
-    registry: OrderedDict[str, dict] = OrderedDict()
+    # Registry now explicitly stores LoopRecord values
+    registry: OrderedDict[str, LoopRecord] = OrderedDict()
 
     for _, row in data.iterrows():
-        loop_question = row["loop_question"]
-        candidate = {
+        loop_question = str(row["loop_question"])
+        candidate: LoopRecord = {
             "source_row": int(row["source_row"]),
             "component": row["component"],
             "variable": row["variable"],
@@ -240,8 +250,8 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
             )
             conflicts = []
             for field in fields:
-                left = current[field]
-                right = candidate[field]
+                left = current[field]  # type: ignore
+                right = candidate[field]  # type: ignore
                 equal = (
                     left == right
                     if field == "is_mixed"
@@ -260,31 +270,38 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
             f"Orden_subpregunta_bucle, fila {int(row['source_row'])}",
         )
         text_value = row["subquestion_text"]
-        previous = current["subquestions"].get(order)
-        if previous is not None and normalize(previous) != normalize(text_value):
-            raise ValueError(
-                f"Subpregunta contradictoria en {loop_question}, orden {order}."
-            )
-        current["subquestions"][order] = text_value
+
+        # Safely capture reference as an OrderedDict prior to transformation
+        subquestions_dict = current["subquestions"]
+        if isinstance(subquestions_dict, OrderedDict):
+            previous = subquestions_dict.get(order)
+            if previous is not None and normalize(previous) != normalize(text_value):
+                raise ValueError(
+                    f"Subpregunta contradictoria en {loop_question}, orden {order}."
+                )
+            subquestions_dict[order] = text_value
 
     records = list(registry.values())
     records.sort(key=lambda item: question_order(item["loop_question"]))
 
     total_subquestions = 0
     for record in records:
-        orders = sorted(record["subquestions"])
-        if orders != list(range(1, len(orders) + 1)):
-            raise ValueError(
-                f"Órdenes no consecutivos en {record['loop_question']}: {orders}"
-            )
-        record["subquestions"] = [
-            {
-                "order": order,
-                "text": record["subquestions"][order],
-            }
-            for order in orders
-        ]
-        total_subquestions += len(orders)
+        # Cast/Verify the internal dictionary for the sequential check
+        subq_map = record["subquestions"]
+        if isinstance(subq_map, OrderedDict):
+            orders = sorted(subq_map.keys())
+            if orders != list(range(1, len(orders) + 1)):
+                raise ValueError(
+                    f"Órdenes no consecutivos en {record['loop_question']}: {orders}"
+                )
+            record["subquestions"] = [
+                {
+                    "order": int(order),
+                    "text": subq_map[order],
+                }
+                for order in orders
+            ]
+            total_subquestions += len(orders)
 
     if len(records) != EXPECTED_LOOP_COUNT:
         raise ValueError(
@@ -405,16 +422,17 @@ async def get_question_map(conn, form_id: str) -> dict[str, dict]:
         text(
             """
             SELECT
-                id::text AS question_id,
-                section_id::text AS section_id,
-                label,
-                description,
-                display_order,
-                required,
-                is_loop
-            FROM forms.questions
-            WHERE form_id = CAST(:form_id AS uuid)
-            ORDER BY label, id;
+                q.id::text AS question_id,
+                q.section_id::text AS section_id,
+                q.label,
+                q.description,
+                q.display_order,
+                q.required,
+                q.is_loop
+            FROM forms.questions q
+            JOIN forms.sections s ON q.section_id = s.id
+            WHERE s.form_id = CAST(:form_id AS uuid)
+            ORDER BY q.label, q.id;
             """
         ),
         {"form_id": form_id},
@@ -432,9 +450,7 @@ async def get_question_map(conn, form_id: str) -> dict[str, dict]:
                 f"{[row['question_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["question_id"]):
-            raise ValueError(
-                f"Pregunta existente sin UUIDv7: {rows[0]['question_id']}"
-            )
+            raise ValueError(f"Pregunta existente sin UUIDv7: {rows[0]['question_id']}")
         lookup[key] = rows[0]
 
     return lookup
@@ -446,7 +462,6 @@ async def save_independent_loop(conn, record: dict, update: bool) -> None:
             """
             UPDATE forms.questions
             SET
-                form_id = CAST(:form_id AS uuid),
                 section_id = CAST(:section_id AS uuid),
                 file_id = NULL,
                 label = :label,
@@ -464,7 +479,6 @@ async def save_independent_loop(conn, record: dict, update: bool) -> None:
             """
             INSERT INTO forms.questions (
                 id,
-                form_id,
                 section_id,
                 file_id,
                 label,
@@ -477,7 +491,6 @@ async def save_independent_loop(conn, record: dict, update: bool) -> None:
             )
             VALUES (
                 CAST(:id AS uuid),
-                CAST(:form_id AS uuid),
                 CAST(:section_id AS uuid),
                 NULL,
                 :label,
@@ -522,7 +535,7 @@ async def update_mixed_loop(
 
 async def validate_loaded(
     conn,
-    loops: list[dict],
+    loops: list[LoopRecord],
     form_id: str,
     indicators: dict[tuple[str, str, str], str],
 ) -> None:
@@ -532,9 +545,7 @@ async def validate_loaded(
         key = normalize(loop["loop_question"])
         question = questions.get(key)
         if question is None:
-            raise ValueError(
-                f"No se cargó el bucle {loop['loop_question']}."
-            )
+            raise ValueError(f"No se cargó el bucle {loop['loop_question']}.")
 
         expected_section = indicators[
             (
@@ -545,21 +556,13 @@ async def validate_loaded(
         ]
 
         if question["section_id"] != expected_section:
-            raise ValueError(
-                f"section_id incorrecto para {loop['loop_question']}."
-            )
+            raise ValueError(f"section_id incorrecto para {loop['loop_question']}.")
         if question["is_loop"] is not True:
-            raise ValueError(
-                f"is_loop debe ser TRUE para {loop['loop_question']}."
-            )
+            raise ValueError(f"is_loop debe ser TRUE para {loop['loop_question']}.")
         if question["required"] is not True:
-            raise ValueError(
-                f"required debe ser TRUE para {loop['loop_question']}."
-            )
+            raise ValueError(f"required debe ser TRUE para {loop['loop_question']}.")
         if not is_uuidv7(question["question_id"]):
-            raise ValueError(
-                f"UUID no es versión 7 para {loop['loop_question']}."
-            )
+            raise ValueError(f"UUID no es versión 7 para {loop['loop_question']}.")
 
         if not loop["is_mixed"]:
             if normalize(question["description"]) != normalize(loop["loop_text"]):
@@ -567,9 +570,7 @@ async def validate_loaded(
                     f"description incorrecta para {loop['loop_question']}."
                 )
 
-    logger.info(
-        f"Loop questions validation passed. Validated: {len(loops)}."
-    )
+    logger.info(f"Loop questions validation passed. Validated: {len(loops)}.")
 
 
 # -----------------------------------------------------------------------------
@@ -593,7 +594,6 @@ async def upgrade(gh=None, api=None) -> None:
         columns = await table_columns(conn, "forms", "questions")
         required_columns = {
             "id",
-            "form_id",
             "section_id",
             "file_id",
             "label",
@@ -606,9 +606,7 @@ async def upgrade(gh=None, api=None) -> None:
         }
         missing = required_columns - set(columns)
         if missing:
-            raise ValueError(
-                f"Faltan columnas en forms.questions: {sorted(missing)}"
-            )
+            raise ValueError(f"Faltan columnas en forms.questions: {sorted(missing)}")
 
         form_id = await get_form(conn)
         indicators = await get_indicator_map(conn)
@@ -662,9 +660,7 @@ async def upgrade(gh=None, api=None) -> None:
                 mixed_updated += 1
                 continue
 
-            question_id = (
-                existing["question_id"] if existing else new_uuidv7()
-            )
+            question_id = existing["question_id"] if existing else new_uuidv7()
             if not is_uuidv7(question_id):
                 raise ValueError(f"ID no UUIDv7: {question_id}")
 

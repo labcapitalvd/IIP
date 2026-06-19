@@ -35,8 +35,8 @@ import pandas as pd
 from sqlalchemy import text
 from uuid_utils import uuid7
 
-from shared_db import async_engine
-from shared_utils.logger import get_logger
+from shared.db import async_engine
+from shared.utils.logger import get_logger
 
 
 logger = get_logger("pop/field_groups")
@@ -69,9 +69,7 @@ def active_years() -> tuple[int, ...]:
         try:
             years.append(int(value))
         except ValueError as exc:
-            raise ValueError(
-                f"Año inválido en IIP_ACTIVE_YEARS: {value!r}"
-            ) from exc
+            raise ValueError(f"Año inválido en IIP_ACTIVE_YEARS: {value!r}") from exc
 
     if not years or len(years) != len(set(years)):
         raise ValueError(
@@ -98,9 +96,7 @@ def normalize(value):
         return None
     value = unicodedata.normalize("NFKD", value)
     value = "".join(
-        character
-        for character in value
-        if not unicodedata.combining(character)
+        character for character in value if not unicodedata.combining(character)
     )
     value = value.casefold()
     value = re.sub(r"\s+", " ", value)
@@ -128,8 +124,7 @@ def truncate(value, max_length):
 def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     if sheet_name not in excel.sheet_names:
         raise ValueError(
-            f"No existe la hoja {sheet_name!r}. "
-            f"Hojas disponibles: {excel.sheet_names}"
+            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
         )
     frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
     frame.columns = [str(column).strip() for column in frame.columns]
@@ -152,9 +147,7 @@ def load_structure(
         required = {"Pregunta", f"Pregunta {year}"}
         missing = required - set(frame.columns)
         if missing:
-            raise ValueError(
-                f"Faltan columnas en la hoja {year}: {sorted(missing)}"
-            )
+            raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
 
         registry: OrderedDict[str, str] = OrderedDict()
         for _, row in frame.iterrows():
@@ -165,9 +158,7 @@ def load_structure(
 
             old = registry.get(question)
             if old is not None and normalize(old) != normalize(description):
-                raise ValueError(
-                    f"Textos contradictorios para {question} en {year}."
-                )
+                raise ValueError(f"Textos contradictorios para {question} en {year}.")
             registry.setdefault(question, description)
 
         if not registry:
@@ -178,9 +169,7 @@ def load_structure(
     required_loops = {"Pregunta", "Bucle", "Bucle 2023"}
     missing = required_loops - set(frame_2023.columns)
     if missing:
-        raise ValueError(
-            f"Faltan columnas de bucle en 2023: {sorted(missing)}"
-        )
+        raise ValueError(f"Faltan columnas de bucle en 2023: {sorted(missing)}")
 
     loops: OrderedDict[str, dict] = OrderedDict()
     for _, row in frame_2023.iterrows():
@@ -201,19 +190,14 @@ def load_structure(
         }
         if old is None:
             loops[loop_question] = candidate
-        elif (
-            normalize(old["loop_text"]) != normalize(loop_text)
-            or normalize(old["parent_question"])
-            != normalize(parent_question)
-        ):
-            raise ValueError(
-                f"Información contradictoria para {loop_question}."
-            )
+        elif normalize(old["loop_text"]) != normalize(loop_text) or normalize(
+            old["parent_question"]
+        ) != normalize(parent_question):
+            raise ValueError(f"Información contradictoria para {loop_question}.")
 
     if len(loops) != EXPECTED_CARD_COUNT:
         raise ValueError(
-            f"Se esperaban {EXPECTED_CARD_COUNT} bucles y se encontraron "
-            f"{len(loops)}."
+            f"Se esperaban {EXPECTED_CARD_COUNT} bucles y se encontraron {len(loops)}."
         )
 
     return main_questions, loops
@@ -291,8 +275,8 @@ async def get_questions(
                 question.is_loop,
                 form.anno
             FROM forms.questions question
-            JOIN forms.forms form
-              ON form.id = question.form_id
+            JOIN forms.sections section ON question.section_id = section.id
+            JOIN forms.forms form ON form.id = section.form_id
             ORDER BY form.anno, question.label, question.id;
             """
         )
@@ -312,9 +296,7 @@ async def get_questions(
                 f"{[row['question_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["question_id"]):
-            raise ValueError(
-                f"Pregunta sin UUIDv7: {rows[0]['question_id']}"
-            )
+            raise ValueError(f"Pregunta sin UUIDv7: {rows[0]['question_id']}")
         lookup[key] = rows[0]
 
     return lookup
@@ -347,9 +329,7 @@ async def get_card_templates(conn) -> dict[str, dict]:
                 f"{[row['card_template_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["card_template_id"]):
-            raise ValueError(
-                f"card_template sin UUIDv7: {rows[0]['card_template_id']}"
-            )
+            raise ValueError(f"card_template sin UUIDv7: {rows[0]['card_template_id']}")
         lookup[question_id] = rows[0]
 
     return lookup
@@ -360,15 +340,19 @@ async def get_existing_groups(conn) -> dict[tuple[str, str | None], dict]:
         text(
             """
             SELECT
-                id::text AS field_group_id,
-                form_id::text AS form_id,
-                question_id::text AS question_id,
-                card_template_id::text AS card_template_id,
-                label,
-                description,
-                display_order
-            FROM forms.field_groups
-            ORDER BY question_id, card_template_id, id;
+                fg.id::text AS field_group_id,
+                s.form_id::text AS form_id,         -- Resolving dynamically
+                ct.question_id::text AS question_id, -- Resolving dynamically
+                fg.card_template_id::text AS card_template_id,
+                fg.label,
+                fg.description,
+                fg.display_order
+            FROM forms.field_groups fg
+            -- CHANGE HERE: Walk the relational tree up to questions and sections
+            JOIN forms.card_templates ct ON fg.card_template_id = ct.id
+            JOIN forms.questions q ON ct.question_id = q.id
+            JOIN forms.sections s ON q.section_id = s.id
+            ORDER BY ct.question_id, fg.card_template_id, fg.id;
             """
         )
     )
@@ -386,9 +370,7 @@ async def get_existing_groups(conn) -> dict[tuple[str, str | None], dict]:
                 f"{[row['field_group_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["field_group_id"]):
-            raise ValueError(
-                f"field_group sin UUIDv7: {rows[0]['field_group_id']}"
-            )
+            raise ValueError(f"field_group sin UUIDv7: {rows[0]['field_group_id']}")
         lookup[key] = rows[0]
 
     return lookup
@@ -400,8 +382,6 @@ async def save_group(conn, record: dict, update: bool) -> None:
             """
             UPDATE forms.field_groups
             SET
-                form_id = CAST(:form_id AS uuid),
-                question_id = CAST(:question_id AS uuid),
                 card_template_id = CAST(:card_template_id AS uuid),
                 label = :label,
                 description = :description,
@@ -415,8 +395,6 @@ async def save_group(conn, record: dict, update: bool) -> None:
             """
             INSERT INTO forms.field_groups (
                 id,
-                form_id,
-                question_id,
                 card_template_id,
                 label,
                 description,
@@ -425,8 +403,6 @@ async def save_group(conn, record: dict, update: bool) -> None:
             )
             VALUES (
                 CAST(:id AS uuid),
-                CAST(:form_id AS uuid),
-                CAST(:question_id AS uuid),
                 CAST(:card_template_id AS uuid),
                 :label,
                 :description,
@@ -477,9 +453,7 @@ def build_expected_groups(
     for loop_code, loop in loops.items():
         question = questions.get((YEAR_WITH_LOOPS, normalize(loop_code)))
         if question is None:
-            raise ValueError(
-                f"No existe {loop_code} en forms.questions."
-            )
+            raise ValueError(f"No existe {loop_code} en forms.questions.")
         if question["is_loop"] is not True:
             raise ValueError(f"{loop_code} tiene is_loop distinto de TRUE.")
 
@@ -519,10 +493,7 @@ def build_expected_groups(
         else:
             card_count += 1
 
-    expected_direct = {
-        year: EXPECTED_DIRECT_COUNTS[year]
-        for year in main_questions
-    }
+    expected_direct = {year: EXPECTED_DIRECT_COUNTS[year] for year in main_questions}
     if dict(direct_counts) != expected_direct:
         raise ValueError(
             f"Conteos directos inesperados: {dict(direct_counts)}; "
@@ -546,29 +517,19 @@ async def validate_loaded(
     for source in expected:
         row = existing.get(source["natural_key"])
         if row is None:
-            raise ValueError(
-                f"No se cargó field_group para {source['natural_key']}."
-            )
+            raise ValueError(f"No se cargó field_group para {source['natural_key']}.")
         if row["form_id"] != source["form_id"]:
             raise ValueError(f"form_id incorrecto para {source['natural_key']}.")
         if normalize(row["label"]) != normalize(source["label"]):
             raise ValueError(f"label incorrecto para {source['natural_key']}.")
         if normalize(row["description"]) != normalize(source["description"]):
-            raise ValueError(
-                f"description incorrecta para {source['natural_key']}."
-            )
+            raise ValueError(f"description incorrecta para {source['natural_key']}.")
         if int(row["display_order"]) != int(source["display_order"]):
-            raise ValueError(
-                f"display_order incorrecto para {source['natural_key']}."
-            )
+            raise ValueError(f"display_order incorrecto para {source['natural_key']}.")
         if not is_uuidv7(row["field_group_id"]):
-            raise ValueError(
-                f"UUID no es versión 7 para {source['natural_key']}."
-            )
+            raise ValueError(f"UUID no es versión 7 para {source['natural_key']}.")
 
-    logger.info(
-        f"forms.field_groups validation passed. Validated: {len(expected)}."
-    )
+    logger.info(f"forms.field_groups validation passed. Validated: {len(expected)}.")
 
 
 # -----------------------------------------------------------------------------
@@ -593,8 +554,6 @@ async def upgrade(gh=None, api=None) -> None:
         columns = await table_columns(conn, "forms", "field_groups")
         required = {
             "id",
-            "form_id",
-            "question_id",
             "card_template_id",
             "label",
             "description",
@@ -607,9 +566,7 @@ async def upgrade(gh=None, api=None) -> None:
                 f"Faltan columnas en forms.field_groups: {sorted(missing)}"
             )
         if not columns["card_template_id"]["nullable"]:
-            raise ValueError(
-                "forms.field_groups.card_template_id debe permitir NULL."
-            )
+            raise ValueError("forms.field_groups.card_template_id debe permitir NULL.")
 
         forms = await get_forms(conn, years)
         questions = await get_questions(conn, years)
@@ -629,9 +586,7 @@ async def upgrade(gh=None, api=None) -> None:
 
         for source in expected:
             old = existing.get(source["natural_key"])
-            field_group_id = (
-                old["field_group_id"] if old else new_uuidv7()
-            )
+            field_group_id = old["field_group_id"] if old else new_uuidv7()
             if not is_uuidv7(field_group_id):
                 raise ValueError(f"ID no UUIDv7: {field_group_id}")
 
@@ -640,9 +595,7 @@ async def upgrade(gh=None, api=None) -> None:
                 "form_id": source["form_id"],
                 "question_id": source["question_id"],
                 "card_template_id": source["card_template_id"],
-                "label": truncate(
-                    source["label"], columns["label"]["max_length"]
-                ),
+                "label": truncate(source["label"], columns["label"]["max_length"]),
                 "description": truncate(
                     source["description"],
                     columns["description"]["max_length"],

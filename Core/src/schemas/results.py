@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from shared_schemas import UuidSchema
+from shared.schemas import UuidSchema
 
 ##############################################################################################
 # Requests

@@ -2,7 +2,7 @@ from typing import Annotated, Optional, List
 from annotated_types import Len
 from pydantic import Field, validator
 
-from shared_schemas import BaseSchema, UuidSchema
+from shared.schemas import BaseSchema, UuidSchema
 
 ##############################################################################################
 # Requests

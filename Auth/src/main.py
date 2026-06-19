@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from shared_utils import BaseDomainError, configure_logging, get_logger, domain_exception_handler, universal_exception_handler
+from shared.utils import BaseDomainError, configure_logging, get_logger, domain_exception_handler, universal_exception_handler
 
 from routers.auth import router as router_auth
 from routers.files import router as router_files

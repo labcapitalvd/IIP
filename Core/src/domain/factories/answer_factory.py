@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from shared_models import (
+from shared.models import (
     Answer,
     AnswerBoolean,
     AnswerText,

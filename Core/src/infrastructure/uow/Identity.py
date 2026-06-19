@@ -1,4 +1,4 @@
-from shared_db import UnitOfWork
+from shared.db import UnitOfWork
 from ..repositories import (
     ActorRepository,
     ActorSegmentRepository,

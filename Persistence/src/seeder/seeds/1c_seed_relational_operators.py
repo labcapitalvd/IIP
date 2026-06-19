@@ -1,10 +1,10 @@
 """Poblado de relational operators"""
 
-from shared_db import SessionSync
-from shared_utils.logger import get_logger
+from shared.db import SessionSync
+from shared.utils.logger import get_logger
 
-from shared_models import RelationalOperator
-from shared_enums import RelationalOperatorsEnum as Types
+from shared.models import RelationalOperator
+from shared.enums import RelationalOperatorsEnum as Types
 
 logger = get_logger("seed/relational_operators")
 

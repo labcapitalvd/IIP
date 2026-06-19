@@ -57,7 +57,6 @@ services:
       dockerfile: Persistence/Dockerfile
     image: docker.io/labcapital/apps:app-Persister
     depends_on:
-      - api_auth
       - api_core
     env_file: ./.env
     volumes:
@@ -83,6 +82,8 @@ services:
       dockerfile: Auth/Dockerfile
     image: docker.io/labcapital/apps:app-Auth
     depends_on:
+      base:
+        condition: service_started
       db:
         condition: service_healthy
     env_file: ./.env
@@ -102,8 +103,7 @@ services:
       dockerfile: Core/Dockerfile
     image: docker.io/labcapital/apps:app-Core
     depends_on:
-      db:
-        condition: service_healthy
+      - api_auth
     env_file: ./.env
     secrets:
       - jwt_private_key

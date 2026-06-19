@@ -1,7 +1,7 @@
 from typing import cast
 from uuid import UUID
 
-from shared_models import User
+from shared.models import User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session

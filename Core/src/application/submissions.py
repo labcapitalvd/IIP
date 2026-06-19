@@ -4,7 +4,7 @@ from uuid import UUID
 from domain import SubmissionService
 from infrastructure.uow import SubmissionUoW
 
-from shared_models import Submission
+from shared.models import Submission
 
 
 class SubmissionAppService:

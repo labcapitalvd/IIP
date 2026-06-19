@@ -7,7 +7,7 @@ from fastapi import UploadFile
 import unicodedata
 from decimal import Decimal
 
-from shared_enums import FileTypesEnum
+from shared.enums import FileTypesEnum
 
 class FileError(Exception):
     """Base error for FileUtils."""

@@ -1,7 +1,7 @@
 from typing import cast
 from uuid import UUID
 
-from shared_models import (
+from shared.models import (
     CardTemplate,
     Field,
     FieldChoice,

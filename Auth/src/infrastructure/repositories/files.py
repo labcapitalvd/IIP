@@ -1,11 +1,11 @@
 from typing import Sequence
 from uuid import UUID
 
-from shared_models import File, FileType
+from shared.models import File, FileType
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared_enums import FileTypesEnum
+from shared.enums import FileTypesEnum
 
 
 class FileRepository:

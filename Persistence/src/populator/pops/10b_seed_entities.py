@@ -57,8 +57,8 @@ from uuid import UUID
 from sqlalchemy import text
 from uuid_utils import uuid7
 
-from shared_db import async_engine
-from shared_utils.logger import get_logger
+from shared.db import async_engine
+from shared.utils.logger import get_logger
 
 
 logger = get_logger("pop/actors")

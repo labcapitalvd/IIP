@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared_models import (
+from shared.models import (
     FieldRule,
     FieldDependency,
     SectionDependency,

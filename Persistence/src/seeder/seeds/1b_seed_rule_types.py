@@ -1,10 +1,10 @@
 """Poblado de field validation rules"""
 
-from shared_db import SessionSync
-from shared_utils.logger import get_logger
+from shared.db import SessionSync
+from shared.utils.logger import get_logger
 
-from shared_models import RuleType
-from shared_enums import RuleTypesEnum as Types
+from shared.models import RuleType
+from shared.enums import RuleTypesEnum as Types
 
 
 logger = get_logger("seed/field_validation_rules")

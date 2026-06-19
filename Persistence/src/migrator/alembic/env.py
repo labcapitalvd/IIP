@@ -2,14 +2,14 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from shared_db import sync_engine, SYNC_DB
+from shared.db import sync_engine, SYNC_DB
 
-from shared_db import Base
-from shared_models import __all__ as model_names
+from shared.db import Base
+from shared.models import __all__ as model_names
 
 import math
 
-from shared_utils import print_list
+from shared.utils import print_list
 
 
 print_list("Loaded Models", model_names)

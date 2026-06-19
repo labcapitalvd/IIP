@@ -1,11 +1,11 @@
 """Poblado de field types"""
 
-from shared_db import SessionSync
-from shared_utils.logger import get_logger
+from shared.db import SessionSync
+from shared.utils.logger import get_logger
 
 
-from shared_models import FieldType
-from shared_enums import FieldTypesEnum as Types
+from shared.models import FieldType
+from shared.enums import FieldTypesEnum as Types
 
 logger = get_logger("seed/field_types")
 

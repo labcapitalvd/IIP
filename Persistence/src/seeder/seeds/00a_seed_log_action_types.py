@@ -1,10 +1,10 @@
 """Poblado de log action types"""
 
-from shared_db import SessionSync
-from shared_models import LogActionType
-from shared_utils.logger import get_logger
+from shared.db import SessionSync
+from shared.models import LogActionType
+from shared.utils.logger import get_logger
 
-from shared_enums import LogActionTypesEnum as Types
+from shared.enums import LogActionTypesEnum as Types
 
 
 logger = get_logger("seed/log_action_types")

@@ -8,8 +8,8 @@ import tomllib
 from typing import Type, TypeVar, List, Any
 from pydantic import BaseModel
 
-from shared_utils.logger import get_logger
-from shared_utils import print_list
+from shared.utils.logger import get_logger
+from shared.utils import print_list
 
 logger = get_logger("pop/tables")
 
@@ -124,7 +124,7 @@ class ServiceClient:
         return False
 
     async def create_entry(self, endpoint: str, schema: Type[T], data: dict) -> bool:
-        """Validates against shared_schemas and POSTs to the API."""
+        """Validates against shared.schemas and POSTs to the API."""
         try:
             validated_data = schema(**data)
             async with httpx.AsyncClient() as client:

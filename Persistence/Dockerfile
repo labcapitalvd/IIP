@@ -1,26 +1,25 @@
-# =================================================
-# Stage 1: Start application
-# =================================================
 FROM docker.io/labcapital/apps:app-Base
 
-# -----------------------------
-# 4. Copy app
-# -----------------------------
 ARG APPLICATION=1
 WORKDIR /api
 
 COPY Persistence/src/pyproject.toml ./pyproject.toml
-RUN pip install --no-cache-dir .
 
+# Mock the structure for the initial heavy pip download pass
+RUN mkdir -p migrator schemer seeder populator scripts \
+  && pip install --no-cache-dir .
+
+# ----------------------------------------------------------------------
+# CACHE BOUNDARY
+# ----------------------------------------------------------------------
 COPY Persistence/src/migrator ./migrator
 COPY Persistence/src/schemer ./schemer
 COPY Persistence/src/seeder ./seeder
 COPY Persistence/src/populator ./populator
 COPY Persistence/src/scripts ./scripts
 
-# -----------------------------
-# 5. setup entrypoint
-# -----------------------------
+RUN pip install --no-cache-dir --no-deps .
+
 COPY Persistence/entrypoint_pers.sh /entrypoint_pers.sh
 RUN chmod +x /entrypoint_pers.sh
 ENTRYPOINT ["/entrypoint_pers.sh"]

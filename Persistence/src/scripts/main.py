@@ -1,10 +1,10 @@
 import os
 import pandas as pd
-from shared_db import Base
+from shared.db import Base
 
 # 🔥 This is the missing piece that hooks up the metadata!
-from shared_models import __all__ as model_names
-from shared_utils import print_list
+from shared.models import __all__ as model_names
+from shared.utils import print_list
 
 OUTPUT_DIR = "/api/scripts/extracted"
 os.makedirs(OUTPUT_DIR, exist_ok=True)

@@ -1,4 +1,4 @@
-from shared_utils import BaseDomainError
+from shared.utils import BaseDomainError
 
 
 class AuthError(BaseDomainError):
