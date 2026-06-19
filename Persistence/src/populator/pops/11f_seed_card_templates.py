@@ -66,9 +66,7 @@ def normalize(value):
         return None
     value = unicodedata.normalize("NFKD", value)
     value = "".join(
-        character
-        for character in value
-        if not unicodedata.combining(character)
+        character for character in value if not unicodedata.combining(character)
     )
     value = value.casefold()
     value = re.sub(r"\s+", " ", value)
@@ -96,8 +94,7 @@ def truncate(value, max_length):
 def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     if sheet_name not in excel.sheet_names:
         raise ValueError(
-            f"No existe la hoja {sheet_name!r}. "
-            f"Hojas disponibles: {excel.sheet_names}"
+            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
         )
     frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
     frame.columns = [str(column).strip() for column in frame.columns]
@@ -114,9 +111,7 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
     required = {"Pregunta", "Bucle", f"Bucle {YEAR}"}
     missing = required - set(frame.columns)
     if missing:
-        raise ValueError(
-            f"Faltan columnas en la hoja {YEAR}: {sorted(missing)}"
-        )
+        raise ValueError(f"Faltan columnas en la hoja {YEAR}: {sorted(missing)}")
 
     registry: OrderedDict[str, dict] = OrderedDict()
 
@@ -128,9 +123,7 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
         if loop_question is None:
             continue
         if loop_text is None or parent_question is None:
-            raise ValueError(
-                f"Bucle incompleto en fila {int(index) + 2}."
-            )
+            raise ValueError(f"Bucle incompleto en fila {int(index) + 2}.")
 
         candidate = {
             "loop_question": loop_question,
@@ -144,14 +137,10 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
             registry[loop_question] = candidate
             continue
 
-        if (
-            normalize(existing["loop_text"]) != normalize(loop_text)
-            or normalize(existing["parent_question"])
-            != normalize(parent_question)
-        ):
-            raise ValueError(
-                f"Información contradictoria para {loop_question}."
-            )
+        if normalize(existing["loop_text"]) != normalize(loop_text) or normalize(
+            existing["parent_question"]
+        ) != normalize(parent_question):
+            raise ValueError(f"Información contradictoria para {loop_question}.")
 
     records = list(registry.values())
     if len(records) != EXPECTED_LOOP_COUNT:
@@ -213,13 +202,15 @@ async def get_questions(conn, form_id: str) -> dict[str, dict]:
         text(
             """
             SELECT
-                id::text AS question_id,
-                label,
-                description,
-                is_loop
-            FROM forms.questions
-            WHERE form_id = CAST(:form_id AS uuid)
-            ORDER BY label, id;
+                q.id::text AS question_id,
+                q.label,
+                q.description,
+                q.is_loop
+            FROM forms.questions q
+            -- FIX: Join on sections table to safely access the missing form_id link
+            JOIN forms.sections s ON q.section_id = s.id
+            WHERE s.form_id = CAST(:form_id AS uuid)
+            ORDER BY q.label, q.id;
             """
         ),
         {"form_id": form_id},
@@ -237,9 +228,7 @@ async def get_questions(conn, form_id: str) -> dict[str, dict]:
                 f"{[row['question_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["question_id"]):
-            raise ValueError(
-                f"Pregunta sin UUIDv7: {rows[0]['question_id']}"
-            )
+            raise ValueError(f"Pregunta sin UUIDv7: {rows[0]['question_id']}")
         lookup[key] = rows[0]
 
     return lookup
@@ -273,9 +262,7 @@ async def get_existing_templates(conn) -> dict[str, dict]:
                 f"{[row['card_template_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["card_template_id"]):
-            raise ValueError(
-                f"card_template sin UUIDv7: {rows[0]['card_template_id']}"
-            )
+            raise ValueError(f"card_template sin UUIDv7: {rows[0]['card_template_id']}")
         lookup[question_id] = rows[0]
 
     return lookup
@@ -340,8 +327,7 @@ async def validate_loaded(
             )
         if normalize(template["label"]) != normalize(source["loop_question"]):
             raise ValueError(
-                f"label incorrecto para card_template de "
-                f"{source['loop_question']}."
+                f"label incorrecto para card_template de {source['loop_question']}."
             )
         if normalize(template["description"]) != normalize(source["loop_text"]):
             raise ValueError(
@@ -353,13 +339,9 @@ async def validate_loaded(
                 f"helper debe quedar vacío para {source['loop_question']}."
             )
         if not is_uuidv7(template["card_template_id"]):
-            raise ValueError(
-                f"UUID no es versión 7 para {source['loop_question']}."
-            )
+            raise ValueError(f"UUID no es versión 7 para {source['loop_question']}.")
 
-    logger.info(
-        f"forms.card_templates validation passed. Validated: {len(expected)}."
-    )
+    logger.info(f"forms.card_templates validation passed. Validated: {len(expected)}.")
 
 
 # -----------------------------------------------------------------------------
@@ -416,9 +398,7 @@ async def upgrade(gh=None, api=None) -> None:
                 )
 
             old = existing.get(question["question_id"])
-            card_template_id = (
-                old["card_template_id"] if old else new_uuidv7()
-            )
+            card_template_id = old["card_template_id"] if old else new_uuidv7()
             if not is_uuidv7(card_template_id):
                 raise ValueError(f"ID no UUIDv7: {card_template_id}")
 
