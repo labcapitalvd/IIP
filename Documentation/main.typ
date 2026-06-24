@@ -16,7 +16,7 @@
   inset: 10pt,
   radius: 5pt,
   width: 100%,
-  stroke: (left: 2pt + gray), // Opcional: línea lateral elegante
+  stroke: (left: 2pt + gray),
   it,
 )
 
@@ -43,7 +43,6 @@
 )
 
 = Introducción <intro>
-
 
 La plataforma del índice de Innovación Pública (desde ahora IIP) se erige como un sofisticado ecosistema tecnológico, concebido como un hub de datos multidominio de alta disponibilidad, diseñado específicamente para satisfacer las necesidades analíticas y de gobernanza de la Veeduría Distrital. Este sistema no solo actúa como un repositorio centralizado, sino como un motor de procesamiento inteligente capaz de orquestar la complejidad inherente a los datos distritales, integrando de manera fluida la gestión dinámica de formularios, la administración de actores estratégicos y sistemas de evaluación robustos.
 
@@ -551,100 +550,193 @@ El flujo de información es transaccional y validado. Cuando un cliente solicita
 
 = Eraser
 
-Table of Contents
+= Table of Contents
 
 1. Introduction
-   1.1 Purpose
-   1.2 Scope
-   1.3 Intended Audience
-   1.4 Platform Overview
-   1.5 Design Principles
+   Purpose
+   Scope
+   Intended Audience
+   Platform Overview
+   Design Principles
 
 2. System Architecture
-   2.1 High-Level Architecture
-   2.2 Architectural Decisions
-   2.3 Service Overview
-   2.4 Monorepo Structure
-   2.5 Technology Stack
+   High-Level Architecture
+   Architectural Decisions
+   Service Overview
+   Monorepo Structure
+   Technology Stack
 
 3. Deployment Architecture
-   3.1 Infrastructure Overview
-   3.2 Docker Architecture
-   3.3 Reverse Proxy (Nginx)
-   3.4 Service Communication
-   3.5 Configuration Management
-   3.6 Environment Variables
-   3.7 Secrets Management
+   Infrastructure Overview
+   Docker Architecture
+   Reverse Proxy (Nginx)
+   Service Communication
+   Configuration Management
+   Environment Variables
+   Secrets Management
 
 4. Domain Architecture
-   4.1 Domain-Driven Design
-   4.2 Layered Architecture
-   4.3 Application Services
-   4.4 Repositories
-   4.5 Unit of Work
-   4.6 Shared Library
-   4.7 Request Lifecycle
+   Domain-Driven Design
+   Layered Architecture
+   Application Services
+   Repositories
+   Unit of Work
+   Shared Library
+   Request Lifecycle
 
 5. Data Architecture
-   5.1 Database Overview
-   5.2 Schema Organization
-   5.3 Domain Entities
-   5.4 Relationships
-   5.5 Historical IIP Versions
-   5.6 Data Integrity
-   5.7 Auditability
+   Database Overview
+   Schema Organization
+   Domain Entities
+   Relationships
+   Historical IIP Versions
+   Data Integrity
+   Auditability
 
 6. Persistence
-   6.1 SQLAlchemy
-   6.2 Alembic Migrations
-   6.3 Seeders
-   6.4 Historical Data Population
-   6.5 Backup and Recovery
+   SQLAlchemy
+   Alembic Migrations
+   Seeders
+   Historical Data Population
+   Backup and Recovery
 
 7. Authentication & Authorization
-   7.1 Authentication Service
-   7.2 JWT Authentication
-   7.3 Roles & Permissions
-   7.4 Refresh Sessions
-   7.5 Password Security
+   Authentication Service
+   JWT Authentication
+   Roles & Permissions
+   Refresh Sessions
+   Password Security
 
 8. API Design
-   8.1 REST Conventions
-   8.2 API Structure
-   8.3 Authentication Flow
-   8.4 Error Handling
-   8.5 Pagination & Filtering
-   8.6 OpenAPI Documentation
+   REST Conventions
+   API Structure
+   Authentication Flow
+   Error Handling
+   Pagination & Filtering
+   OpenAPI Documentation
 
 9. Development Guide
-   9.1 Repository Structure
-   9.2 Workspace Management
-   9.3 Dependency Management
-   9.4 Local Development
-   9.5 Testing
-   9.6 Code Style
-   9.7 Contributing
+   Repository Structure
+   Workspace Management
+   Dependency Management
+   Local Development
+   Testing
+   Code Style
+   Contributing
 
 10. Operations
-    10.1 Deployment
-    10.2 Logging
-    10.3 Monitoring
-    10.4 Performance
-    10.5 Maintenance
+   Deployment
+   Logging
+   Monitoring
+   Performance
+   Maintenance
 
 11. Future Evolution
-    11.1 Background Workers
-    11.2 Open Data Integration
-    11.3 Semantic Search
-    11.4 Vector Database Integration
-    11.5 Retrieval-Augmented Generation (RAG)
-    11.6 MCP Integration
-
+   Background Workers
+   Open Data Integration
+   Semantic Search
+   Vector Database Integration
+   Retrieval-Augmented Generation (RAG)
+   MCP Integration
 12. Appendix
-    12.1 Directory Structure
-    12.2 Configuration Reference
-    12.3 Glossary
-    12.4 Acronyms
+   Directory Structure
+   Configuration Reference
+   Glossary
+   Acronyms
+
+
+= 1. Introducción
+== Propósito
+== Alcance
+== Audiencia destinada
+== Visión general de la plataforma
+== Principios de diseño
+
+= 2. Arquitectura del sistema
+== Arquitectura de alto nivel
+== Decisiones arquitectónicas
+== Visión general de los servicios
+== Estructura de monorepo
+== Stack tecnológico
+
+= 3. Arquitectura de despliegue
+== Visión general de la infraestructura
+== Arquitectura Docker
+== Proxy inverso (Nginx)
+== Comunicación entre servicios
+== Gestión de configuración
+== Variables de entorno
+== Gestión de secretos
+
+= 4. Arquitectura de dominio
+== Diseño guiado por el dominio (DDD)
+== Arquitectura en capas
+== Servicios de aplicación
+== Repositorios
+== Unidad de trabajo (Unit of Work)
+== Librería compartida
+== Ciclo de vida de la solicitud
+
+= 5. Arquitectura de datos
+== Visión general de la base de datos
+== Organización del esquema
+== Entidades de dominio
+== Relaciones
+== Versiones históricas de IIP
+== Integridad de datos
+== Auditoría
+
+= 6. Persistencia
+== SQLAlchemy
+== Migraciones con Alembic
+== Seeders
+== Población de datos históricos
+== Respaldo y recuperación
+
+= 7. Autenticación y autorización
+== Servicio de autenticación
+== Autenticación JWT
+== Roles y permisos
+== Sesiones de refresco
+== Seguridad de contraseñas
+
+= 8. Diseño de API
+== Convenciones REST
+== Estructura de la API
+== Flujo de autenticación
+== Gestión de errores
+== Paginación y filtrado
+== Documentación OpenAPI
+
+= 9. Guía de desarrollo
+== Estructura del repositorio
+== Gestión de espacios de trabajo
+== Gestión de dependencias
+== Desarrollo local
+== Pruebas
+== Estilo de código
+== Contribución
+
+= 10. Operaciones
+== Despliegue
+== Registro (Logging)
+== Monitoreo
+== Rendimiento
+== Mantenimiento
+
+= 11. Evolución futura
+== Trabajadores en segundo plano (Background Workers)
+== Integración de datos abiertos
+== Búsqueda semántica
+== Integración de bases de datos vectoriales
+== Generación aumentada por recuperación (RAG)
+== Integración MCP
+
+= 12. Apéndice
+== Estructura de directorios
+== Referencia de configuración
+== Glosario
+== Acrónimos
 
 #bibliography("library.bib")
 
