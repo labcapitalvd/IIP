@@ -3,13 +3,13 @@
 from .audit import LogActionTypesEnum
 from .auth import RolesEnum, UserTiersEnum
 from .files import FileTypesEnum
+from .interactions import CommentTypesEnum, NotificationTypesEnum
 from .reference import (
     FieldTypesEnum,
     RelationalOperatorsEnum,
     RuleTypesEnum,
     SubmissionStatusesEnum,
 )
-from .interactions import NotificationTypesEnum, CommentTypesEnum
 
 __all__ = [
     # Audit
