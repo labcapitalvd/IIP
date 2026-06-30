@@ -77,6 +77,11 @@ En términos operativos, la plataforma está diseñada para satisfacer tres pila
 
 
 == Alcance
+
+El presente documento pretende servir al lector como la fuente de verdad sobre el funcionamiento hasta la fecha de redacción del presente documento, de la plataforma API de gestión de datos del Índice de Innovación Pública.
+
+Teniendo eso en cuenta, el documento no contempla desglosar el funcionamiento de otras herramientas usadas alrededor o en simultáneo / paralelo con la API que aquí se documenta. Entre estas últimas encontramos front ends de consumo de los datos, dashboards, el aplicativo de captura del instrumento, los sistemas de trabajadores para analíticas de datos o el acceso por API de agentes externos a la propia plataforma.
+
 == Audiencia destinada
 
 La plataforma IIP está diseñada para servir a un ecosistema diverso de usuarios, cada uno con necesidades específicas de interacción y niveles de acceso diferenciados:
@@ -99,7 +104,7 @@ La plataforma IIP se posiciona como el ecosistema tecnológico de referencia par
 
 + Centralización de la Fuente de Verdad: Históricamente, la información del IIP se encontraba dispersa en estructuras no normalizadas. La plataforma IIP consolida todas las versiones históricas (2019-2025) en un modelo de datos único, auditable y versionable, garantizando que tanto los organismos de control como los tomadores de decisiones operen sobre la misma base de datos íntegra.
 
-+ Motor de Inteligencia y Trazabilidad: La arquitectura implementa un flujo transaccional donde cada interacción —desde la respuesta inicial de una entidad hasta la calificación final por parte del colegio calificador— es registrada y validada. Este nivel de trazabilidad permite no solo la transparencia, sino también la creación de analíticas complejas que identifican patrones de mejora en tiempo real.
++ Motor de Inteligencia y Trazabilidad: La arquitectura implementa un flujo transaccional donde cada interacción (desde la respuesta inicial de una entidad hasta la calificación final por parte del colegio calificador) es registrada y validada. Este nivel de trazabilidad permite no solo la transparencia, sino también la creación de analíticas complejas que identifican patrones de mejora en tiempo real.
 
 + Ecosistema Abierto y Escalable: La plataforma está diseñada para trascender su función administrativa. Al exponer la data cruda a través de APIs documentadas, permite que laboratorios como iBo, investigadores académicos y herramientas de IA (RAG/MCP) se integren de manera nativa. Esto asegura que el sistema no sea una "caja negra", sino un motor abierto que se adapta tanto a los reportes de política pública (como el CONPES 04) como a las necesidades de análisis de datos a futuro.
 
@@ -116,17 +121,25 @@ La lógica de negocio reside en una capa central pura, independiente de framewor
 El sistema opera bajo el principio de centralización de la persistencia. Al utilizar SQLAlchemy y Alembic, garantizamos que cualquier dato, desde un histórico de 2019 hasta una nueva respuesta, mantenga la integridad relacional. No existen datos duplicados ni versiones divergentes de la realidad.
 
 === Reproducibilidad Total (Infraestructura como Código):
-El despliegue no debe depender de configuraciones manuales ("serendipia de servidor"). Mediante el script launcher.sh, el sistema garantiza que cualquier entorno (ya sea desarrollo, pruebas o producción) pueda levantarse desde cero con una configuración consistente, incluyendo esquemas y semillas de datos.
+El despliegue no debe depender de configuraciones manuales ("serendipia de servidor"). Mediante el script launcher.sh, el sistema garantiza que cualquier entorno (ya sea desarrollo o producción) pueda levantarse desde cero con una configuración consistente, incluyendo esquemas y semillas de datos.
 
 === Seguridad por Diseño:
 La confianza es crítica para una herramienta de la Veeduría. La seguridad no se añade al final; se implementa mediante capas: autenticación JWT con firma ED25519, hashing de contraseñas con Argon2, y gestión de secretos aislada para evitar la exposición de credenciales en el repositorio.
 
 === Apertura para la Extensibilidad (Data-First):
-El diseño anticipa el futuro. La plataforma no está cerrada; se construye con el principio de "API-first", permitiendo que sistemas externos —ya sean herramientas de visualización, agentes de IA para análisis semántico (RAG) o protocolos de integración (MCP)— consuman los datos de forma estructurada y controlada sin comprometer la seguridad.
+El diseño anticipa el futuro. La plataforma no está cerrada; se construye con el principio de "API-first", permitiendo que sistemas externos, ya sean herramientas de visualización, agentes de IA para análisis semántico (RAG) o protocolos de integración (MCP), consuman los datos de forma estructurada y controlada sin comprometer la seguridad.
 
 = Arquitectura del sistema
 
 La plataforma IIP adopta un diseño modular basado en microservicios, eliminando la complejidad de los monolitos tradicionales mediante una estrategia de monorepo gestionada por workspaces. Esta arquitectura está diseñada para maximizar la independencia de los dominios funcionales (Autenticación, Lógica de Negocio y Persistencia), asegurando al mismo tiempo una gobernanza centralizada del código. La infraestructura se apoya en la contenerización para garantizar la portabilidad y la escalabilidad granular, permitiendo que cada componente evolucione de manera autónoma sin comprometer la integridad del ecosistema.
+
+Así mismo, la arquitectura apunta por la limpieza del código, la no repetición de utilidades y la predictibilidad (Comúnmente asociados a principios KISS y DRY); mientras a su vez busca que el código responda a las necesidades del Índice y no que éste deba moldearse a la aplicación o a patrones comúnes de desarrollo (El patrón de diseño implementado en la presente aplicación busca seguir las directrices definidas por DDD @book_ddd_evans2004, pero toma algunas libertades para garantizar la separación de responsabilidades, la practicidad o la seguridad).
+
+== Arquitectura de alto nivel
+
+A nivel técnico, el sistema se organiza bajo el principio de separación de responsabilidades, utilizando una arquitectura de capas basada en Domain-Driven Design (DDD). Esta estructura se divide en dos planos fundamentales: el despliegue de infraestructura y la organización lógica del código.
+
+En el plano operativo, un proxy inverso Nginx actúa como la única puerta de entrada hacia la plataforma. Este componente gestiona el enrutamiento seguro de las peticiones del usuario hacia los servicios correspondientes (Auth para identidad y Core para negocio), los cuales interactúan con un motor centralizado de PostgreSQL. Por su parte, el servicio de Persistence opera como un componente de gestión fuera del flujo crítico de usuario, dedicado exclusivamente a la integridad del ciclo de vida de los datos (migraciones, poblamiento y respaldos), tal como se detalla en @dia-deploy.
 
 #figure(
   mermaid(
@@ -165,14 +178,28 @@ La plataforma IIP adopta un diseño modular basado en microservicios, eliminando
   caption: [Arquitectura de despliegue.],
 ) <dia-deploy>
 
-== Arquitectura de alto nivel
+En el plano de desarrollo, el uso de un monorepo nos permite que servicios independientes (como Auth, Core y Persistence) compartan una capa de utilidades y modelos definida en el módulo Shared. Como se ilustra en @dia-deps, esta dependencia garantiza una consistencia semántica en todo el sistema y evita la duplicidad de lógica, permitiendo que las entidades de dominio sean coherentes en toda la plataforma.
 
-A nivel técnico, el sistema se organiza bajo el principio de separación de responsabilidades, utilizando una arquitectura de capas basada en Domain-Driven Design (DDD). Esta estructura se divide en dos planos fundamentales: el despliegue de infraestructura y la organización lógica del código.
+#figure(
+  mermaid(
+    "
+    graph BT
+    subgraph Monorepo [Workspace: IIP Platform]
+        direction BT
+        Shared[Librería Compartida / Shared]
 
-En el plano operativo, un proxy inverso Nginx actúa como la única puerta de entrada hacia la plataforma. Este componente gestiona el enrutamiento seguro de las peticiones del usuario hacia los servicios correspondientes (Auth para identidad y Core para negocio), los cuales interactúan con un motor centralizado de PostgreSQL. Por su parte, el servicio de Persistence opera como un componente de gestión fuera del flujo crítico de usuario, dedicado exclusivamente a la integridad del ciclo de vida de los datos (migraciones, poblamiento y respaldos), tal como se detalla en @dia-deploy.
+        Auth[Auth Service] -->|Importa tipos/utils| Shared
+        Core[Core Service] -->|Importa tipos/utils| Shared
+        Persistence[Persistence Service] -->|Importa tipos/utils| Shared
+    end
 
-En el plano de desarrollo, el uso de un monorepo nos permite que servicios independientes —como Auth, Core y Persistence— compartan una capa de utilidades y modelos definida en el módulo Shared. Como se ilustra en @dia-deps, esta dependencia garantiza una consistencia semántica en todo el sistema y evita la duplicidad de lógica, permitiendo que las entidades de dominio sean coherentes en toda la plataforma.
-
+    style Shared fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Monorepo fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5 5
+  ",
+  ),
+  caption: [Dependencias de módulos dentro del monorepo.],
+  outlined: true
+) <dia-deps>
 
 El sistema se despliega mediante una arquitectura basada en contenedores Docker, orquestada para garantizar el aislamiento y la escalabilidad de cada componente. Un proxy inverso Nginx actúa como puerta de enlace, gestionando el enrutamiento del tráfico hacia los servicios correspondientes y asegurando una comunicación segura. La lógica interna sigue el patrón de diseño Domain-Driven Design (DDD), implementando una arquitectura de capas que organiza el código en servicios, unidades de trabajo (UOW) y repositorios, asegurando que la lógica de negocio permanezca desacoplada de los detalles técnicos de persistencia. Esta disposición permite una evolución independiente de cada módulo, desde la capa de autenticación hasta el motor de procesamiento de datos gestionado por el servicio de core y el motor de base de datos PostgreSQL.
 
@@ -306,25 +333,6 @@ La Unidad de Trabajo es el mecanismo que garantiza la consistencia transaccional
 
 == Librería compartida
 
-#figure(
-  mermaid(
-    "
-    graph BT
-    subgraph Monorepo [Workspace: IIP Platform]
-        direction BT
-        Shared[Librería Compartida / Shared]
-
-        Auth[Auth Service] -->|Importa tipos/utils| Shared
-        Core[Core Service] -->|Importa tipos/utils| Shared
-        Persistence[Persistence Service] -->|Importa tipos/utils| Shared
-    end
-
-    style Shared fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style Monorepo fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5 5
-  ",
-  ),
-  caption: [Dependencias de módulos dentro del monorepo.],
-) <dia-deps>
 
 
 
@@ -711,6 +719,6 @@ El sistema utiliza el algoritmo `Argon2id`, estándar actual de OWASP. Este enfo
 == Integración MCP
 
 #bibliography("library.bib")
-
+#outline()
 
 
