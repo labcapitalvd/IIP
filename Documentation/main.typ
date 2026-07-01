@@ -1,6 +1,39 @@
-#import "@preview/charged-vde:1.0.0": charged-vde
+#import "@preview/charged-ieee:0.1.4": ieee
+
 #import "@preview/cetz:0.3.1"
 #import "@preview/merman:0.1.0": mermaid
+
+
+#show: ieee.with(
+  title: text(
+    size: 28pt,
+    weight: "bold",
+  )[Arquitectura y Especificaciones de la Plataforma IIP],
+  authors: (
+    (
+      name: "Juan José Martínez Guerrero",
+      department: [LABCapital --- Laboratorio de Innovación Pública],
+      organization: [Veeduría Distrital],
+      location: [Bogotá, Colombia],
+      email: "labcapital@veeduriadistrital.gov.co",
+    ),
+  ),
+  abstract: [La plataforma del Índice de Innovación Pública (IIP) constituye un ecosistema de gestión de datos de alto rendimiento, diseñado como una arquitectura de microservicios orientada al dominio (DDD) para servir como el motor central de inteligencia y trazabilidad de la Veeduría Distrital. El sistema implementa una arquitectura basada en contenedores Docker que integra componentes especializados: autenticación, lógica central (Core), persistencia (Alembic/Seeders), almacenamiento persistente en PostgreSQL y un proxy inverso Nginx. Desarrollada bajo el patrón Fast API con capas de servicios, unidades de trabajo (UOW) y repositorios, la solución centraliza el ciclo de vida completo de las versiones 2019, 2021, 2023 y 2025 del IIP, abarcando desde la gestión de cuestionarios y respuestas hasta el procesamiento analítico de resultados. Esta infraestructura está diseñada como una solución escalable y abierta, preparada para la integración futura con motores de vectorización, sistemas de Generación Aumentada por Recuperación (RAG) y protocolos de Model Context Protocol (MCP), facilitando tanto la captura de nuevas propuestas y la gestión de procesos de evaluación, como la democratización de datos a través de portales de datos abiertos.
+  ],
+  paper-size: "a4",
+  index-terms: (
+    "Public Innovation Index",
+    "Domain-Driven Design",
+    "Microservices Architecture",
+    "Data Governance",
+    "FastAPI",
+    "Scalable Systems",
+    "Enterprise Application Architecture",
+    "Public Policy Informatics",
+  ),
+  bibliography: "library.bib",
+)
+
 
 #let note(content) = block(
   fill: rgb("e0f2fe"),
@@ -36,25 +69,7 @@
   it,
 )
 
-#show: charged-vde.with(
-  title: text(
-    size: 28pt,
-    weight: "bold",
-  )[Arquitectura y Especificaciones de la Plataforma IIP],
-  authors: (
-    (name: "Juan José Martínez Guerrero", affiliation: "1"),
-  ),
-  affiliations: (
-    (id: "1", name: "IIP Platform | Lead Maintainer"),
-  ),
-
-  email: [https://github.com/SpanishSyntax],
-  lang: "es",
-  abstract: [La plataforma del Índice de Innovación Pública (IIP) constituye un ecosistema de gestión de datos de alto rendimiento, diseñado como una arquitectura de microservicios orientada al dominio (DDD) para servir como el motor central de inteligencia y trazabilidad de la Veeduría Distrital. El sistema implementa una arquitectura basada en contenedores Docker que integra componentes especializados: autenticación, lógica central (Core), persistencia (Alembic/Seeders), almacenamiento persistente en PostgreSQL y un proxy inverso Nginx. Desarrollada bajo el patrón Fast API con capas de servicios, unidades de trabajo (UOW) y repositorios, la solución centraliza el ciclo de vida completo de las versiones 2019, 2021, 2023 y 2025 del IIP, abarcando desde la gestión de cuestionarios y respuestas hasta el procesamiento analítico de resultados. Esta infraestructura está diseñada como una solución escalable y abierta, preparada para la integración futura con motores de vectorización, sistemas de Generación Aumentada por Recuperación (RAG) y protocolos de Model Context Protocol (MCP), facilitando tanto la captura de nuevas propuestas y la gestión de procesos de evaluación, como la democratización de datos a través de portales de datos abiertos.],
-)
-
-
-
+// #outline()
 
 = Introducción
 
@@ -114,20 +129,15 @@ En esencia, la plataforma IIP es la infraestructura habilitante que convierte la
 
 La arquitectura de la plataforma IIP ha sido fundamentada sobre cinco principios rectores que garantizan la integridad, escalabilidad y transparencia del ecosistema:
 
-=== Desacoplamiento de Dominios (Arquitectura Hexagonal/DDD):
-La lógica de negocio reside en una capa central pura, independiente de frameworks web o bases de datos específicas. Esto permite que el sistema evolucione (cambiar una base de datos o migrar a una nueva versión de Python) sin alterar las reglas de validación del Índice de Innovación Pública.
++ *Desacoplamiento de Dominios (Arquitectura Hexagonal/DDD):* La lógica de negocio reside en una capa central pura, independiente de frameworks web o bases de datos específicas. Esto permite que el sistema evolucione (cambiar una base de datos o migrar a una nueva versión de Python) sin alterar las reglas de validación del Índice de Innovación Pública.
 
-=== Consistencia como Fuente de Verdad:
-El sistema opera bajo el principio de centralización de la persistencia. Al utilizar SQLAlchemy y Alembic, garantizamos que cualquier dato, desde un histórico de 2019 hasta una nueva respuesta, mantenga la integridad relacional. No existen datos duplicados ni versiones divergentes de la realidad.
++ *Consistencia como Fuente de Verdad:* El sistema opera bajo el principio de centralización de la persistencia. Al utilizar SQLAlchemy y Alembic, garantizamos que cualquier dato, desde un histórico de 2019 hasta una nueva respuesta, mantenga la integridad relacional. No existen datos duplicados ni versiones divergentes de la realidad.
 
-=== Reproducibilidad Total (Infraestructura como Código):
-El despliegue no debe depender de configuraciones manuales ("serendipia de servidor"). Mediante el script launcher.sh, el sistema garantiza que cualquier entorno (ya sea desarrollo o producción) pueda levantarse desde cero con una configuración consistente, incluyendo esquemas y semillas de datos.
++ *Reproducibilidad Total (Infraestructura como Código):* El despliegue no debe depender de configuraciones manuales ("serendipia de servidor"). Mediante el script launcher.sh, el sistema garantiza que cualquier entorno (ya sea desarrollo o producción) pueda levantarse desde cero con una configuración consistente, incluyendo esquemas y semillas de datos.
 
-=== Seguridad por Diseño:
-La confianza es crítica para una herramienta de la Veeduría. La seguridad no se añade al final; se implementa mediante capas: autenticación JWT con firma ED25519, hashing de contraseñas con Argon2, y gestión de secretos aislada para evitar la exposición de credenciales en el repositorio.
++ *Seguridad por Diseño:* La confianza es crítica para una herramienta de la Veeduría. La seguridad no se añade al final; se implementa mediante capas: autenticación JWT con firma ED25519, hashing de contraseñas con Argon2, y gestión de secretos aislada para evitar la exposición de credenciales en el repositorio.
 
-=== Apertura para la Extensibilidad (Data-First):
-El diseño anticipa el futuro. La plataforma no está cerrada; se construye con el principio de "API-first", permitiendo que sistemas externos, ya sean herramientas de visualización, agentes de IA para análisis semántico (RAG) o protocolos de integración (MCP), consuman los datos de forma estructurada y controlada sin comprometer la seguridad.
++ *Apertura para la Extensibilidad (Data-First):* El diseño anticipa el futuro. La plataforma no está cerrada; se construye con el principio de "API-first", permitiendo que sistemas externos, ya sean herramientas de visualización, agentes de IA para análisis semántico (RAG) o protocolos de integración (MCP), consuman los datos de forma estructurada y controlada sin comprometer la seguridad.
 
 = Arquitectura del sistema
 
@@ -198,7 +208,7 @@ En el plano de desarrollo, el uso de un monorepo nos permite que servicios indep
   ",
   ),
   caption: [Dependencias de módulos dentro del monorepo.],
-  outlined: true
+  outlined: true,
 ) <dia-deps>
 
 El sistema se despliega mediante una arquitectura basada en contenedores Docker, orquestada para garantizar el aislamiento y la escalabilidad de cada componente. Un proxy inverso Nginx actúa como puerta de enlace, gestionando el enrutamiento del tráfico hacia los servicios correspondientes y asegurando una comunicación segura. La lógica interna sigue el patrón de diseño Domain-Driven Design (DDD), implementando una arquitectura de capas que organiza el código en servicios, unidades de trabajo (UOW) y repositorios, asegurando que la lógica de negocio permanezca desacoplada de los detalles técnicos de persistencia. Esta disposición permite una evolución independiente de cada módulo, desde la capa de autenticación hasta el motor de procesamiento de datos gestionado por el servicio de core y el motor de base de datos PostgreSQL.
@@ -432,7 +442,7 @@ El script ejecuta internamente el comando de alembic revision --autogenerate den
   [Al utilizar --revision, el sistema crea un nuevo archivo de migración en Persistence/src/migrator/alembic/versions/. Es recomendable revisar el contenido de este archivo antes de aplicar la migración en entornos de producción para asegurar que Alembic ha detectado correctamente los cambios deseados.],
 )
 
-== Poblado de sistema (`seeds`)
+== Poblado de sistema
 
 Este módulo automatiza la carga de datos maestros e iniciales (seeds) en la base de datos tras asegurar la existencia de los esquemas y aplicar las migraciones correspondientes. El mecanismo implementado en `seeder.py` escanea dinámicamente el directorio interno `seeds/`, ordenando alfabéticamente los archivos encontrados para garantizar una secuencia de ejecución predecible y respetar las dependencias relacionales subyacentes. Utilizando el módulo `importlib.util` de Python, el script realiza una carga reflexiva de cada archivo `.py`, busca de forma explícita una función ejecutable llamada `upgrade()` y la invoca de manera aislada dentro de un bloque controlado de excepciones. El flujo captura errores individuales por archivo para evitar que un fallo en un set de datos interrumpa todo el proceso de inicialización, generando un registro detallado en el `logger` y volcando la traza completa (`traceback`) en la consola ante cualquier eventualidad.
 
@@ -468,7 +478,7 @@ Para asegurar el correcto orden de inserción (por ejemplo, registrar roles ante
   [Nota: Cualquier script de inicialización nuevo que se añada a la carpeta `seeds/` debe implementar obligatoriamente la función `upgrade()`. Se recomienda seguir el patrón numérico/alfabético prefijado (`00a_`, `10a_`) para controlar de forma explícita el orden de carga y evitar fallos por restricciones de llave foránea en la base de datos.],
 )
 
-== Poblado de históricos (`populator`)
+== Poblado de históricos
 
 Este componente gestiona la ingesta masiva de datos históricos y estructuras complejas en el sistema a través de la API pública de los microservicios, en lugar de realizar inserciones directas en el motor de persistencia. El módulo se orquesta de manera asíncrona mediante `asyncio` y `httpx`, conectándose con el servicio de autenticación (`api_auth`) y el núcleo del sistema (`api_core`) utilizando variables de entorno para resolver los endpoints internos de la red de Docker. El flujo extrae las credenciales iniciales de un archivo TOML administrado mediante secretos de Docker (`/run/secrets/users_file`), priorizando cuentas de nivel `root` para autenticarse, obtener el token Bearer correspondiente e inyectarlo automáticamente en las cabeceras de las peticiones. Para mitigar fallas en tareas de larga duración, la capa del cliente (`ServiceClient`) implementa mecanismos de re-autenticación automática que refrescan el token de acceso si este expira a mitad de una transacción.
 
@@ -536,7 +546,7 @@ Dado que el proceso de restauración sobrescribe los datos actuales de la base d
 
 La gestión de respaldos se centraliza en el script de automatización utilizando las siguientes banderas:
 
-=== Crear un Respaldo (`--backup`)
+=== Crear un Respaldo (backup)
 
 Genera una copia de seguridad en caliente de la base de datos PostgreSQL utilizando la herramienta pg_dump. El comando se ejecuta de forma no interactiva (-T) y almacena el archivo resultante usando una marca de tiempo (`TIMESTAMP`) para evitar la sobrescritura de respaldos anteriores.
 
@@ -557,7 +567,7 @@ Genera una copia de seguridad en caliente de la base de datos PostgreSQL utiliza
     ;;
 ```
 
-=== Restaurar un Respaldo (`--restore`)
+=== Restaurar un Respaldo (restore)
 
 Permite restaurar un archivo .sql específico cargándolo directamente en el motor de la base de datos mediante psql. El script requiere el nombre del archivo como parámetro e inyecta la variable `PGPASSWORD` de forma interna para realizar la autenticación automática sin solicitar credenciales en la terminal.
 
@@ -613,7 +623,6 @@ El sistema gestiona la seguridad a través de cuatro dimensiones que operan de f
 == Autenticación basada en JWT
 La plataforma utiliza JSON Web Tokens (JWT) firmados con *ED25519*. La firma criptográfica garantiza la inalterabilidad; cualquier modificación invalida el token, siendo verificado por cada microservicio mediante la clave pública.
 
-=== Estructura del Contexto (Claims)
 El token inyecta un objeto de contexto que define las capacidades operativas y funcionales del usuario, evitando consultas constantes a la base de datos:
 
 ```python
@@ -718,7 +727,4 @@ El sistema utiliza el algoritmo `Argon2id`, estándar actual de OWASP. Este enfo
 == Generación aumentada por recuperación (RAG)
 == Integración MCP
 
-#bibliography("library.bib")
-#outline()
-
-
+#bibliography("library.bib", full: true, style: "ieee")
