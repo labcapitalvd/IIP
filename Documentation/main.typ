@@ -1,14 +1,55 @@
-#import "@preview/charged-vde:1.0.0": charged-vde
+#import "@preview/charged-ieee:0.1.4": ieee
+
 #import "@preview/cetz:0.3.1"
 #import "@preview/merman:0.1.0": mermaid
 
+
+#show: ieee.with(
+  title: text(
+    size: 28pt,
+    weight: "bold",
+  )[Arquitectura y Especificaciones de la Plataforma IIP],
+  authors: (
+    (
+      name: "Juan José Martínez Guerrero",
+      department: [LABCapital --- Laboratorio de Innovación Pública],
+      organization: [Veeduría Distrital],
+      location: [Bogotá, Colombia],
+      email: "labcapital@veeduriadistrital.gov.co",
+    ),
+  ),
+  abstract: [La plataforma del Índice de Innovación Pública (IIP) constituye un ecosistema de gestión de datos de alto rendimiento, diseñado como una arquitectura de microservicios orientada al dominio (DDD) para servir como el motor central de inteligencia y trazabilidad de la Veeduría Distrital. El sistema implementa una arquitectura basada en contenedores Docker que integra componentes especializados: autenticación, lógica central (Core), persistencia (Alembic/Seeders), almacenamiento persistente en PostgreSQL y un proxy inverso Nginx. Desarrollada bajo el patrón Fast API con capas de servicios, unidades de trabajo (UOW) y repositorios, la solución centraliza el ciclo de vida completo de las versiones 2019, 2021, 2023 y 2025 del IIP, abarcando desde la gestión de cuestionarios y respuestas hasta el procesamiento analítico de resultados. Esta infraestructura está diseñada como una solución escalable y abierta, preparada para la integración futura con motores de vectorización, sistemas de Generación Aumentada por Recuperación (RAG) y protocolos de Model Context Protocol (MCP), facilitando tanto la captura de nuevas propuestas y la gestión de procesos de evaluación, como la democratización de datos a través de portales de datos abiertos.
+  ],
+  paper-size: "a4",
+  index-terms: (
+    "Public Innovation Index",
+    "Domain-Driven Design",
+    "Microservices Architecture",
+    "Data Governance",
+    "FastAPI",
+    "Scalable Systems",
+    "Enterprise Application Architecture",
+    "Public Policy Informatics",
+  ),
+  bibliography: "library.bib",
+)
+
+
 #let note(content) = block(
-  fill: rgb("e0f2fe"), inset: 10pt, radius: 4pt, stroke: rgb("38bdf8"), width: 100%,
-  [#text(weight: "bold", fill: rgb("0369a1"))[ℹ️ Nota:] #content]
+  fill: rgb("e0f2fe"),
+  inset: 10pt,
+  radius: 4pt,
+  stroke: rgb("38bdf8"),
+  width: 100%,
+  [#text(weight: "bold", fill: rgb("0369a1"))[ℹ️ Nota:] #content],
 )
 #let warning(content) = block(
-  fill: rgb("fef2f2"), inset: 10pt, radius: 4pt, stroke: rgb("fca5a5"), width: 100%,
-  [#text(weight: "bold", fill: rgb("b91c1c"))[⚠️ Atención:] #content]
+  fill: rgb("fef2f2"),
+  inset: 10pt,
+  radius: 4pt,
+  stroke: rgb("fca5a5"),
+  width: 100%,
+  [#text(weight: "bold", fill: rgb("b91c1c"))[⚠️ Atención:] #content],
 )
 
 #show raw.where(block: true): it => block(
@@ -28,27 +69,15 @@
   it,
 )
 
-#show: charged-vde.with(
-  title: text(size: 28pt, weight: "bold")[Arquitectura y Especificaciones de la Plataforma IIP],
-  authors: (
-    (name: "Juan José Martínez Guerrero", affiliation: "1,2"),
-  ),
-  affiliations: (
-    (id: "1", name: "Diseñador Industrial"),
-    (id: "2", name: "Ingeniero de Sistemas"),
-  ),
-  email: [https://github.com/SpanishSyntax],
-  lang: "es",
-  abstract: [La plataforma del Índice de Innovación Pública (IIP) constituye un ecosistema de gestión de datos de alto rendimiento, diseñado como una arquitectura de microservicios orientada al dominio (DDD) para servir como el motor central de inteligencia y trazabilidad de la Veeduría Distrital. El sistema implementa una arquitectura basada en contenedores Docker que integra componentes especializados: autenticación, lógica central (Core), persistencia (Alembic/Seeders), almacenamiento persistente en PostgreSQL y un proxy inverso Nginx. Desarrollada bajo el patrón Fast API con capas de servicios, unidades de trabajo (UOW) y repositorios, la solución centraliza el ciclo de vida completo de las versiones 2019, 2021, 2023 y 2025 del IIP, abarcando desde la gestión de cuestionarios y respuestas hasta el procesamiento analítico de resultados. Esta infraestructura está diseñada como una solución escalable y abierta, preparada para la integración futura con motores de vectorización, sistemas de Generación Aumentada por Recuperación (RAG) y protocolos de Model Context Protocol (MCP), facilitando tanto la captura de nuevas propuestas y la gestión de procesos de evaluación, como la democratización de datos a través de portales de datos abiertos.],
-)
+// #outline()
 
-= Introducción <intro>
+= Introducción
 
 La plataforma del índice de Innovación Pública (desde ahora IIP) se erige como un sofisticado ecosistema tecnológico, concebido como un hub de datos multidominio de alta disponibilidad, diseñado específicamente para satisfacer las necesidades analíticas y de gobernanza de la Veeduría Distrital. Este sistema no solo actúa como un repositorio centralizado, sino como un motor de procesamiento inteligente capaz de orquestar la complejidad inherente a los datos distritales, integrando de manera fluida la gestión dinámica de formularios, la administración de actores estratégicos y sistemas de evaluación robustos.
 
 Bajo una arquitectura de microservicios estrictamente desacoplada, la plataforma garantiza una separación de responsabilidades que optimiza el ciclo de vida del software, permitiendo que los servicios de autenticación, la lógica de negocio central y la capa de persistencia operen como entidades independientes, aunque perfectamente cohesionadas. Todo este desarrollo está consolidado bajo una estrategia de monorepo, la cual permite la gestión unificada del código fuente, facilitando el intercambio de lógica a través de una biblioteca interna compartida. Esta infraestructura técnica, robusta y escalable, ha sido diseñada con una visión a largo plazo, garantizando que el sistema sea capaz de evolucionar desde una solución de gestión administrativa hacia un núcleo tecnológico preparado para la integración de sistemas de vectorización, arquitecturas RAG, y protocolos de comunicación de última generación como MCP, consolidándose así como la infraestructura de datos definitiva para la innovación pública.
 
-== Propósito 
+== Propósito
 
 El propósito fundamental de la plataforma IIP es democratizar el acceso y la gestión del conocimiento derivado del Índice de Innovación Pública (IIP), funcionando como la columna vertebral de datos para la Veeduría Distrital. El alcance del sistema abarca la consolidación histórica y analítica de todas las versiones del índice (2019, 2021, 2023 y 2025), transformando una estructura de datos fragmentada en un modelo de información coherente, versionable y auditable.
 
@@ -60,16 +89,67 @@ En términos operativos, la plataforma está diseñada para satisfacer tres pila
 
 + Extensibilidad Inteligente: Servir como base de datos para sistemas avanzados, incluyendo la futura integración de servicios de RAG (Generación Aumentada por Recuperación) y agentes de IA, permitiendo consultas semánticas complejas sobre todo el histórico de resultados del IIP.
 
+
+
 == Alcance
 
-== Audiencia
+El presente documento pretende servir al lector como la fuente de verdad sobre el funcionamiento hasta la fecha de redacción del presente documento, de la plataforma API de gestión de datos del Índice de Innovación Pública.
 
-== Vista panorámica
+Teniendo eso en cuenta, el documento no contempla desglosar el funcionamiento de otras herramientas usadas alrededor o en simultáneo / paralelo con la API que aquí se documenta. Entre estas últimas encontramos front ends de consumo de los datos, dashboards, el aplicativo de captura del instrumento, los sistemas de trabajadores para analíticas de datos o el acceso por API de agentes externos a la propia plataforma.
+
+== Audiencia destinada
+
+La plataforma IIP está diseñada para servir a un ecosistema diverso de usuarios, cada uno con necesidades específicas de interacción y niveles de acceso diferenciados:
+
+- Entidades Distritales (Sujetos de Evaluación): Son los responsables de la carga de información. A través de funcionarios autorizados, representan a sus entidades para responder al IIP. El sistema garantiza que esta escritura sea trazable, auditable y centralizada, convirtiéndose en su herramienta oficial de reporte ante la Veeduría.
+
+- Niveles de Decisión Estratégica (Secretaría General y Cabezas de Sector): Estos actores utilizan los resultados del IIP como el principal insumo de diagnóstico. Su acceso está enfocado en la analítica de alto nivel para identificar brechas, priorizar inversiones y dirigir recursos hacia áreas que requieren mejoras sustanciales en sus capacidades de innovación pública.
+
+- Ecosistema de Innovación (Labs Distritales como iBo): Estos laboratorios actúan como catalizadores. Utilizan la data cruda y los resultados procesados para diseñar intervenciones, experimentos y estrategias de acompañamiento técnico a las entidades, transformando los puntajes bajos en planes de mejora concretos.
+
+- Organismos de Control: Utilizan el sistema como la fuente de verdad técnica para la generación de recomendaciones, auditorías y el seguimiento a políticas públicas transversales, incluyendo el cumplimiento del CONPES 04 y otros marcos normativos vigentes.
+
+- Comunidad Académica, Observatorios y ONGs: Actores que buscan democratizar el dato. Acceden a los resultados mediante portales de visualización, herramientas de exportación y consultas semánticas mediante IA, fomentando el escrutinio público y la investigación longitudinal.
+
+- Arquitectos y Desarrolladores: Personal técnico encargado de la integración del IIP con sistemas externos, servicios de RAG o protocolos de comunicación MCP, garantizando que el sistema evolucione como una pieza fundamental de la infraestructura digital del Distrito.
+
+== Visión general de la plataforma
+
+La plataforma IIP se posiciona como el ecosistema tecnológico de referencia para la gestión, procesamiento y democratización de los datos asociados al Índice de Innovación Pública de Bogotá. Más allá de actuar como un repositorio estático, la plataforma se ha concebido bajo tres pilares fundamentales que transforman la forma en que el Distrito gestiona su innovación:
+
++ Centralización de la Fuente de Verdad: Históricamente, la información del IIP se encontraba dispersa en estructuras no normalizadas. La plataforma IIP consolida todas las versiones históricas (2019-2025) en un modelo de datos único, auditable y versionable, garantizando que tanto los organismos de control como los tomadores de decisiones operen sobre la misma base de datos íntegra.
+
++ Motor de Inteligencia y Trazabilidad: La arquitectura implementa un flujo transaccional donde cada interacción (desde la respuesta inicial de una entidad hasta la calificación final por parte del colegio calificador) es registrada y validada. Este nivel de trazabilidad permite no solo la transparencia, sino también la creación de analíticas complejas que identifican patrones de mejora en tiempo real.
+
++ Ecosistema Abierto y Escalable: La plataforma está diseñada para trascender su función administrativa. Al exponer la data cruda a través de APIs documentadas, permite que laboratorios como iBo, investigadores académicos y herramientas de IA (RAG/MCP) se integren de manera nativa. Esto asegura que el sistema no sea una "caja negra", sino un motor abierto que se adapta tanto a los reportes de política pública (como el CONPES 04) como a las necesidades de análisis de datos a futuro.
+
+En esencia, la plataforma IIP es la infraestructura habilitante que convierte la complejidad administrativa en evidencia técnica, facilitando que las entidades, los laboratorios de innovación y los entes de control no solo midan, sino que transformen el desempeño del sector público en Bogotá.
 
 == Principios de diseño
 
+La arquitectura de la plataforma IIP ha sido fundamentada sobre cinco principios rectores que garantizan la integridad, escalabilidad y transparencia del ecosistema:
 
-== Mapa de arquitectura de alto nivel
++ *Desacoplamiento de Dominios (Arquitectura Hexagonal/DDD):* La lógica de negocio reside en una capa central pura, independiente de frameworks web o bases de datos específicas. Esto permite que el sistema evolucione (cambiar una base de datos o migrar a una nueva versión de Python) sin alterar las reglas de validación del Índice de Innovación Pública.
+
++ *Consistencia como Fuente de Verdad:* El sistema opera bajo el principio de centralización de la persistencia. Al utilizar SQLAlchemy y Alembic, garantizamos que cualquier dato, desde un histórico de 2019 hasta una nueva respuesta, mantenga la integridad relacional. No existen datos duplicados ni versiones divergentes de la realidad.
+
++ *Reproducibilidad Total (Infraestructura como Código):* El despliegue no debe depender de configuraciones manuales ("serendipia de servidor"). Mediante el script launcher.sh, el sistema garantiza que cualquier entorno (ya sea desarrollo o producción) pueda levantarse desde cero con una configuración consistente, incluyendo esquemas y semillas de datos.
+
++ *Seguridad por Diseño:* La confianza es crítica para una herramienta de la Veeduría. La seguridad no se añade al final; se implementa mediante capas: autenticación JWT con firma ED25519, hashing de contraseñas con Argon2, y gestión de secretos aislada para evitar la exposición de credenciales en el repositorio.
+
++ *Apertura para la Extensibilidad (Data-First):* El diseño anticipa el futuro. La plataforma no está cerrada; se construye con el principio de "API-first", permitiendo que sistemas externos, ya sean herramientas de visualización, agentes de IA para análisis semántico (RAG) o protocolos de integración (MCP), consuman los datos de forma estructurada y controlada sin comprometer la seguridad.
+
+= Arquitectura del sistema
+
+La plataforma IIP adopta un diseño modular basado en microservicios, eliminando la complejidad de los monolitos tradicionales mediante una estrategia de monorepo gestionada por workspaces. Esta arquitectura está diseñada para maximizar la independencia de los dominios funcionales (Autenticación, Lógica de Negocio y Persistencia), asegurando al mismo tiempo una gobernanza centralizada del código. La infraestructura se apoya en la contenerización para garantizar la portabilidad y la escalabilidad granular, permitiendo que cada componente evolucione de manera autónoma sin comprometer la integridad del ecosistema.
+
+Así mismo, la arquitectura apunta por la limpieza del código, la no repetición de utilidades y la predictibilidad (Comúnmente asociados a principios KISS y DRY); mientras a su vez busca que el código responda a las necesidades del Índice y no que éste deba moldearse a la aplicación o a patrones comúnes de desarrollo (El patrón de diseño implementado en la presente aplicación busca seguir las directrices definidas por DDD @book_ddd_evans2004, pero toma algunas libertades para garantizar la separación de responsabilidades, la practicidad o la seguridad).
+
+== Arquitectura de alto nivel
+
+A nivel técnico, el sistema se organiza bajo el principio de separación de responsabilidades, utilizando una arquitectura de capas basada en Domain-Driven Design (DDD). Esta estructura se divide en dos planos fundamentales: el despliegue de infraestructura y la organización lógica del código.
+
+En el plano operativo, un proxy inverso Nginx actúa como la única puerta de entrada hacia la plataforma. Este componente gestiona el enrutamiento seguro de las peticiones del usuario hacia los servicios correspondientes (Auth para identidad y Core para negocio), los cuales interactúan con un motor centralizado de PostgreSQL. Por su parte, el servicio de Persistence opera como un componente de gestión fuera del flujo crítico de usuario, dedicado exclusivamente a la integridad del ciclo de vida de los datos (migraciones, poblamiento y respaldos), tal como se detalla en @dia-deploy.
 
 #figure(
   mermaid(
@@ -108,13 +188,7 @@ En términos operativos, la plataforma está diseñada para satisfacer tres pila
   caption: [Arquitectura de despliegue.],
 ) <dia-deploy>
 
-El sistema se despliega mediante una arquitectura basada en contenedores Docker, orquestada para garantizar el aislamiento y la escalabilidad de cada componente. Un proxy inverso Nginx actúa como puerta de enlace, gestionando el enrutamiento del tráfico hacia los servicios correspondientes y asegurando una comunicación segura. La lógica interna sigue el patrón de diseño Domain-Driven Design (DDD), implementando una arquitectura de capas que organiza el código en servicios, unidades de trabajo (UOW) y repositorios, asegurando que la lógica de negocio permanezca desacoplada de los detalles técnicos de persistencia. Esta disposición permite una evolución independiente de cada módulo, desde la capa de autenticación hasta el motor de procesamiento de datos gestionado por el servicio de core y el motor de base de datos PostgreSQL.
-
-= Arquitectura de sistema
-
-La arquitectura de la plataforma IIP se fundamenta en un diseño modular de microservicios, orquestado mediante contenedores para garantizar la independencia, la escalabilidad horizontal y el aislamiento de responsabilidades. Hemos abandonado los enfoques monolíticos tradicionales en favor de una estructura de monorepo, la cual permite la gestión unificada del código fuente bajo una estrategia de workspace. Como se ilustra en @dia-deps, esta decisión estratégica facilita que los dominios funcionales (Auth, Core, Persistence) compartan una base común de utilidades y modelos (el módulo Shared), garantizando la consistencia del sistema y la reducción de la duplicidad de código sin sacrificar la independencia de despliegue de cada servicio.
-
-Este modelo es ideal para las necesidades de la Veeduría Distrital, ya que permite una gobernanza centralizada del código mientras asegura una escalabilidad granular, facilitando ciclos de desarrollo independientes para los componentes de autenticación y lógica de negocio central.
+En el plano de desarrollo, el uso de un monorepo nos permite que servicios independientes (como Auth, Core y Persistence) compartan una capa de utilidades y modelos definida en el módulo Shared. Como se ilustra en @dia-deps, esta dependencia garantiza una consistencia semántica en todo el sistema y evita la duplicidad de lógica, permitiendo que las entidades de dominio sean coherentes en toda la plataforma.
 
 #figure(
   mermaid(
@@ -134,9 +208,16 @@ Este modelo es ideal para las necesidades de la Veeduría Distrital, ya que perm
   ",
   ),
   caption: [Dependencias de módulos dentro del monorepo.],
+  outlined: true,
 ) <dia-deps>
 
+El sistema se despliega mediante una arquitectura basada en contenedores Docker, orquestada para garantizar el aislamiento y la escalabilidad de cada componente. Un proxy inverso Nginx actúa como puerta de enlace, gestionando el enrutamiento del tráfico hacia los servicios correspondientes y asegurando una comunicación segura. La lógica interna sigue el patrón de diseño Domain-Driven Design (DDD), implementando una arquitectura de capas que organiza el código en servicios, unidades de trabajo (UOW) y repositorios, asegurando que la lógica de negocio permanezca desacoplada de los detalles técnicos de persistencia. Esta disposición permite una evolución independiente de cada módulo, desde la capa de autenticación hasta el motor de procesamiento de datos gestionado por el servicio de core y el motor de base de datos PostgreSQL.
+
+== Decisiones arquitectónicas
+== Visión general de los servicios
+== Estructura de monorepo
 == Stack tecnológico
+
 
 El sistema está construido sobre un stack moderno orientado al rendimiento y la seguridad transaccional:
 
@@ -148,6 +229,11 @@ El sistema está construido sobre un stack moderno orientado al rendimiento y la
 + *Seguridad:* Argon2 para hashing y ED25519 para JWT
 
 Para un desglose detallado de las dependencias en materia de librerías del proyecto, por favor remítase a los `pyproject.toml` correspondientes a cada contenedor y al `pyproject.toml` global del proyecto.
+
+
+
+= Arquitectura de despliegue
+== Visión general de la infraestructura
 
 #figure(
   table(
@@ -173,29 +259,22 @@ Para un desglose detallado de las dependencias en materia de librerías del proy
   placement: bottom,
 ) <tab-comps>
 
-= Arquitectura de despliegue
 
-== Infraestructura
 
 == Arquitectura Docker
-
-== Proxy inverso
-
-== Comunicación de servicios
-
-== Variables de ambiente
-
-== Secretos y contraseñas
+== Proxy inverso (Nginx)
+== Comunicación entre servicios
+== Gestión de configuración
+== Variables de entorno
+== Gestión de secretos
 
 = Arquitectura de dominio
 
-== Microservicios
+La plataforma IIP adopta un diseño modular basado en microservicios, eliminando la complejidad de los monolitos tradicionales mediante una estrategia de monorepo gestionada por *workspaces*. Esta arquitectura está diseñada para maximizar la independencia de los dominios funcionales (Autenticación, Lógica de Negocio y Persistencia), asegurando al mismo tiempo una gobernanza centralizada del código. La infraestructura se apoya en la contenerización para garantizar la portabilidad y la escalabilidad granular, permitiendo que cada componente evolucione de manera autónoma sin comprometer la integridad del ecosistema.
 
-La lógica se encuentra particionada funcionalmente. El servicio Auth gestiona exclusivamente la identidad; el servicio Core encapsula la lógica de negocio del IIP, y el servicio de Persistence actúa como el motor de estado para Alembic y los seeders, asegurando que los datos históricos de 2019, 2021, 2023 y 2025 sean inyectados y mantenidos con integridad. Todo este despliegue está protegido por una capa de Nginx, tal como se detalla en @dia-deploy.
+La arquitectura se organiza bajo el principio de separación de responsabilidades, utilizando un diseño de capas basado en *Domain-Driven Design* (DDD). Esta estructura se divide en dos planos fundamentales: el despliegue de infraestructura y la organización lógica del código. En el plano operativo, el sistema garantiza que la lógica de negocio permanezca aislada de los detalles técnicos, mientras que el plano de desarrollo aprovecha el monorepo para compartir tipado y utilidades a través de una librería centralizada, garantizando una consistencia semántica absoluta en todo el sistema.
 
-
-
-== DDD
+== Diseño guiado por el dominio (DDD)
 
 El servicio Core implementa una arquitectura basada en Domain-Driven Design @book_ddd_evans2004 (DDD), organizada en capas que separan las responsabilidades de presentación, aplicación, dominio e infraestructura. Esta organización permite mantener la lógica de negocio desacoplada de los mecanismos de persistencia y comunicación, facilitando la mantenibilidad, la extensibilidad y las pruebas unitarias.
 
@@ -238,30 +317,57 @@ El servicio Core implementa una arquitectura basada en Domain-Driven Design @boo
 
 Esta separación de responsabilidades facilita la evolución independiente de cada capa, mejora la mantenibilidad del sistema y simplifica la implementación de pruebas unitarias al reducir el acoplamiento entre la lógica de negocio y la infraestructura.
 
-== Arquitectura de capas
 
-== Servicios
+== Arquitectura en capas
+
+El sistema se organiza en un flujo unidireccional de dependencias donde las capas internas (Dominio) son independientes de las capas externas (Infraestructura).
+
+- *Dominio:* Contiene las entidades, los objetos de valor y las reglas de negocio puras. Es la capa más protegida.
+- *Aplicación:* Orquesta las reglas de negocio para ejecutar casos de uso específicos.
+- *Infraestructura:* Implementa los detalles técnicos (bases de datos, frameworks web, clientes externos).
+
+== Servicios de aplicación
+
+Los servicios de aplicación actúan como coordinadores de alto nivel. Su responsabilidad es capturar la solicitud desde la capa API, validar el contexto de seguridad inyectado en el JWT y orquestar la llamada a la capa de dominio o a los servicios especializados. No ejecutan lógica de negocio per se, sino que aseguran que el flujo de datos sea consistente entre las entradas del usuario y las entidades del sistema.
 
 == Repositorios
 
-== UOW
+Los repositorios abstraen el acceso a la base de datos, tratando la persistencia como si fuera una colección de objetos en memoria. Cada agregado del dominio cuenta con su propio repositorio, lo que permite intercambiar la implementación técnica (SQLAlchemy, almacenamiento en caché, etc.) sin afectar los servicios de aplicación. El contrato se define mediante interfaces en el dominio, cumpliendo con el *Principio de Inversión de Dependencias*.
 
-== Shared
+== Unidad de trabajo (Unit of Work)
+
+La Unidad de Trabajo es el mecanismo que garantiza la consistencia transaccional. Implementa el patrón *Commit/Rollback* de forma centralizada:
+1. *Inicio:* Crea una transacción explícita al comenzar el caso de uso.
+2. *Ejecución:* Coordina múltiples repositorios durante la operación.
+3. *Finalización:* Aplica `commit` solo si todas las operaciones fueron exitosas, o `rollback` en caso de cualquier excepción, asegurando que el sistema nunca quede en un estado intermedio inconsistente.
+
+== Librería compartida
+
+
+
+
+== Ciclo de vida de la solicitud
+
+El ciclo de vida de una petición sigue un flujo estricto para garantizar la seguridad:
+
+1. *Ingreso:* La solicitud llega al Proxy Nginx, donde se verifica el formato del JWT.
+2. *Autenticación:* El middleware de FastAPI en el servicio `Core` decodifica y verifica la firma (ED25519) y la integridad del `AccessContext`.
+3. *Autorización:* Se inyecta la dependencia `AccessContext` que valida si el `sub` y los `assignments` tienen permisos sobre el `entity_id` solicitado.
+4. *Orquestación:* El Servicio de Aplicación recibe el comando y abre la *Unidad de Trabajo*.
+5. *Persistencia:* La UOW delega en los *Repositorios* para recuperar o guardar entidades.
+6. *Respuesta:* La UOW confirma la transacción y la capa API serializa el resultado hacia el cliente.
 
 = Arquitectura de datos
+== Visión general de la base de datos
 
-== Base de datos
 
-  #figure(
+#figure(
   image("./images/db_arq.jpeg", width: 85%),
   caption: [Arquitectura de flujo y dependencias del sistema de persistencia.],
 )
 
-== Modelos
-
-
 #grid(
-  columns: (1fr),
+  columns: 1fr,
   inset: 5pt,
   [
     ```text
@@ -282,22 +388,30 @@ Esta separación de responsabilidades facilita la evolución independiente de ca
     ```
   ]
 )
-
+== Organización del esquema
+== Entidades de dominio
 == Relaciones
-
-== Gestión
+== Versiones históricas de IIP
+== Integridad de datos
+== Auditoría
 
 = Persistencia
 
+La capa de persistencia constituye la base de la integridad operacional de la plataforma IIP. Su diseño no se limita al almacenamiento relacional, sino que implementa un ecosistema de gestión automatizada que garantiza la trazabilidad, consistencia y recuperabilidad de la información a lo largo de todo el ciclo de vida del dato. A través de una serie de componentes especializados —orquestados por el servicio persister—, el sistema gestiona desde la creación dinámica de esquemas y la evolución del modelo mediante migraciones versionadas, hasta la ingesta inteligente de volúmenes históricos y la salvaguarda de la base de datos mediante respaldos automáticos.
+
+Este diseño modular asegura que el estado del sistema sea siempre auditable y replicable. Al desacoplar las tareas de mantenimiento de la base de datos de la lógica de negocio activa, el sistema permite operaciones de administración (como migraciones de esquema o restauración de respaldos) de forma aislada y controlada, cumpliendo con los requisitos de robustez y disponibilidad exigidos por la Veeduría Distrital.
+
 == Creación de DB schemas
 
-Este módulo automatiza la creación de esquemas de base de datos en PostgreSQL durante el despliegue inicial del sistema, inspeccionando dinámicamente las clases del modelo de datos para garantizar la existencia de las estructuras necesarias. El script de persistencia extrae de manera única los nombres de los esquemas definidos en la clase `TargetTable` y sus clases base mediante introspección de código, identificando cada atributo que implemente el tipo `TableInfo`. 
+Este módulo automatiza la creación de esquemas de base de datos en PostgreSQL durante el despliegue inicial del sistema, inspeccionando dinámicamente las clases del modelo de datos para garantizar la existencia de las estructuras necesarias. El script de persistencia extrae de manera única los nombres de los esquemas definidos en la clase `TargetTable` y sus clases base mediante introspección de código, identificando cada atributo que implemente el tipo `TableInfo`.
 
 Posteriormente, abre una sesión síncrona con la base de datos y ejecuta de forma iterativa comandos seguros de creación de esquemas que previenen errores por duplicación. El flujo maneja de forma independiente cada confirmación o reversión ante fallos y genera un informe final en el registro del sistema detallando las estructuras creadas de manera exitosa y las fallidas.
 
 El script `launcher.sh` ejecuta automáticamente este proceso de inicialización al detectar la bandera `--setup`, simplificando la configuración del entorno cuando el sistema se despliega por primera vez en un servidor virgen.
 
-#note([Nota: La ejecución exitosa mediante la bandera `--setup` requiere que las credenciales y variables de entorno de la base de datos estén correctamente configuradas, y que el motor de PostgreSQL esté activo y aceptando conexiones.])
+#note(
+  [Nota: La ejecución exitosa mediante la bandera `--setup` requiere que las credenciales y variables de entorno de la base de datos estén correctamente configuradas, y que el motor de PostgreSQL esté activo y aceptando conexiones.],
+)
 
 == Alembic
 
@@ -314,7 +428,21 @@ La configuración de Alembic permite gestionar el ciclo de vida de la base de da
 
 El montaje del volumen de Alembic es obligatorio, y si el directorio versions en el host está vacío o no coincide con el estado actual de los modelos al levantar el servicio persister, las migraciones automáticas fallarán al no poder contrastar la metadata con el historial de revisiones previo.
 
-== Poblado de sistema (`seeds`)
+El sistema facilita la creación de nuevas migraciones mediante el script `launcher.sh`. Este mecanismo automatiza la detección de cambios entre la definición actual de los modelos (Packages/shared/models) y el estado real de la base de datos, generando los archivos de migración necesarios de forma estructurada.
+
+Para crear una nueva revisión tras modificar los modelos, utilice la bandera --revision especificando una descripción breve de los cambios:
+
+```bash
+./launcher.sh --revision "add_user_bio_field"
+```
+
+El script ejecuta internamente el comando de alembic revision --autogenerate dentro del contenedor persister. Esto asegura que el código generado sea coherente con el entorno de ejecución, capturando automáticamente cualquier adición, modificación o eliminación de columnas o tablas.
+
+#note(
+  [Al utilizar --revision, el sistema crea un nuevo archivo de migración en Persistence/src/migrator/alembic/versions/. Es recomendable revisar el contenido de este archivo antes de aplicar la migración en entornos de producción para asegurar que Alembic ha detectado correctamente los cambios deseados.],
+)
+
+== Poblado de sistema
 
 Este módulo automatiza la carga de datos maestros e iniciales (seeds) en la base de datos tras asegurar la existencia de los esquemas y aplicar las migraciones correspondientes. El mecanismo implementado en `seeder.py` escanea dinámicamente el directorio interno `seeds/`, ordenando alfabéticamente los archivos encontrados para garantizar una secuencia de ejecución predecible y respetar las dependencias relacionales subyacentes. Utilizando el módulo `importlib.util` de Python, el script realiza una carga reflexiva de cada archivo `.py`, busca de forma explícita una función ejecutable llamada `upgrade()` y la invoca de manera aislada dentro de un bloque controlado de excepciones. El flujo captura errores individuales por archivo para evitar que un fallo en un set de datos interrumpa todo el proceso de inicialización, generando un registro detallado en el `logger` y volcando la traza completa (`traceback`) en la consola ante cualquier eventualidad.
 
@@ -323,7 +451,7 @@ Al igual que los módulos previos de persistencia, este componente es invocado a
 Para asegurar el correcto orden de inserción (por ejemplo, registrar roles antes que usuarios), el directorio debe mantener una nomenclatura secuencial estricta tal como se ilustra en la siguiente estructura física:
 
 #grid(
-  columns: (1fr),
+  columns: 1fr,
   inset: 5pt,
   [
     ```text
@@ -346,9 +474,11 @@ Para asegurar el correcto orden de inserción (por ejemplo, registrar roles ante
   ]
 )
 
-#note([Nota: Cualquier script de inicialización nuevo que se añada a la carpeta `seeds/` debe implementar obligatoriamente la función `upgrade()`. Se recomienda seguir el patrón numérico/alfabético prefijado (`00a_`, `10a_`) para controlar de forma explícita el orden de carga y evitar fallos por restricciones de llave foránea en la base de datos.])
+#note(
+  [Nota: Cualquier script de inicialización nuevo que se añada a la carpeta `seeds/` debe implementar obligatoriamente la función `upgrade()`. Se recomienda seguir el patrón numérico/alfabético prefijado (`00a_`, `10a_`) para controlar de forma explícita el orden de carga y evitar fallos por restricciones de llave foránea en la base de datos.],
+)
 
-== Poblado de históricos (`populator`)
+== Poblado de históricos
 
 Este componente gestiona la ingesta masiva de datos históricos y estructuras complejas en el sistema a través de la API pública de los microservicios, en lugar de realizar inserciones directas en el motor de persistencia. El módulo se orquesta de manera asíncrona mediante `asyncio` y `httpx`, conectándose con el servicio de autenticación (`api_auth`) y el núcleo del sistema (`api_core`) utilizando variables de entorno para resolver los endpoints internos de la red de Docker. El flujo extrae las credenciales iniciales de un archivo TOML administrado mediante secretos de Docker (`/run/secrets/users_file`), priorizando cuentas de nivel `root` para autenticarse, obtener el token Bearer correspondiente e inyectarlo automáticamente en las cabeceras de las peticiones. Para mitigar fallas en tareas de larga duración, la capa del cliente (`ServiceClient`) implementa mecanismos de re-autenticación automática que refrescan el token de acceso si este expira a mitad de una transacción.
 
@@ -357,7 +487,7 @@ La extracción de la data histórica se delega a un conector dedicado (`GitHubCo
 La estructura física del módulo organiza las tareas en el directorio `pops/` de forma secuencial, incluyendo scripts específicos de migración y plantillas locales en formatos estructurados (CSV y XLSX) dentro de subdirectorios de trabajo:
 
 #grid(
-  columns: (1fr),
+  columns: 1fr,
   inset: 5pt,
   [
     ```text
@@ -388,7 +518,9 @@ La estructura física del módulo organiza las tareas en el directorio `pops/` d
   ]
 )
 
-#note([Nota: A diferencia de los módulos de esquemas, migraciones y datos maestros, el proceso de población masiva histórica no se ejecuta de forma mandatoria con la bandera `--setup` en sistemas limpios si los secretos o conectores externos de GitHub no están mapeados. Este componente requiere que tanto el contenedor de autenticación como el servicio núcleo estén completamente activos, saludables y con la base de datos ya estructurada.])
+#note(
+  [Nota: A diferencia de los módulos de esquemas, migraciones y datos maestros, el proceso de población masiva histórica no se ejecuta de forma mandatoria con la bandera `--setup` en sistemas limpios si los secretos o conectores externos de GitHub no están mapeados. Este componente requiere que tanto el contenedor de autenticación como el servicio núcleo estén completamente activos, saludables y con la base de datos ya estructurada.],
+)
 
 
 == Backup y Restore
@@ -408,11 +540,13 @@ Dado que el proceso de restauración sobrescribe los datos actuales de la base d
 
 
 
-#note([Nota: Se debe asegurar que el directorio local `./Persistence/src/backups` cuente con los permisos de lectura y escritura correctos para que el contenedor pueda almacenar los archivos.])
+#note(
+  [Nota: Se debe asegurar que el directorio local `./Persistence/src/backups` cuente con los permisos de lectura y escritura correctos para que el contenedor pueda almacenar los archivos.],
+)
 
 La gestión de respaldos se centraliza en el script de automatización utilizando las siguientes banderas:
 
-=== Crear un Respaldo (`--backup`)
+=== Crear un Respaldo (backup)
 
 Genera una copia de seguridad en caliente de la base de datos PostgreSQL utilizando la herramienta pg_dump. El comando se ejecuta de forma no interactiva (-T) y almacena el archivo resultante usando una marca de tiempo (`TIMESTAMP`) para evitar la sobrescritura de respaldos anteriores.
 
@@ -433,7 +567,7 @@ Genera una copia de seguridad en caliente de la base de datos PostgreSQL utiliza
     ;;
 ```
 
-=== Restaurar un Respaldo (`--restore`)
+=== Restaurar un Respaldo (restore)
 
 Permite restaurar un archivo .sql específico cargándolo directamente en el motor de la base de datos mediante psql. El script requiere el nombre del archivo como parámetro e inyecta la variable `PGPASSWORD` de forma interna para realizar la autenticación automática sin solicitar credenciales en la terminal.
 
@@ -459,256 +593,117 @@ Permite restaurar un archivo .sql específico cargándolo directamente en el mot
     ;;
 ```
 
+= Autenticación y Autorización
 
+El servicio de autenticación actúa como el pilar de seguridad de la plataforma. Su función es establecer una identidad verificable y un contexto de seguridad *stateless* que acompaña cada solicitud hacia el servicio Core, garantizando escalabilidad y resistencia frente a accesos no autorizados.
 
-= autenticación y Autorización
+```python
+        claims = {
+            "sub": str(user_id),
+            "username": str(username),
+            "token_type": str(token_type),
+            "iat": int(now.timestamp()),
+            "exp": int(exp.timestamp()),
+        }
 
-== Servicio de autenticación
+        jti: UUID | None = None
+        if token_type == "refresh":
+            jti = UUID(str(uuid7()))
+            claims["jti"] = str(jti)
+```
 
-== autenticación JWT
+== Arquitectura de Identidad y Acceso
+El sistema gestiona la seguridad a través de cuatro dimensiones que operan de forma desacoplada para asegurar un control granular:
 
-== Roles y permisos
+1. *Identidad (Auth Service):* Gestión centralizada de credenciales mediante `Argon2id` y emisión de tokens.
+2. *Capacidad Operativa (UserTier):* Define los límites de recursos (cuotas de almacenamiento, límites de API) que el sistema aplica al usuario.
+3. *Gobernanza Funcional (RBAC):* Definición de roles (ej. `Editor`, `Grader`) que determinan las capacidades técnicas del usuario.
+4. *Alcance (ReBAC):* Vinculaciones dinámicas en tablas de enlace (`UserActorLink`, `UserSubmissionLink`) que definen sobre qué objetos específicos se aplican los roles.
 
-== Sesiones de refresco
+== Autenticación basada en JWT
+La plataforma utiliza JSON Web Tokens (JWT) firmados con *ED25519*. La firma criptográfica garantiza la inalterabilidad; cualquier modificación invalida el token, siendo verificado por cada microservicio mediante la clave pública.
 
-== Seguridad de contraseñas
+El token inyecta un objeto de contexto que define las capacidades operativas y funcionales del usuario, evitando consultas constantes a la base de datos:
 
-= Arquitectura de API
+```python
+claims = {
+    "sub": str(user.id),
+    "context": {
+        "tier": "PREMIUM",
+        "assignments": [
+            {"entity_id": "uuid-1", "role": "editor"},
+            {"entity_id": "uuid-2", "role": "grader"}
+        ]
+    },
+    "iat": int(now.timestamp()),
+    "exp": int(exp.timestamp()),
+}
+```
 
+== Autorización: Del RBAC al ReBAC
+La autorización no es estática; sigue un modelo de Autorización por Relaciones (ReBAC):
 
+- Roles Contextuales: Un usuario no posee un rol único global. Sus privilegios dependen de su relación con un objeto, almacenada en tablas de vinculación.
 
-== Flujo de Datos
+- Asignación Dinámica: El servicio Core valida que el entity_id solicitado en una petición coincida con una asignación legítima del usuario dentro del JWT.
 
-El flujo de información es transaccional y validado. Cuando un cliente solicita una operación, el tráfico es enrutado por Nginx hacia el servicio correspondiente tras validar el contexto de seguridad. La secuencia operativa típica, donde el servicio Core interactúa con PostgreSQL mediante los repositorios DDD, se describe en @dia-flujo. Este diseño asegura que cada petición sea trazable, consistente y eficiente, permitiendo que la plataforma soporte tanto la carga administrativa actual como las futuras demandas de analítica avanzada.
+- Gestión de Concurrencia: Para escenarios de edición simultánea, el sistema implementa bloqueo optimista mediante versionado, asegurando que los cambios se apliquen solo si el usuario posee la versión más reciente del dato.
+
+== Sesiones y Revocación
+El ciclo de vida de la sesión se gestiona mediante JTI (JWT ID) basados en *UUIDv7*.
+
+=== Revocación Granular:
+El JTI permite al Auth Service mantener un seguimiento preciso de las sesiones en la base de datos (RefreshSession), facilitando la revocación inmediata por usuario o dispositivo.
+
+=== Transporte Seguro:
+- Clientes Web: Implementación de cookies con directivas HttpOnly, Secure y SameSite=Strict para mitigar ataques XSS y CSRF.
+
+- Clientes Mobile: Transporte vía cabeceras personalizadas (X-Refresh-Token), con validación estricta para evitar la suplantación de plataforma.
 
 #figure(
   mermaid(
     "
     sequenceDiagram
-    participant U as Usuario/Cliente
-    participant N as Nginx Proxy
-    participant A as Auth Service
-    participant C as Core Service
-    participant D as PostgreSQL
+      participant C as Cliente (Web/Mobile)
+      participant N as Nginx
+      participant A as Auth Service
+      participant D as DB (Session/User)
 
-    U->>N: Request (JWT Auth)
-    N->>A: Validar Token
-    A-->>N: Autorizado
-    N->>C: Procesar Lógica de Negocio
-    C->>D: Consultar Datos
-    D-->>C: Resultado
-    C-->>N: Response (JSON)
-    N-->>U: 200 OK
+      C->>A: POST /login (Credenciales)
+      A->>D: Validar Argon2id
+      D-->>A: OK
+      A->>A: Generar Access (JWT) & Refresh (UUIDv7)
+      A-->>C: Respuesta (Set-Cookie si Web / JSON si Mobile)
+
+      rect rgb(240, 248, 255)
+      Note over C, A: Ciclo de Petición
+      C->>N: Request + Token
+      N->>A: Validar Firma ED25519
+      A-->>N: Autorizado
+      N->>C: Response
+      end
+
+      C->>A: POST /refresh (X-Refresh-Token)
+      A->>D: Validar JTI (UUIDv7)
+      A-->>C: Nuevos Tokens (Rotación)
   ",
   ),
-  caption: [Diagrama de secuencia del flujo de una petición API.],
-) <dia-flujo>
+  caption: [Flujo de autenticación, validación y rotación de tokens.],
+) <dia-auth-flow>
 
-= Configuración y Despliegue
-
-== Requisitos previos
-
-== Configuración de Docker Compose
-
-== Gestión de variables de entorno y secretos
-
-= Arquitectura de Datos y Persistencia
-
-== Diseño del modelo relacional
-
-== Estrategia de migraciones
-
-== Separación por esquemas
-
-== Seedeo de iniciales
-
-== Seedeo de históricos
-
-= API y Endpoints
-
-== Documentación de la API
-
-== Estándares de comunicación y seguridad
-
-= Desarrollo y Utilidades
-
-== Estructura de directorios del monorepo
-
-== Uso de utilidades Python internas.
-
-== Guía de contribución y estilo de código.
-
-= Hoja de Ruta (Roadmap) y Futuras Integraciones
-
-== Implementación de Celery Workers para procesos en segundo plano.
-
-== Integración de sistemas de Vectorización y RAG.
-
-== Implementación de servidores MCP para agentes de IA.
-
-= Apéndice y Glosario
-
-= Eraser
-
-= Table of Contents
-
-1. Introduction
-   Purpose
-   Scope
-   Intended Audience
-   Platform Overview
-   Design Principles
-
-2. System Architecture
-   High-Level Architecture
-   Architectural Decisions
-   Service Overview
-   Monorepo Structure
-   Technology Stack
-
-3. Deployment Architecture
-   Infrastructure Overview
-   Docker Architecture
-   Reverse Proxy (Nginx)
-   Service Communication
-   Configuration Management
-   Environment Variables
-   Secrets Management
-
-4. Domain Architecture
-   Domain-Driven Design
-   Layered Architecture
-   Application Services
-   Repositories
-   Unit of Work
-   Shared Library
-   Request Lifecycle
-
-5. Data Architecture
-   Database Overview
-   Schema Organization
-   Domain Entities
-   Relationships
-   Historical IIP Versions
-   Data Integrity
-   Auditability
-
-6. Persistence
-   SQLAlchemy
-   Alembic Migrations
-   Seeders
-   Historical Data Population
-   Backup and Recovery
-
-7. Authentication & Authorization
-   Authentication Service
-   JWT Authentication
-   Roles & Permissions
-   Refresh Sessions
-   Password Security
-
-8. API Design
-   REST Conventions
-   API Structure
-   Authentication Flow
-   Error Handling
-   Pagination & Filtering
-   OpenAPI Documentation
-
-9. Development Guide
-   Repository Structure
-   Workspace Management
-   Dependency Management
-   Local Development
-   Testing
-   Code Style
-   Contributing
-
-10. Operations
-   Deployment
-   Logging
-   Monitoring
-   Performance
-   Maintenance
-
-11. Future Evolution
-   Background Workers
-   Open Data Integration
-   Semantic Search
-   Vector Database Integration
-   Retrieval-Augmented Generation (RAG)
-   MCP Integration
-12. Appendix
-   Directory Structure
-   Configuration Reference
-   Glossary
-   Acronyms
+== Seguridad de Contraseñas
+El sistema utiliza el algoritmo `Argon2id`, estándar actual de OWASP. Este enfoque garantiza máxima resistencia contra ataques de fuerza bruta al combinar un salting único por usuario con parámetros de configuración de memoria (memory-hard), lo cual neutraliza la efectividad de intentos de descifrado mediante hardware especializado como GPUs.
 
 
-= 1. Introducción
-== Propósito
-== Alcance
-== Audiencia destinada
-== Visión general de la plataforma
-== Principios de diseño
 
-= 2. Arquitectura del sistema
-== Arquitectura de alto nivel
-== Decisiones arquitectónicas
-== Visión general de los servicios
-== Estructura de monorepo
-== Stack tecnológico
-
-= 3. Arquitectura de despliegue
-== Visión general de la infraestructura
-== Arquitectura Docker
-== Proxy inverso (Nginx)
-== Comunicación entre servicios
-== Gestión de configuración
-== Variables de entorno
-== Gestión de secretos
-
-= 4. Arquitectura de dominio
-== Diseño guiado por el dominio (DDD)
-== Arquitectura en capas
-== Servicios de aplicación
-== Repositorios
-== Unidad de trabajo (Unit of Work)
-== Librería compartida
-== Ciclo de vida de la solicitud
-
-= 5. Arquitectura de datos
-== Visión general de la base de datos
-== Organización del esquema
-== Entidades de dominio
-== Relaciones
-== Versiones históricas de IIP
-== Integridad de datos
-== Auditoría
-
-= 6. Persistencia
-== SQLAlchemy
-== Migraciones con Alembic
-== Seeders
-== Población de datos históricos
-== Respaldo y recuperación
-
-= 7. Autenticación y autorización
-== Servicio de autenticación
-== Autenticación JWT
-== Roles y permisos
-== Sesiones de refresco
-== Seguridad de contraseñas
-
-= 8. Diseño de API
+= Diseño de API
 == Convenciones REST
 == Estructura de la API
-== Flujo de autenticación
 == Gestión de errores
 == Paginación y filtrado
 == Documentación OpenAPI
 
-= 9. Guía de desarrollo
+= Guía de desarrollo
 == Estructura del repositorio
 == Gestión de espacios de trabajo
 == Gestión de dependencias
@@ -717,14 +712,14 @@ El flujo de información es transaccional y validado. Cuando un cliente solicita
 == Estilo de código
 == Contribución
 
-= 10. Operaciones
+= Operaciones
 == Despliegue
 == Registro (Logging)
 == Monitoreo
 == Rendimiento
 == Mantenimiento
 
-= 11. Evolución futura
+= Evolución futura
 == Trabajadores en segundo plano (Background Workers)
 == Integración de datos abiertos
 == Búsqueda semántica
@@ -732,13 +727,4 @@ El flujo de información es transaccional y validado. Cuando un cliente solicita
 == Generación aumentada por recuperación (RAG)
 == Integración MCP
 
-= 12. Apéndice
-== Estructura de directorios
-== Referencia de configuración
-== Glosario
-== Acrónimos
-
-#bibliography("library.bib")
-
-
-
+#bibliography("library.bib", full: true, style: "ieee")
