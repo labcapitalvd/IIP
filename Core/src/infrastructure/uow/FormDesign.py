@@ -24,8 +24,7 @@ class FormDesignUoW(UnitOfWork):
     field_choices: FieldChoiceRepository
     card_templates: CardTemplateRepository
 
-    async def __aenter__(self):
-        await super().__aenter__()
+    def _init_repositories(self) -> None:
         assert self.session is not None
 
         self.forms = FormRepository(self.session)
@@ -35,4 +34,3 @@ class FormDesignUoW(UnitOfWork):
         self.field_groups = FieldGroupRepository(self.session)
         self.field_choices = FieldChoiceRepository(self.session)
         self.card_templates = CardTemplateRepository(self.session)
-        return self

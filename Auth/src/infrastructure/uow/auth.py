@@ -14,13 +14,9 @@ class AuthUoW(UnitOfWork):
     tiers: TierRepository
     tokens: RefreshTokenRepository
 
-    async def __aenter__(self):
-        await super().__aenter__()
+    def _init_repositories(self) -> None:
         assert self.session is not None
-
         self.users = UserRepository(self.session)
         self.roles = RoleRepository(self.session)
         self.tiers = TierRepository(self.session)
         self.tokens = RefreshTokenRepository(self.session)
-
-        return self
