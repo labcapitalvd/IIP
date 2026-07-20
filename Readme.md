@@ -1,3 +1,6 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/labcapitalvd/IIP)
+[![Managed with uv](https://img.shields.io/badge/managed%20with-uv-a42df8?logo=python&logoColor=white)](https://github.com/astral-sh/uv)
+[![Nix DevShell](https://img.shields.io/badge/Nix-Flake--Ready-blue?logo=nixos&logoColor=white)](https://nixos.wiki/wiki/Flakes)
 # IIP Platform Monorepo
 
 Welcome to the **IIP** monorepo. This repository contains a multi-service, domain-driven Python architecture managed with **Nix**, **uv**, and orchestrated via **Docker Compose**. The project is split into explicit services (`Auth`, `Core`, `Persistence`) backed by a local `shared` package containing unified business entities, data models, and core utilities.
