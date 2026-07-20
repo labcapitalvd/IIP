@@ -16,12 +16,9 @@ class IdentityUoW(UnitOfWork):
     user_actor_links: UserActorLinkRepository
     actor_segments: ActorSegmentRepository
 
-    async def __aenter__(self):
-        await super().__aenter__()
+    def _init_repositories(self) -> None:
         assert self.session is not None
 
         self.actors = ActorRepository(self.session)
         self.user_actor_links = UserActorLinkRepository(self.session)
         self.actor_segments = ActorSegmentRepository(self.session)
-        return self
-

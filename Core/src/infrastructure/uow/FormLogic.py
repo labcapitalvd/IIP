@@ -20,8 +20,7 @@ class FormLogicUoW(UnitOfWork):
     fields: FieldRepository
     sections: SectionRepository
 
-    async def __aenter__(self):
-        await super().__aenter__()
+    def _init_repositories(self) -> None:
         assert self.session is not None
 
         self.field_rules = FieldRuleRepository(self.session)
@@ -30,4 +29,3 @@ class FormLogicUoW(UnitOfWork):
         # Read-only access to verify references
         self.fields = FieldRepository(self.session)
         self.sections = SectionRepository(self.session)
-        return self

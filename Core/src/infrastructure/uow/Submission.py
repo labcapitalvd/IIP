@@ -26,8 +26,7 @@ class SubmissionUoW(UnitOfWork):
     forms: FormRepository
     fields: FieldRepository
 
-    async def __aenter__(self):
-        await super().__aenter__()
+    def _init_repositories(self) -> None:
         assert self.session is not None
 
         self.submissions = SubmissionRepository(self.session)
@@ -40,4 +39,3 @@ class SubmissionUoW(UnitOfWork):
         # Read-only access to form structure for validation during submission
         self.forms = FormRepository(self.session)
         self.fields = FieldRepository(self.session)
-        return self
