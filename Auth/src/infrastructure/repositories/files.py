@@ -1,11 +1,10 @@
 from typing import Sequence
 from uuid import UUID
 
+from shared.enums import FileTypesEnum
 from shared.models import File, FileType
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from shared.enums import FileTypesEnum
 
 
 class FileRepository:
@@ -39,7 +38,7 @@ class FileRepository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def add_file(self, entry: File) -> None:
+    def add_file(self, entry: File) -> None:
         self.session.add(entry)
 
     async def delete_file(self, entry: File) -> None:

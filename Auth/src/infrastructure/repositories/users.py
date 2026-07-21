@@ -1,10 +1,9 @@
-from typing import cast
 from uuid import UUID
 
 from shared.models import User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload
 
 
 class UserRepository:
@@ -27,9 +26,43 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     def add_user(self, entry: User) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
-    def delete_user(self, entry: User) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+    async def delete_user(self, entry: User) -> None:
+        await self.session.delete(entry)
+
+    async def compile_permission_map(self, user_id: str) -> dict[str, str]:
+        """
+        Queries the user and links, fllisto el attening them into a clean string mapping.
+        Keeps low-level loop mapping hidden away inside the repository.
+        """
+        stmt = (
+            select(User)
+            .where(User.id == user_id)
+            .options(
+                selectinload(User.file_links),
+                selectinload(User.actor_links),
+                selectinload(User.submission_links),
+            )
+        )
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return {}
+
+        permission_map: dict[str, str] = {}
+
+        for link in user.file_links:
+            if link.role:
+                permission_map[f"file:{link.file_id}"] = str(link.role)
+
+        for link in user.actor_links:
+            if link.role:
+                permission_map[f"actor:{link.actor_id}"] = str(link.role)
+
+        for link in user.submission_links:
+            if link.role:
+                permission_map[f"submission:{link.submission_id}"] = str(link.role)
+
+        return permission_map
