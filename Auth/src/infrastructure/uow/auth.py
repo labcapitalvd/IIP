@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from shared.db import UnitOfWork
 from shared.infrastructure import valkey_client
 
@@ -23,7 +25,7 @@ class AuthUoW(UnitOfWork):
         self.tokens = RefreshTokenRepository(self.session)
 
     async def sync_session_cache(
-        self, user_id: str, jti: str, ttl_seconds: int = 3600
+        self, user_id: UUID, jti: UUID, ttl_seconds: int = 3600
     ) -> bool:
         """Asks the repository for data and schedules the post-commit Valkey dump."""
         # 1. Ask the repository to do the heavy pulling and mapping lifting
@@ -42,3 +44,12 @@ class AuthUoW(UnitOfWork):
         # 3. Schedule execution strictly after PostgreSQL successfully writes
         self.add_post_commit_hook(valkey_write_operation)
         return True
+
+    def invalidate_session_cache(self, jti: UUID) -> None:
+        """Schedule session deletion from Valkey post-commit."""
+
+        async def valkey_delete_operation() -> None:
+            cache_key = f"session:{jti}:permissions"
+            await valkey_client.delete(cache_key)
+
+        self.add_post_commit_hook(valkey_delete_operation)

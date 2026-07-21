@@ -22,7 +22,7 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def compile_permission_map(self, user_id: str) -> dict[str, str]:
+    async def compile_permission_map(self, user_id: UUID) -> dict[str, str]:
         """
         Queries the user and links, fllisto el attening them into a clean string mapping.
         Keeps low-level loop mapping hidden away inside the repository.
