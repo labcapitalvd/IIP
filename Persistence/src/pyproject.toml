@@ -11,6 +11,7 @@ dependencies = [
   "pandas>=2.3.3",
   "sqlalchemy>=2.0.44",
   "uuid-utils>=0.14.0",
+  "valkey>=6.1.1",
 ]
 
 [build-system]

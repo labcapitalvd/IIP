@@ -4,18 +4,19 @@ version = "0.1.0"
 description = "Unified core shared libraries for database, models, schemas, enums, and utilities."
 requires-python = ">=3.12"
 dependencies = [
-    "argon2-cffi>=25.1.0",
-    "asyncpg>=0.30.0",
-    "bleach>=6.3.0",
-    "cryptography>=46.0.3",
-    "emoji>=2.15.0",
-    "fastapi>=0.120.2",
-    "joserfc>=1.4.0",
-    "passlib>=1.7.4",
-    "psycopg>=3.2.12",
-    "pydantic[email]>=2.12.3",
-    "sqlalchemy>=2.0.44",
-    "uuid-utils>=0.14.0",
+  "argon2-cffi>=25.1.0",
+  "asyncpg>=0.30.0",
+  "bleach>=6.3.0",
+  "cryptography>=46.0.3",
+  "emoji>=2.15.0",
+  "fastapi>=0.120.2",
+  "joserfc>=1.4.0",
+  "passlib>=1.7.4",
+  "psycopg>=3.2.12",
+  "pydantic[email]>=2.12.3",
+  "sqlalchemy>=2.0.44",
+  "uuid-utils>=0.14.0",
+  "valkey>=6.1.1",
 ]
 
 [build-system]
