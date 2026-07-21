@@ -2,6 +2,7 @@
 
 from .base_table import (
     Base,
+    BaseRepository,
     TableInfo,
     generate_table_enum,
 )
@@ -30,6 +31,7 @@ from .sessions import SessionSync, SessionAsync, get_session, UnitOfWork
 __all__ = [
     # base_table
     "Base",
+    "BaseRepository",
     "TableInfo",
     "generate_table_enum",
     # column abstractions
