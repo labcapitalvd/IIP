@@ -1,15 +1,12 @@
 from uuid import UUID
 
+from shared.db import BaseRepository
 from shared.models import User
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 
-class UserRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
+class UserRepository(BaseRepository[User]):
     async def get_by_id(self, id: UUID) -> User | None:
         stmt = select(User).where(User.id == id)
         result = await self.session.execute(stmt)
@@ -24,12 +21,6 @@ class UserRepository:
         stmt = select(User).where(User.email == email)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
-
-    def add_user(self, entry: User) -> None:
-        self.session.add(entry)
-
-    async def delete_user(self, entry: User) -> None:
-        await self.session.delete(entry)
 
     async def compile_permission_map(self, user_id: str) -> dict[str, str]:
         """

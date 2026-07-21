@@ -1,12 +1,9 @@
+from shared.db import BaseRepository
 from shared.models import UserTier
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class TierRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
+class TierRepository(BaseRepository[UserTier]):
     async def get_by_label(self, label: str) -> UserTier | None:
         stmt = select(UserTier).where(UserTier.label == label)
         result = await self.session.execute(stmt)

@@ -1,12 +1,9 @@
+from shared.db import BaseRepository
 from shared.models import RefreshSession
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class RefreshTokenRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
+class RefreshTokenRepository(BaseRepository[RefreshSession]):
     async def get_refresh_token_by_jti(
         self, user_id: str, jti: str
     ) -> RefreshSession | None:
@@ -31,9 +28,3 @@ class RefreshTokenRepository:
             .values(is_active=False)
         )
         await self.session.execute(stmt)
-
-    def create_refresh_token(self, entry: RefreshSession) -> None:
-        self.session.add(entry)
-
-    async def delete_refresh_token(self, entry: RefreshSession) -> None:
-        await self.session.delete(entry)

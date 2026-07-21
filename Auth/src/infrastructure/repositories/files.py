@@ -1,17 +1,14 @@
 from typing import Sequence
 from uuid import UUID
 
+from shared.db import BaseRepository
 from shared.enums import FileTypesEnum
 from shared.models import File, FileType
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class FileRepository:
+class FileRepository(BaseRepository[File]):
     """Repository for File and FileType aggregates. No commits/rollbacks here."""
-
-    def __init__(self, session: AsyncSession):
-        self.session = session
 
     async def get_filetype(self, filetype_enum: FileTypesEnum) -> FileType:
         stmt = select(FileType).where(FileType.label == filetype_enum.label)
@@ -37,9 +34,3 @@ class FileRepository:
         stmt = select(File).where(File.user_id == owner)
         result = await self.session.execute(stmt)
         return result.scalars().all()
-
-    def add_file(self, entry: File) -> None:
-        self.session.add(entry)
-
-    async def delete_file(self, entry: File) -> None:
-        await self.session.delete(entry)
