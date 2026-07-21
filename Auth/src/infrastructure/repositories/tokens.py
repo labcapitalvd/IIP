@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 
 
 class RefreshTokenRepository(BaseRepository[RefreshSession]):
-    async def get_refresh_token_by_jti(
+    async def get_by_jti(
         self, user_id: str, jti: str
     ) -> RefreshSession | None:
         """
@@ -18,7 +18,7 @@ class RefreshTokenRepository(BaseRepository[RefreshSession]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def deactivate_refresh_token(self, user_id: str, jti: str) -> None:
+    async def deactivate(self, user_id: str, jti: str) -> None:
         """
         Marks a token as inactive. Better than deleting if you want to track 'revoked' tokens for security audits.
         """

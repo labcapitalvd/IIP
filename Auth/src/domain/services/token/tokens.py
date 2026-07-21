@@ -54,7 +54,7 @@ class TokenService:
         user_id = decoded["sub"]
         username = decoded["username"]
 
-        db_token = await uow.tokens.get_refresh_token_by_jti(user_id=user_id, jti=jti)
+        db_token = await uow.tokens.get_by_jti(user_id=user_id, jti=jti)
         if db_token is None:
             logger.warning(
                 "Attempt to use revoked refresh token on reauth: jti=%s", jti
@@ -75,7 +75,7 @@ class TokenService:
             )
             raise TokenError() from e
 
-        await uow.tokens.deactivate_refresh_token(user_id=user_id, jti=jti)
+        await uow.tokens.deactivate(user_id=user_id, jti=jti)
 
         return await self.issue_tokens(user_id=user_id, username=username, uow=uow)
 
@@ -87,7 +87,7 @@ class TokenService:
         jti = decoded["jti"]
         user_id = decoded["sub"]
 
-        db_token = await uow.tokens.get_refresh_token_by_jti(user_id=user_id, jti=jti)
+        db_token = await uow.tokens.get_by_jti(user_id=user_id, jti=jti)
         if db_token is None:
             logger.warning(
                 "Attempt to use revoked refresh token on logout: jti=%s", jti
@@ -102,4 +102,4 @@ class TokenService:
             )
             raise TokenError() from e
 
-        await uow.tokens.deactivate_refresh_token(user_id=user_id, jti=jti)
+        await uow.tokens.deactivate(user_id=user_id, jti=jti)
