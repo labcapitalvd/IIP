@@ -26,8 +26,8 @@ class MultiChoiceOptionLinkRepository:
     def add(self, entry: MultiChoiceOptionLink) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: MultiChoiceOptionLink) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: MultiChoiceOptionLink) -> None:
+        await self.session.delete(entry)
 
 
 class UserActorLinkRepository:
@@ -56,8 +56,8 @@ class UserActorLinkRepository:
     def add(self, entry: UserActorLink) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: UserActorLink) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: UserActorLink) -> None:
+        await self.session.delete(entry)
 
 
 class UserSubmissionLinkRepository:
@@ -72,5 +72,5 @@ class UserSubmissionLinkRepository:
     def add(self, entry: UserSubmissionLink) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: UserSubmissionLink) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: UserSubmissionLink) -> None:
+        await self.session.delete(entry)

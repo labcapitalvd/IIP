@@ -1,9 +1,6 @@
-from typing import cast
-
 from shared.models import RefreshSession
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 
 class RefreshTokenRepository:
@@ -30,17 +27,13 @@ class RefreshTokenRepository:
         """
         stmt = (
             update(RefreshSession)
-            .where(
-                RefreshSession.user_id == user_id,
-                RefreshSession.jti == jti)
+            .where(RefreshSession.user_id == user_id, RefreshSession.jti == jti)
             .values(is_active=False)
         )
         await self.session.execute(stmt)
 
     def create_refresh_token(self, entry: RefreshSession) -> None:
-        session = cast(Session, self.session)
-        session.add(entry)
+        self.session.add(entry)
 
-    def delete_refresh_token(self, entry: RefreshSession) -> None:
-        session = cast(Session, self.session)
-        session.delete(entry)
+    async def delete_refresh_token(self, entry: RefreshSession) -> None:
+        await self.session.delete(entry)

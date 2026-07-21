@@ -1,15 +1,14 @@
-from uuid import UUID
 from datetime import datetime, timezone
+from uuid import UUID
 
 from shared.models import RefreshSession
-from shared.utils.tokens import generate_token, decode_token
+from shared.utils import get_logger
 from shared.utils.hashing import hash_token, verify_token
+from shared.utils.tokens import decode_token, generate_token
 
 from infrastructure.uow import AuthUoW
 
-from shared.utils import get_logger
-from .errors import TokenRevoked, TokenExpired, TokenError
-
+from .errors import TokenError, TokenExpired, TokenRevoked
 
 logger = get_logger(__name__)
 
@@ -37,6 +36,13 @@ class TokenService:
         )
 
         uow.tokens.create_refresh_token(entry=db_token)
+
+        await uow.sync_session_cache(
+            user_id=str(user_id),
+            jti=str(jti),
+            ttl_seconds=3600,
+        )
+
         return client_access_token, client_refresh_token
 
     async def reauth(self, client_refresh_token: str, uow: AuthUoW) -> tuple[str, str]:
@@ -69,7 +75,7 @@ class TokenService:
             )
             raise TokenError() from e
 
-        uow.tokens.deactivate_refresh_token(user_id=user_id, jti=jti)
+        await uow.tokens.deactivate_refresh_token(user_id=user_id, jti=jti)
 
         return await self.issue_tokens(user_id=user_id, username=username, uow=uow)
 
@@ -96,4 +102,4 @@ class TokenService:
             )
             raise TokenError() from e
 
-        uow.tokens.deactivate_refresh_token(user_id=user_id, jti=jti)
+        await uow.tokens.deactivate_refresh_token(user_id=user_id, jti=jti)

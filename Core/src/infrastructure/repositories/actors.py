@@ -37,8 +37,8 @@ class ActorRepository:
     def add(self, entry: Actor) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Actor) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Actor) -> None:
+        await self.session.delete(entry)
 
 
 class ActorSegmentRepository:
@@ -65,7 +65,9 @@ class ActorSegmentRepository:
 
     async def get_all(self) -> Sequence[ActorSegment]:
         stmt = (
-            select(ActorSegment).options(joinedload(ActorSegment.actors)).order_by(ActorSegment.label)
+            select(ActorSegment)
+            .options(joinedload(ActorSegment.actors))
+            .order_by(ActorSegment.label)
         )
         result = await self.session.execute(stmt)
         return result.unique().scalars().all()
@@ -73,8 +75,8 @@ class ActorSegmentRepository:
     def add(self, entry: ActorSegment) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: ActorSegment) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: ActorSegment) -> None:
+        await self.session.delete(entry)
 
 
 class UserActorLinkRepository:
@@ -84,5 +86,5 @@ class UserActorLinkRepository:
     def add(self, entry: UserActorLink) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: UserActorLink) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: UserActorLink) -> None:
+        await self.session.delete(entry)

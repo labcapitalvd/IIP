@@ -43,6 +43,21 @@ services:
       timeout: 3s
       retries: 5
 
+  cache:
+    container_name: app_cache
+    image: docker.io/valkey/valkey:8.0-alpine
+    restart: unless-stopped
+    # Expose port only if you need to inspect keys from your host machine
+    ports:
+      - "6379:6379"
+    networks:
+      - app_cache_net
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   base:
     container_name: app_base
     build:
@@ -88,6 +103,8 @@ services:
         condition: service_started
       db:
         condition: service_healthy
+      cache:
+        condition: service_healthy
     env_file: ./.env
     secrets:
       - jwt_private_key
@@ -97,6 +114,7 @@ services:
     networks:
       - app_db_net
       - app_nginx
+      - app_cache_net
 
   api_core:
     container_name: app_api_core
@@ -115,6 +133,7 @@ services:
     networks:
       - app_db_net
       - app_nginx
+      - app_cache_net
 
 networks:
   app_db_net:
@@ -124,6 +143,10 @@ networks:
   app_nginx:
     driver: bridge
     name: app_nginx_network
+
+  app_cache_net:
+    driver: bridge
+    name: app_cache_network
 
 volumes:
   postgresql:

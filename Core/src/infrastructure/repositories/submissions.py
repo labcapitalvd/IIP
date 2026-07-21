@@ -1,13 +1,14 @@
-from typing import cast
 from uuid import UUID
 
 from shared.models import (
     Answer,
-    Submission, AnswerCardEntry, SubmissionStatusType,
+    Submission,
+    AnswerCardEntry,
+    SubmissionStatusType,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import selectinload
 
 
 class AnswerRepository:
@@ -22,8 +23,8 @@ class AnswerRepository:
     def add(self, entry: Answer) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Answer) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Answer) -> None:
+        await self.session.delete(entry)
 
 
 class SubmissionRepository:
@@ -43,17 +44,14 @@ class SubmissionRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_status_by_label(self, label:str) -> SubmissionStatusType | None:
+    async def get_status_by_label(self, label: str) -> SubmissionStatusType | None:
         print(f"DEBUG: Looking for label: '{label}'")
-        stmt = (
-            select(SubmissionStatusType)
-            .where(SubmissionStatusType.label == label)
-        )
+        stmt = select(SubmissionStatusType).where(SubmissionStatusType.label == label)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     def add(self, entry: Submission) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Submission) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Submission) -> None:
+        await self.session.delete(entry)

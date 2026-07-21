@@ -1,4 +1,3 @@
-from typing import cast
 from uuid import UUID
 
 from shared.models import (
@@ -13,7 +12,6 @@ from shared.models import (
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 
 class CardTemplateRepository:
@@ -28,8 +26,8 @@ class CardTemplateRepository:
     def add(self, entry: CardTemplate) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: CardTemplate) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: CardTemplate) -> None:
+        await self.session.delete(entry)
 
 
 class FieldChoiceRepository:
@@ -44,8 +42,8 @@ class FieldChoiceRepository:
     def add(self, entry: FieldChoice) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: FieldChoice) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: FieldChoice) -> None:
+        await self.session.delete(entry)
 
 
 class FieldGroupRepository:
