@@ -5,7 +5,6 @@ description = "Contenedor encargado de publicar endpoints desde la base de datos
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.120.2",
-  "requests>=2.32.5",
   "uvicorn>=0.38.0",
 ]
 
