@@ -1,4 +1,3 @@
-from typing import cast
 from uuid import UUID
 
 from shared.models import (
@@ -8,7 +7,6 @@ from shared.models import (
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 
 class CriterionRepository:
@@ -23,8 +21,8 @@ class CriterionRepository:
     def add(self, entry: Criterion) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Criterion) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Criterion) -> None:
+        await self.session.delete(entry)
 
 
 class GradeRepository:
@@ -39,8 +37,8 @@ class GradeRepository:
     def add(self, entry: Grade) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Grade) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Grade) -> None:
+        await self.session.delete(entry)
 
 
 class ResultRepository:
@@ -55,5 +53,5 @@ class ResultRepository:
     def add(self, entry: Result) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Result) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Result) -> None:
+        await self.session.delete(entry)

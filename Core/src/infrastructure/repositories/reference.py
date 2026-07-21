@@ -1,4 +1,3 @@
-from typing import cast
 from uuid import UUID
 
 from shared.models import (
@@ -9,7 +8,6 @@ from shared.models import (
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 
 class FieldTypeRepository:
@@ -24,8 +22,8 @@ class FieldTypeRepository:
     def add(self, entry: FieldType) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: FieldType) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: FieldType) -> None:
+        await self.session.delete(entry)
 
 
 class RelationalOperatorRepository:
@@ -40,8 +38,8 @@ class RelationalOperatorRepository:
     def add(self, entry: RelationalOperator) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: RelationalOperator) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: RelationalOperator) -> None:
+        await self.session.delete(entry)
 
 
 class RuleTypeRepository:
@@ -56,8 +54,8 @@ class RuleTypeRepository:
     def add(self, entry: RuleType) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: RuleType) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: RuleType) -> None:
+        await self.session.delete(entry)
 
 
 class SubmissionStatusTypeRepository:
@@ -72,5 +70,5 @@ class SubmissionStatusTypeRepository:
     def add(self, entry: SubmissionStatusType) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: SubmissionStatusType) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: SubmissionStatusType) -> None:
+        await self.session.delete(entry)

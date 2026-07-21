@@ -1,15 +1,12 @@
 from uuid import UUID
-from typing import cast
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.models import (
-    FieldRule,
     FieldDependency,
+    FieldRule,
     SectionDependency,
 )
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class FieldDependencyRepository:
@@ -24,8 +21,8 @@ class FieldDependencyRepository:
     def add(self, entry: FieldDependency) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: FieldDependency) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: FieldDependency) -> None:
+        await self.session.delete(entry)
 
 
 class FieldRuleRepository:
@@ -40,8 +37,8 @@ class FieldRuleRepository:
     def add(self, entry: FieldRule) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: FieldRule) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: FieldRule) -> None:
+        await self.session.delete(entry)
 
 
 class SectionDependencyRepository:
@@ -56,5 +53,5 @@ class SectionDependencyRepository:
     def add(self, entry: SectionDependency) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: SectionDependency) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: SectionDependency) -> None:
+        await self.session.delete(entry)

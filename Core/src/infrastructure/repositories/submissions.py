@@ -22,8 +22,8 @@ class AnswerRepository:
     def add(self, entry: Answer) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Answer) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Answer) -> None:
+        await self.session.delete(entry)
 
 
 class SubmissionRepository:
@@ -55,5 +55,5 @@ class SubmissionRepository:
     def add(self, entry: Submission) -> None:
         self.session.add(entry)
 
-    def delete(self, entry: Submission) -> None:
-        self.session.delete(entry)
+    async def delete(self, entry: Submission) -> None:
+        await self.session.delete(entry)
