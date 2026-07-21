@@ -49,7 +49,7 @@ from uuid import UUID
 from sqlalchemy import text
 from uuid_utils import uuid7
 
-from shared.db import async_engine
+from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
