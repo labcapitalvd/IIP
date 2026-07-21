@@ -34,7 +34,7 @@ from typing import Any, TypedDict
 from uuid import UUID
 
 import pandas as pd
-from shared.db import async_engine
+from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 from sqlalchemy import text
 from uuid_utils import uuid7

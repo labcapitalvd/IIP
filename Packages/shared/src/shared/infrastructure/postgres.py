@@ -38,8 +38,8 @@ host:{POSTGRES_HOST}
 port:{POSTGRES_PORT}
 db:  {POSTGRES_DB}""")
 
-SYNC_DB = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-ASYNC_DB = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+SYNC_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+ASYNC_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
-sync_engine = create_engine(SYNC_DB)
-async_engine = create_async_engine(ASYNC_DB)
+sync_engine = create_engine(SYNC_URL)
+async_engine = create_async_engine(ASYNC_URL)

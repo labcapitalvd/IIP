@@ -1,7 +1,7 @@
 services:
   nginx:
     container_name: app_nginx
-    image: docker.io/nginx:latest
+    image: docker.io/nginx:stable-alpine
     env_file: ./.env
     restart: unless-stopped
     depends_on:
@@ -20,7 +20,7 @@ services:
 
   db:
     container_name: app_db
-    image: docker.io/postgres:18-bookworm
+    image: docker.io/postgres:18
     env_file: ./.env
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -45,7 +45,7 @@ services:
 
   cache:
     container_name: app_cache
-    image: docker.io/valkey/valkey:8.0-alpine
+    image: docker.io/valkey/valkey:alpine
     restart: unless-stopped
     # Expose port only if you need to inspect keys from your host machine
     ports:
