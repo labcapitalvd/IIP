@@ -35,7 +35,7 @@ class TokenService:
             expires_at=datetime.fromtimestamp(expr, tz=timezone.utc),
         )
 
-        uow.tokens.create_refresh_token(entry=db_token)
+        uow.tokens.add(db_token)
 
         await uow.sync_session_cache(
             user_id=str(user_id),

@@ -35,7 +35,7 @@ class AuthService:
             is_active=True,
         )
 
-        uow.users.add_user(user)
+        uow.users.add(user)
         return user
 
     async def login(
@@ -47,7 +47,7 @@ class AuthService:
         """Login user."""
         user = await uow.users.get_by_username(username)
         stored_hash = user.password_hash if user else DUMMY_HASH
-        
+
         try:
             verify_password(password=password, hashed_password=stored_hash)
         except Exception as e:
@@ -67,7 +67,7 @@ class AuthService:
         """Delete user."""
         user = await uow.users.get_by_username(username)
         stored_hash = user.password_hash if user else DUMMY_HASH
-        
+
         try:
             verify_password(password=password, hashed_password=stored_hash)
         except Exception as e:
@@ -76,5 +76,5 @@ class AuthService:
         if not user:
             raise InvalidCredentials("Invalid credentials")
 
-        uow.users.delete_user(user)
+        await uow.users.delete(user)
         return user
