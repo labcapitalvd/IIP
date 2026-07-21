@@ -2,7 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from shared.db import sync_engine, SYNC_DB
+from shared.infrastructure import sync_engine, SYNC_URL
 
 from shared.db import Base
 from shared.models import __all__ as model_names
@@ -18,7 +18,7 @@ print_list("Tables Found in Metadata", list(Base.metadata.tables.keys()))
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", SYNC_DB)
+config.set_main_option("sqlalchemy.url", SYNC_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -39,7 +39,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=SYNC_DB,
+        url=SYNC_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
