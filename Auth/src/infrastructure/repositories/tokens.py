@@ -1,13 +1,10 @@
+from shared.db import BaseRepository
 from shared.models import RefreshSession
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class RefreshTokenRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
-    async def get_refresh_token_by_jti(
+class RefreshTokenRepository(BaseRepository[RefreshSession]):
+    async def get_by_jti(
         self, user_id: str, jti: str
     ) -> RefreshSession | None:
         """
@@ -21,7 +18,7 @@ class RefreshTokenRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def deactivate_refresh_token(self, user_id: str, jti: str) -> None:
+    async def deactivate(self, user_id: str, jti: str) -> None:
         """
         Marks a token as inactive. Better than deleting if you want to track 'revoked' tokens for security audits.
         """
@@ -31,9 +28,3 @@ class RefreshTokenRepository:
             .values(is_active=False)
         )
         await self.session.execute(stmt)
-
-    def create_refresh_token(self, entry: RefreshSession) -> None:
-        self.session.add(entry)
-
-    async def delete_refresh_token(self, entry: RefreshSession) -> None:
-        await self.session.delete(entry)

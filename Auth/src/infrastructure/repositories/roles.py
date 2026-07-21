@@ -1,12 +1,9 @@
+from shared.db import BaseRepository
 from shared.models import Role
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class RoleRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
+class RoleRepository(BaseRepository[Role]):
     async def get_by_label(self, label: str) -> Role | None:
         stmt = select(Role).where(Role.label == label)
         result = await self.session.execute(stmt)

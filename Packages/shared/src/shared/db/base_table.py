@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from uuid import UUID
-from uuid_utils import uuid7
 from enum import Enum
-from typing import Type
+from typing import Generic, Type, TypeVar
+from uuid import UUID
 
 from sqlalchemy import UUID as UUIDType
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from uuid_utils import uuid7
 
 
 class Base(DeclarativeBase):
@@ -16,6 +16,23 @@ class Base(DeclarativeBase):
         default=lambda: UUID(str(uuid7())),
     )
 
+
+ModelT = TypeVar("ModelT")
+
+
+class BaseRepository(Generic[ModelT]):
+    """Generic base CRUD repository shared across microservices."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    def add(self, entity: ModelT) -> None:
+        self.session.add(entity)
+
+    async def delete(self, entity: ModelT) -> None:
+        await self.session.delete(entity)
+
+
 @dataclass(frozen=True)
 class TableInfo:
     table: str
@@ -24,6 +41,7 @@ class TableInfo:
     @property
     def fq_name(self) -> str:
         return f"{self.schema}.{self.table}"
+
 
 def generate_table_enum(name, *registries) -> Type[Enum]:
     members = {}
