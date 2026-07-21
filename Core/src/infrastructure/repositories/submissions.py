@@ -1,36 +1,24 @@
 from uuid import UUID
 
+from shared.db import BaseRepository
 from shared.models import (
     Answer,
-    Submission,
     AnswerCardEntry,
+    Submission,
     SubmissionStatusType,
 )
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 
-class AnswerRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class AnswerRepository(BaseRepository[Answer]):
     async def get_by_id(self, id: UUID) -> Answer | None:
         stmt = select(Answer).where(Answer.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: Answer) -> None:
-        self.session.add(entry)
 
-    async def delete(self, entry: Answer) -> None:
-        await self.session.delete(entry)
-
-
-class SubmissionRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class SubmissionRepository(BaseRepository[Submission]):
     async def get_by_id(self, id: UUID) -> Submission | None:
         stmt = (
             select(Submission)
@@ -49,9 +37,3 @@ class SubmissionRepository:
         stmt = select(SubmissionStatusType).where(SubmissionStatusType.label == label)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
-
-    def add(self, entry: Submission) -> None:
-        self.session.add(entry)
-
-    async def delete(self, entry: Submission) -> None:
-        await self.session.delete(entry)

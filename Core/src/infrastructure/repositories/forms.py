@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from shared.db import BaseRepository
 from shared.models import (
     CardTemplate,
     Field,
@@ -11,77 +12,37 @@ from shared.models import (
     SectionType,
 )
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class CardTemplateRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class CardTemplateRepository(BaseRepository[CardTemplate]):
     async def get_by_id(self, id: UUID) -> CardTemplate | None:
         stmt = select(CardTemplate).where(CardTemplate.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: CardTemplate) -> None:
-        self.session.add(entry)
 
-    async def delete(self, entry: CardTemplate) -> None:
-        await self.session.delete(entry)
-
-
-class FieldChoiceRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class FieldChoiceRepository(BaseRepository[FieldChoice]):
     async def get_by_id(self, id: UUID) -> FieldChoice | None:
         stmt = select(FieldChoice).where(FieldChoice.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: FieldChoice) -> None:
-        self.session.add(entry)
 
-    async def delete(self, entry: FieldChoice) -> None:
-        await self.session.delete(entry)
-
-
-class FieldGroupRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class FieldGroupRepository(BaseRepository[FieldGroup]):
     async def get_by_id(self, id: UUID) -> FieldGroup | None:
         stmt = select(FieldGroup).where(FieldGroup.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: FieldGroup) -> None:
-        self.session.add(entry)
 
-    def delete(self, entry: FieldGroup) -> None:
-        self.session.delete(entry)
-
-
-class FieldRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class FieldRepository(BaseRepository[Field]):
     async def get_by_id(self, id: UUID) -> Field | None:
         stmt = select(Field).where(Field.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: Field) -> None:
-        self.session.add(entry)
 
-    def delete(self, entry: Field) -> None:
-        self.session.delete(entry)
-
-
-class FormRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class FormRepository(BaseRepository[Form]):
     async def get_by_id(self, id: UUID) -> Form | None:
         stmt = select(Form).where(Form.id == id)
         result = await self.session.execute(stmt)
@@ -93,56 +54,23 @@ class FormRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: Form) -> None:
-        self.session.add(entry)
 
-    def delete(self, entry: Form) -> None:
-        self.session.delete(entry)
-
-
-class QuestionRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class QuestionRepository(BaseRepository[Question]):
     async def get_by_id(self, id: UUID) -> Question | None:
         stmt = select(Question).where(Question.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: Question) -> None:
-        self.session.add(entry)
 
-    def delete(self, entry: Question) -> None:
-        self.session.delete(entry)
-
-
-class SectionRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class SectionRepository(BaseRepository[Section]):
     async def get_by_id(self, id: UUID) -> Section | None:
         stmt = select(Section).where(Section.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    def add(self, entry: Section) -> None:
-        self.session.add(entry)
 
-    def delete(self, entry: Section) -> None:
-        self.session.delete(entry)
-
-
-class SectionTypeRepository:
-    def __init__(self, session: AsyncSession):
-        self.session: AsyncSession = session
-
+class SectionTypeRepository(BaseRepository[SectionType]):
     async def get_by_id(self, id: UUID) -> SectionType | None:
         stmt = select(SectionType).where(SectionType.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
-
-    def add(self, entry: SectionType) -> None:
-        self.session.add(entry)
-
-    def delete(self, entry: SectionType) -> None:
-        self.session.delete(entry)
