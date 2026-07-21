@@ -15,22 +15,22 @@ class FileRepository(BaseRepository[File]):
         result = await self.session.execute(stmt)
         return result.scalar_one()
 
-    async def get_file_by_id(self, id: UUID, owner: UUID) -> File | None:
+    async def get_by_id(self, id: UUID, owner: UUID) -> File | None:
         stmt = select(File).where(File.id == id, File.user_id == owner)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_file_by_filename(self, filename: str, owner: UUID) -> File | None:
+    async def get_by_filename(self, filename: str, owner: UUID) -> File | None:
         stmt = select(File).where(File.filename == filename, File.user_id == owner)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_file_by_hash(self, filehash: str, owner: UUID) -> File | None:
+    async def get_by_hash(self, filehash: str, owner: UUID) -> File | None:
         stmt = select(File).where(File.filehash == filehash, File.user_id == owner)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_all_files(self, owner: UUID) -> Sequence[File]:
+    async def get_all(self, owner: UUID) -> Sequence[File]:
         stmt = select(File).where(File.user_id == owner)
         result = await self.session.execute(stmt)
         return result.scalars().all()
