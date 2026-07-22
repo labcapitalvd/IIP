@@ -151,7 +151,7 @@ networks:
 
 volumes:
   postgresql:
-    name: stats_vol_pg
+    name: pg
 
 secrets:
   postgres_password:
