@@ -1,28 +1,49 @@
-"""Poblado de roles"""
+"""Poblado de roles globales (SystemRole) y niveles de acceso (AccessLevel)"""
 
 from shared.db import SessionSync
-from shared.models import Role
+from shared.enums import AccessLevelsEnum, SystemRolesEnum
+from shared.models import AccessLevel, SystemRole
 from shared.utils.logger import get_logger
 
-from shared.enums import RolesEnum as Types
-
-logger = get_logger("seed/roles")
+logger = get_logger("seed/security_roles")
 
 
 def upgrade() -> None:
     with SessionSync() as session:
-        for type in Types:
-            exists: Role | None = (
-                session.query(Role).filter_by(label=type.label).first()
-            )
+        # =====================================================================
+        # 1. Poblado de AccessLevel (ReBAC: owner, editor, evaluator, etc.)
+        # =====================================================================
+        for level_enum in AccessLevelsEnum:
+            exists = session.query(AccessLevel).filter_by(code=level_enum.code).first()
             if exists:
-                logger.info(msg=f"{type} already exists in Role")
-                continue  # Skip this one
+                logger.info(f"AccessLevel '{level_enum.code}' already exists")
+                continue
+
             session.add(
-                Role(
-                    label=type.label,
-                    description=type.description,
+                AccessLevel(
+                    code=level_enum.code,
+                    label=level_enum.label,
+                    description=level_enum.description,
                 )
             )
-            logger.info(f"{type} added to table Role")
+            logger.info(f"AccessLevel '{level_enum.code}' added to table")
+
+        # =====================================================================
+        # 2. Poblado de SystemRole (RBAC Global: admin, grader, etc.)
+        # =====================================================================
+        for role_enum in SystemRolesEnum:
+            exists = session.query(SystemRole).filter_by(code=role_enum.code).first()
+            if exists:
+                logger.info(f"SystemRole '{role_enum.code}' already exists")
+                continue
+
+            session.add(
+                SystemRole(
+                    code=role_enum.code,
+                    label=role_enum.label,
+                    description=role_enum.description,
+                )
+            )
+            logger.info(f"SystemRole '{role_enum.code}' added to table")
+
         session.commit()
