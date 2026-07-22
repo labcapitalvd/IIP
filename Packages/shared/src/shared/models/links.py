@@ -9,9 +9,34 @@ from .targets import TargetTable
 
 if TYPE_CHECKING:
     from .actors import Actor
-    from .auth import Role, User
+    from .auth import AccessLevel, User
     from .forms import FieldChoice
     from .submissions import AnswerMultiChoice, Submission
+
+
+class UserSystemRoleLink(Base):
+    """
+    Maps users directly to global SystemRoles.
+    """
+
+    __tablename__ = TargetTable.LINK_USER_SYSTEM_ROLE.table
+    __table_args__ = {"schema": TargetTable.LINK_USER_SYSTEM_ROLE.schema}
+
+    user_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.USERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
+    )
+    system_role_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.SYSTEM_ROLES.fq_name}.id",
+        primary_key=True,
+        ondelete="CASCADE",
+    )
+
+    updated_at: Mapped[datetime] = column_updated_at()
+
+    user: Mapped["User"] = relationship("User", back_populates="system_role_links")
+    system_role: Mapped["SystemRole"] = relationship(
+        "SystemRole", back_populates="user_links"
+    )
 
 
 class UserFileLink(Base):
@@ -24,15 +49,19 @@ class UserFileLink(Base):
     file_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.FILES.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-    role_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ROLES.fq_name}.id", nullable=True, ondelete="SET NULL"
+    access_level_id: Mapped[UUID | None] = column_fk(
+        target=f"{TargetTable.ACCESS_LEVELS.fq_name}.id",
+        nullable=True,
+        ondelete="SET NULL",
     )
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user = relationship("User", back_populates="file_links")
+    user: Mapped["User"] = relationship("User", back_populates="file_links")
     file = relationship("File", back_populates="user_links")
-    role = relationship("Role", back_populates="user_file_link")
+    access_level: Mapped["AccessLevel | None"] = relationship(
+        "AccessLevel", back_populates="file_links"
+    )
 
 
 class MultiChoiceOptionLink(Base):
@@ -70,15 +99,19 @@ class UserActorLink(Base):
     actor_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ACTORS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
-    role_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ROLES.fq_name}.id", nullable=True, ondelete="SET NULL"
+    access_level_id: Mapped[UUID | None] = column_fk(
+        target=f"{TargetTable.ACCESS_LEVELS.fq_name}.id",
+        nullable=True,
+        ondelete="SET NULL",
     )
 
     updated_at: Mapped[datetime] = column_updated_at()
 
     user: Mapped["User"] = relationship("User", back_populates="actor_links")
     actor: Mapped["Actor"] = relationship("Actor", back_populates="user_links")
-    role: Mapped["Role"] = relationship("Role")
+    access_level: Mapped["AccessLevel | None"] = relationship(
+        "AccessLevel", back_populates="actor_links"
+    )
 
 
 class UserSubmissionLink(Base):
@@ -93,8 +126,10 @@ class UserSubmissionLink(Base):
         primary_key=True,
         ondelete="CASCADE",
     )
-    role_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.ROLES.fq_name}.id", nullable=True, ondelete="SET NULL"
+    access_level_id: Mapped[UUID | None] = column_fk(
+        target=f"{TargetTable.ACCESS_LEVELS.fq_name}.id",
+        nullable=True,
+        ondelete="SET NULL",
     )
 
     updated_at: Mapped[datetime] = column_updated_at()
@@ -103,4 +138,6 @@ class UserSubmissionLink(Base):
     submission: Mapped["Submission"] = relationship(
         "Submission", back_populates="user_links"
     )
-    role: Mapped["Role"] = relationship("Role")
+    access_level: Mapped["AccessLevel | None"] = relationship(
+        "AccessLevel", back_populates="submission_links"
+    )

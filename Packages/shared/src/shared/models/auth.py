@@ -19,27 +19,63 @@ from sqlalchemy.orm import Mapped, relationship
 from .targets import TargetTable
 
 
-class Role(Base):
+# =====================================================================
+# 1. RESOURCE ReBAC ACCESS LEVELS (Scoped to File, Submission, Actor)
+# =====================================================================
+
+
+class AccessLevel(Base):
     """
-    Used to represent the entried of the roles a user can have.
+    Represents entity-scoped access levels (e.g., 'viewer', 'editor', 'evaluator').
+    Used in link tables like UserFileLink, UserSubmissionLink, UserActorLink.
     """
 
-    __tablename__ = TargetTable.ROLES.table
-    __table_args__ = {"schema": TargetTable.ROLES.schema}
+    __tablename__ = TargetTable.ACCESS_LEVELS.table
+    __table_args__ = {"schema": TargetTable.ACCESS_LEVELS.schema}
 
-    label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
-    user_file_link = relationship("UserFileLink", back_populates="role")
+    code: Mapped[str] = column_short_text(length=50, unique=True)  # e.g., 'evaluator'
+    label: Mapped[str] = column_short_text(length=255)  # e.g., 'Evaluator'
+    description: Mapped[str | None] = column_long_text(nullable=True)
+
+    file_links = relationship("UserFileLink", back_populates="access_level")
+    submission_links = relationship("UserSubmissionLink", back_populates="access_level")
+    actor_links = relationship("UserActorLink", back_populates="access_level")
+
+
+# =====================================================================
+# 2. GLOBAL SYSTEM RBAC (Platform-Wide Roles)
+# =====================================================================
+
+
+class SystemRole(Base):
+    """
+    Represents global application roles (e.g., 'PlatformAdmin', 'Grader', 'StandardUser').
+    """
+
+    __tablename__ = TargetTable.SYSTEM_ROLES.table
+    __table_args__ = {"schema": TargetTable.SYSTEM_ROLES.schema}
+
+    code: Mapped[str] = column_short_text(length=50, unique=True)  # e.g., 'admin'
+    label: Mapped[str] = column_short_text(length=255)  # e.g., 'Platform Admin'
+    description: Mapped[str | None] = column_long_text(nullable=True)
+
+    user_links = relationship("UserSystemRoleLink", back_populates="system_role")
+
+
+# =====================================================================
+# 3. ENTITLEMENTS / TIERS (Quotas & Limits)
+# =====================================================================
 
 
 class UserTier(Base):
     """
-    Used to represent the types of users the app allows.
+    Represents platform tiers and operational quotas/limits.
     """
 
     __tablename__ = TargetTable.USER_TIERS.table
     __table_args__ = {"schema": TargetTable.USER_TIERS.schema}
 
+    code: Mapped[str] = column_short_text(50, unique=True)  # e.g., 'free', 'pro'
     label: Mapped[str] = column_short_text(50)
     max_file_size: Mapped[Decimal] = column_decimal(precision=15, scale=0)
     storage_quota: Mapped[Decimal] = column_decimal(precision=15, scale=0)
@@ -48,12 +84,17 @@ class UserTier(Base):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user = relationship("User", back_populates="tier")
+    users: Mapped[list["User"]] = relationship("User", back_populates="tier")
+
+
+# =====================================================================
+# 4. AUTH & PROFILE CORE MODELS
+# =====================================================================
 
 
 class RefreshSession(Base):
     """
-    Used to represent an entry to the RefreshSessions table which basically holds JWT refresh tokens.
+    Holds active JWT refresh token sessions.
     """
 
     __tablename__ = TargetTable.REFRESH_SESSIONS.table
@@ -66,12 +107,13 @@ class RefreshSession(Base):
 
     expires_at: Mapped[datetime] = column_datetime()
     is_active: Mapped[bool] = column_bool()
-    user = relationship("User", back_populates="refresh_sessions")
+
+    user: Mapped["User"] = relationship("User", back_populates="refresh_sessions")
 
 
 class UserDetails(Base):
     """
-    Used to represent the different details a users might have.
+    Additional personal and professional user attributes.
     """
 
     __tablename__ = TargetTable.USER_DETAILS.table
@@ -80,19 +122,19 @@ class UserDetails(Base):
     user_id: Mapped[UUID] = column_fk(f"{TargetTable.USERS.fq_name}.id", unique=True)
 
     name: Mapped[str] = column_short_text(length=255, nullable=False)
-    phone: Mapped[str] = column_short_text(length=50, nullable=True)
+    phone: Mapped[str | None] = column_short_text(length=50, nullable=True)
     email_pro: Mapped[str] = column_short_text(length=255, unique=True, nullable=False)
-    job_title: Mapped[str] = column_short_text(length=255, nullable=True)
-    area: Mapped[str] = column_short_text(length=255, nullable=True)
+    job_title: Mapped[str | None] = column_short_text(length=255, nullable=True)
+    area: Mapped[str | None] = column_short_text(length=255, nullable=True)
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user = relationship("User", back_populates="details", uselist=False)
+    user: Mapped["User"] = relationship("User", back_populates="details", uselist=False)
 
 
 class UserProfile(Base):
     """
-    Used to represent the profile a user has.
+    Public-facing profile and avatar image link.
     """
 
     __tablename__ = TargetTable.USER_PROFILES.table
@@ -112,13 +154,13 @@ class UserProfile(Base):
 
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user = relationship("User", back_populates="profile", uselist=False)
+    user: Mapped["User"] = relationship("User", back_populates="profile", uselist=False)
     file = relationship("File", back_populates="profile", uselist=False)
 
 
 class User(Base):
     """
-    Used to represent the basis of a user entry.
+    Core User identity model.
     """
 
     __tablename__ = TargetTable.USERS.table
@@ -138,12 +180,28 @@ class User(Base):
         precision=15, scale=0, default=Decimal(0)
     )
 
-    profile = relationship("UserProfile", back_populates="user", uselist=False)
-    details = relationship("UserDetails", back_populates="user", uselist=False)
-    tier = relationship("UserTier", back_populates="user", uselist=False)
-    notifications = relationship("Notification", back_populates="user")
-    comments = relationship("Comment", back_populates="user")
-    file_links = relationship("UserFileLink", back_populates="user")
+    # Core Relationships
+    profile: Mapped["UserProfile | None"] = relationship(
+        "UserProfile", back_populates="user", uselist=False
+    )
+    details: Mapped["UserDetails | None"] = relationship(
+        "UserDetails", back_populates="user", uselist=False
+    )
+    tier: Mapped["UserTier"] = relationship(
+        "UserTier", back_populates="users", uselist=False
+    )
     refresh_sessions = relationship("RefreshSession", back_populates="user")
+
+    # Global RBAC Links
+    system_role_links: Mapped[list["UserSystemRoleLink"]] = relationship(
+        "UserSystemRoleLink", back_populates="user"
+    )
+
+    # Resource ReBAC Links
+    file_links = relationship("UserFileLink", back_populates="user")
     actor_links = relationship("UserActorLink", back_populates="user")
     submission_links = relationship("UserSubmissionLink", back_populates="user")
+
+    # Activity Relationships
+    notifications = relationship("Notification", back_populates="user")
+    comments = relationship("Comment", back_populates="user")
