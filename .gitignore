@@ -3,59 +3,20 @@
 # ============================================================
 # Environment variables
 *.env
-*.env.local
-*.env.*.local
-.env*
 !example.env
 
 # Secrets and credentials
 Secrets/
-Secrets_Template/
+*.crt
 *.key
 *.pem
-*.crt
-*.cer
-*.p12
-*.pfx
-github_token.txt
-*_token.txt
-*_password.txt
 .ssh/
-.credentials/
 
 # ============================================================
 # PYTHON
 # ============================================================
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 .venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-.ruff_cache/
 *.lock
 
 # ============================================================
