@@ -1,8 +1,8 @@
 """cambios generalistas
 
-Revision ID: 090e1369bfb8
+Revision ID: be2c5d338062
 Revises: 
-Create Date: 2026-07-22 20:28:43.793696
+Create Date: 2026-07-22 21:09:18.775183
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '090e1369bfb8'
+revision: str = 'be2c5d338062'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -62,10 +62,12 @@ def upgrade() -> None:
     schema='reference'
     )
     op.create_table('field_types',
+    sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code'),
     schema='reference'
     )
     op.create_table('file_types',

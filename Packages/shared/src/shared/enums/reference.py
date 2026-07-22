@@ -3,23 +3,66 @@ from enum import Enum
 
 class FieldTypesEnum(Enum):
     """
-    Maps form field types to their corresponding Answer sub-table.
-    Tuple: (code, label, target_answer_model)
+    Mapea los tipos de campos de formulario a su tabla secundaria de Respuestas.
+    Tupla: (code, label, target_answer_model, description)
     """
 
-    BOOLEAN = ("boolean", "Yes / No Toggle", "AnswerBoolean")
-    CARD = ("card", "Card Entry Repeater", "AnswerCardEntry")
-    DATE = ("date", "Date Picker", "AnswerDate")
-    FILE = ("file", "File Attachment", "AnswerFile")
-    MULTI_CHOICE = ("multi_choice", "Multiple Choice Checkboxes", "AnswerMultiChoice")
-    NUMERIC = ("numeric", "Numeric Input", "AnswerNumeric")
-    SINGLE_CHOICE = ("single_choice", "Single Choice Radio", "AnswerSingleChoice")
-    TEXT = ("text", "Free Text Input", "AnswerText")
+    BOOLEAN = (
+        "boolean",
+        "Opción Sí / No",
+        "AnswerBoolean",
+        "Campo de alternancia para seleccionar entre Verdadero/Falso o Sí/No.",
+    )
+    CARD = (
+        "card",
+        "Repetidor de tarjetas",
+        "AnswerCardEntry",
+        "Estructura repetible para capturar grupos de datos estructurados.",
+    )
+    DATE = (
+        "date",
+        "Selector de fecha",
+        "AnswerDate",
+        "Campo para seleccionar fechas mediante un calendario.",
+    )
+    FILE = (
+        "file",
+        "Archivo adjunto",
+        "AnswerFile",
+        "Permite adjuntar y subir archivos o documentos.",
+    )
+    MULTI_CHOICE = (
+        "multi_choice",
+        "Casillas de selección múltiple",
+        "AnswerMultiChoice",
+        "Permite seleccionar una o más opciones de una lista predefinida.",
+    )
+    NUMERIC = (
+        "numeric",
+        "Entrada numérica",
+        "AnswerNumeric",
+        "Campo de entrada restringido a valores numéricos (enteros o decimales).",
+    )
+    SINGLE_CHOICE = (
+        "single_choice",
+        "Selección única (Radio)",
+        "AnswerSingleChoice",
+        "Permite seleccionar exactamente una opción de un grupo exclusivo.",
+    )
+    TEXT = (
+        "text",
+        "Entrada de texto libre",
+        "AnswerText",
+        "Entrada de texto libre, soporta palabras, frases o párrafos largos.",
+    )
 
-    def __init__(self, code: str, label: str, target_answer_model: str):
+    def __init__(
+        self, code: str, label: str, target_answer_model: str, description: str
+    ):
         self.code = code
         self._label = label
         self.target_answer_model = target_answer_model
+        self.description = description
 
     @property
     def label(self) -> str:
