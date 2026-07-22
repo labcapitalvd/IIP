@@ -2,6 +2,7 @@ from uuid import UUID
 
 from shared.db import UnitOfWork
 from shared.infrastructure import valkey_client
+from shared.utils import get_logger
 
 from ..repositories import (
     RefreshTokenRepository,
@@ -9,6 +10,8 @@ from ..repositories import (
     TierRepository,
     UserRepository,
 )
+
+logger = get_logger(__name__)
 
 
 class AuthUoW(UnitOfWork):
@@ -30,6 +33,7 @@ class AuthUoW(UnitOfWork):
         """Asks the repository for data and schedules the post-commit Valkey dump."""
         # 1. Ask the repository to do the heavy pulling and mapping lifting
         permission_map = await self.users.compile_permission_map(user_id)
+        logger.debug("Permission map for %s: %s", user_id, permission_map)
         if not permission_map:
             return False
 
