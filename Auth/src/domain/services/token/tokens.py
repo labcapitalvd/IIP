@@ -38,10 +38,11 @@ class TokenService:
 
         uow.tokens.add(db_token)
 
+        ttl = max(0, expr - int(datetime.now(timezone.utc).timestamp()))
         await uow.sync_session_cache(
             user_id=user_id,
             jti=jti,
-            ttl_seconds=3600,
+            ttl_seconds=ttl,
         )
 
         return client_access_token, client_refresh_token
