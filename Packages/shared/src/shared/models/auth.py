@@ -18,6 +18,11 @@ from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .links import UserSystemRoleLink
+
 
 # =====================================================================
 # 1. RESOURCE ReBAC ACCESS LEVELS (Scoped to File, Submission, Actor)

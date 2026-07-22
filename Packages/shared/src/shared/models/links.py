@@ -9,7 +9,7 @@ from .targets import TargetTable
 
 if TYPE_CHECKING:
     from .actors import Actor
-    from .auth import AccessLevel, User
+    from .auth import AccessLevel, User, SystemRole
     from .forms import FieldChoice
     from .submissions import AnswerMultiChoice, Submission
 
