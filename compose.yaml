@@ -16,7 +16,7 @@ services:
       - "${PORT_AUTH}:${PORT_AUTH}"
       - "${PORT_CORE}:${PORT_CORE}"
     volumes:
-      - "./nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "./Secrets/nginx.conf:/etc/nginx/nginx.conf:ro"
 
   db:
     container_name: app_db

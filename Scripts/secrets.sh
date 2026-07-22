@@ -7,14 +7,14 @@ if [ ! -f ../.env ]; then
   echo "Please change default values from .env"
   echo "WARN -> Default values are public and well known."
   cp ../Secrets_Template/example.env ../.env
-  echo "Copied the example .env to ./Secrets/.env"
+  echo "Copied the example .env to ..env"
 fi
 
 if [ ! -f ../nginx.conf ]; then
   echo "Please change default values from nginx.conf"
   echo "WARN -> Default values are public and well known."
-  cp ../Secrets_Template/example.nginx.conf ../nginx.conf
-  echo "Copied the example nginx.conf to ../nginx.conf"
+  cp ../Secrets_Template/example.nginx.conf ../Secrets/
+  echo "Copied the example nginx.conf to ./Secrets/nginx.conf"
 fi
 
 if [ ! -f ../Secrets/users.toml ]; then
