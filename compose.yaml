@@ -5,8 +5,8 @@ services:
     env_file: ./.env
     restart: unless-stopped
     depends_on:
-      - api_auth
-      - api_core
+      - auth
+      - core
     secrets:
       - https_public
       - https_private
@@ -72,7 +72,7 @@ services:
       dockerfile: Persistence/Dockerfile
     image: docker.io/labcapital/apps:app-persister
     depends_on:
-      - api_core
+      - core
     env_file: ./.env
     volumes:
       - "./Persistence/src/migrator/alembic/versions:/api/migrator/alembic/versions"
@@ -123,7 +123,7 @@ services:
       dockerfile: Core/Dockerfile
     image: docker.io/labcapital/apps:app-core
     depends_on:
-      - api_auth
+      - auth
     env_file: ./.env
     secrets:
       - jwt_private_key
