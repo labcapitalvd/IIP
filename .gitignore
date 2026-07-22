@@ -36,17 +36,9 @@ postgres_data/
 # IDE & EDITOR FILES
 # ============================================================
 .vscode/
-.idea/
-*.swp
-*.swo
 *~
-.DS_Store
-.aider*
 flake.*
 .direnv
-*.sublime-project
-*.sublime-workspace
-.vim/
 
 # ============================================================
 # NODE & JAVASCRIPT (FOR Stats FRONTEND)
@@ -66,10 +58,7 @@ pnpm-debug.log
 # ============================================================
 # BUILD & DOCKER
 # ============================================================
-*.dockerfile
-docker-compose.override.yml
 .dockerignore
-.container/
 
 # ============================================================
 # LOGS & TEMPORARY FILES
@@ -93,18 +82,6 @@ logs/
 ehthumbs.db
 Thumbs.db
 *.lnk
-
-# ============================================================
-# IDE-SPECIFIC
-# ============================================================
-.vscode/settings.json
-.vscode/launch.json
-.idea/
-*.iml
-out/
-.pytest_cache/
-.coverage
-htmlcov/
 
 # ============================================================
 # PROJECT-SPECIFIC PRIVATE DATA
