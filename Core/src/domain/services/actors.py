@@ -1,26 +1,18 @@
-from shared.schemas import (
-    ActorSchema,
-    ActorSegmentSchema,
-    ActorSchemaRel,
-    ActorSchemaFK,
-    UuidSchema,
-)
-from sqlalchemy import label, select
-from sqlalchemy.orm import selectinload
-from typing import List, Any
 from uuid import UUID
 
-from shared.models import Submission, Answer, AnswerCardEntry, Actor, ActorSegment
-from domain.factories.answer_factory import AnswerFactory
+from shared.models import Actor, ActorSegment
+from shared.schemas import (
+    ActorSchemaFK,
+    ActorSegmentSchema,
+)
+
 from infrastructure.uow import IdentityUoW
 
 from .errors import (
-    ActorError,
-    ActorSegmentError,
     ActorAlreadyExistsError,
     ActorNotFoundError,
-    ActorSegmentNotFoundError,
     ActorSegmentAlreadyExistsError,
+    ActorSegmentNotFoundError,
 )
 
 
@@ -66,7 +58,7 @@ class ActorService:
         if not existing:
             raise ActorNotFoundError()
 
-        uow.actors.delete(existing)
+        await uow.actors.delete(existing)
         return existing
 
     async def create_actor_segment(
@@ -102,5 +94,5 @@ class ActorService:
         if not existing:
             raise ActorSegmentNotFoundError()
 
-        uow.actor_segments.delete(existing)
+        await uow.actor_segments.delete(existing)
         return existing

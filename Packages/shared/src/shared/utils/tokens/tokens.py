@@ -1,12 +1,10 @@
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Literal, Annotated
+from typing import Annotated, Literal
 from uuid import UUID
-from uuid_utils import uuid7
 
-from fastapi import Request, Response, Header, Cookie, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
+from fastapi import Cookie, Depends, Header, Request, Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from joserfc import jwt
 from joserfc.errors import (
     BadSignatureError,
@@ -18,6 +16,7 @@ from joserfc.errors import (
     InvalidExchangeKeyError,
     JoseError,
 )
+from uuid_utils import uuid7
 
 from shared.schemas import ResponseAuthSchema
 
@@ -28,17 +27,15 @@ from .config import (
     PUBLIC_KEY,
     REGISTRY,
 )
-
 from .errors import (
-    TokenEncodeError,
+    InvalidPlatformError,
     TokenDecodeError,
+    TokenEmptyError,
+    TokenEncodeError,
     TokenExpiredError,
     TokenSignatureError,
-    TokenEmptyError,
     TokenTypeError,
-    InvalidPlatformError,
 )
-
 
 PRODUCTION_MODE = os.getenv("PRODUCTION_MODE", "false").lower() in ("1", "true", "yes")
 
@@ -79,7 +76,7 @@ def generate_token(
 
         jti: UUID | None = None
         if token_type == "refresh":
-            jti = UUID(str(uuid7()))
+            jti = UUID(bytes=uuid7().bytes)
             claims["jti"] = str(jti)
 
         token = jwt.encode(header, claims, PRIVATE_KEY, registry=REGISTRY)
@@ -241,7 +238,9 @@ class SessionContext:
                 path="/",
             )
 
-    def make_response(self, access_token: str, refresh_token: str) -> ResponseAuthSchema:
+    def make_response(
+        self, access_token: str, refresh_token: str
+    ) -> ResponseAuthSchema:
         """
         Constructs the appropriate response structure and sets cookies if
         needed.

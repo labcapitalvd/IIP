@@ -1,9 +1,13 @@
+from typing import Annotated, Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+)
 from pydantic.alias_generators import to_snake
-from pydantic import functional_validators, BeforeValidator
-from typing import Annotated, Any
 
 
 def coerce_to_str(v: Any) -> str:

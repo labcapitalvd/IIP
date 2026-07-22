@@ -1,19 +1,14 @@
-from uuid import UUID
-
-from typing import Sequence, Annotated
-from annotated_types import Len
 from pydantic import Field
 
 from shared.schemas import (
     UUID_STR,
-    UuidSchema,
-    LabelSchema,
     DescriptionSchema,
-    HelperSchema,
     DisplayOrderSchema,
+    HelperSchema,
+    LabelSchema,
     RequiredSchema,
+    UuidSchema,
 )
-
 
 ###############################################################################
 # Base

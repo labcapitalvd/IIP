@@ -76,6 +76,7 @@ class TokenService:
             raise TokenError() from e
 
         await uow.tokens.deactivate(user_id=user_id, jti=jti)
+        uow.invalidate_session_cache(jti=jti)
 
         return await self.issue_tokens(user_id=user_id, username=username, uow=uow)
 
@@ -103,3 +104,4 @@ class TokenService:
             raise TokenError() from e
 
         await uow.tokens.deactivate(user_id=user_id, jti=jti)
+        uow.invalidate_session_cache(jti=jti)
