@@ -34,7 +34,8 @@ RUN pip install --no-cache-dir --no-deps .
 # -----------------------------
 # 5. configure ports
 # -----------------------------
-ENV PORT_AUTH=8000
+ARG PORT_AUTH=8000
+ENV PORT_AUTH=${PORT_AUTH}
 EXPOSE ${PORT_AUTH}
 
 # -----------------------------

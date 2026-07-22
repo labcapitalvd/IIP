@@ -34,7 +34,8 @@ RUN pip install --no-cache-dir --no-deps .
 # -----------------------------
 # 5. configure ports
 # -----------------------------
-ENV PORT_CORE=8001
+ARG PORT_CORE=8001
+ENV PORT_CORE=${PORT_CORE}
 EXPOSE ${PORT_CORE}
 
 # -----------------------------

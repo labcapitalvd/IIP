@@ -31,8 +31,10 @@ RUN pip install --no-cache-dir --no-deps .
 # -----------------------------
 # 5. configure ports
 # -----------------------------
-ENV PORT_AUTH=8000
-ENV PORT_CORE=8001
+ARG PORT_AUTH=8000
+ARG PORT_CORE=8001
+ENV PORT_AUTH=${PORT_AUTH}
+ENV PORT_CORE=${PORT_CORE}
 
 # -----------------------------
 # 5. setup entrypoint

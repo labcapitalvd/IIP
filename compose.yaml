@@ -97,6 +97,8 @@ services:
     build:
       context: .
       dockerfile: Auth/Dockerfile
+      args:
+        PORT_AUTH: ${PORT_AUTH:-8000}
     image: docker.io/labcapital/apps:app-auth
     depends_on:
       base:
@@ -122,6 +124,8 @@ services:
     build:
       context: .
       dockerfile: Core/Dockerfile
+      args:
+        PORT_CORE: ${PORT_CORE:-8000}
     image: docker.io/labcapital/apps:app-core
     depends_on:
       - auth
