@@ -9,16 +9,14 @@ WORKDIR /api
 # 1. Copy ONLY the configuration first
 COPY Core/src/pyproject.toml ./pyproject.toml
 
-# 2. Trick Hatchling into caching your external dependencies (FastAPI, Pandas, etc.)
-# by creating mock folders so its validation pass succeeds.
+# Mock layout to satisfy Hatchling and cache heavy libraries (FastAPI, Argon2, etc.)
 RUN mkdir -p application domain infrastructure routers schemas utils \
   && touch main.py \
   && pip install --no-cache-dir .
 
-# ----------------------------------------------------------------------
-# CACHE BOUNDARY! Changing your Python code will only execute from here down.
-# ----------------------------------------------------------------------
-
+# -----------------------------
+# CACHE BOUNDARY
+# -----------------------------
 # 3. Overwrite the mock folders with your actual real implementation code
 COPY Core/src/main.py ./main.py
 COPY Core/src/application/ ./application/
@@ -28,15 +26,23 @@ COPY Core/src/routers/ ./routers/
 COPY Core/src/schemas/ ./schemas/
 COPY Core/src/utils/ ./utils/
 
+# -----------------------------
 # 4. Re-run a fast, local-only install to sync your actual code metadata 
+# -----------------------------
 RUN pip install --no-cache-dir --no-deps .
+
+# -----------------------------
+# 5. configure ports
+# -----------------------------
+ENV PORT_CORE=8001
+EXPOSE ${PORT_CORE}
 
 # -----------------------------
 # 5. setup entrypoint
 # -----------------------------
-COPY Core/entrypoint_core.sh /entrypoint_core.sh
-RUN chmod +x /entrypoint_core.sh
-ENTRYPOINT ["/entrypoint_core.sh"]
+COPY Core/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 
 # -----------------------------
 # 6. Run uvicorn

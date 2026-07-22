@@ -1,25 +1,36 @@
+# =================================================
+# Stage 2: Final Application Layer
+# =================================================
 FROM docker.io/labcapital/apps:app-base
 
 ARG APPLICATION=1
 WORKDIR /api
 
+# 1. Copy ONLY the configuration first
 COPY Persistence/src/pyproject.toml ./pyproject.toml
 
-# Mock the structure for the initial heavy pip download pass
+# Mock layout to satisfy Hatchling and cache heavy libraries (FastAPI, Argon2, etc.)
 RUN mkdir -p migrator schemer seeder populator scripts \
   && pip install --no-cache-dir .
 
-# ----------------------------------------------------------------------
+# -----------------------------
 # CACHE BOUNDARY
-# ----------------------------------------------------------------------
+# -----------------------------
+# 3. Overwrite the mock folders with your actual real implementation code
 COPY Persistence/src/migrator ./migrator
 COPY Persistence/src/schemer ./schemer
 COPY Persistence/src/seeder ./seeder
 COPY Persistence/src/populator ./populator
 COPY Persistence/src/scripts ./scripts
 
+# -----------------------------
+# 4. Re-run a fast, local-only install to sync your actual code metadata 
+# -----------------------------
 RUN pip install --no-cache-dir --no-deps .
 
-COPY Persistence/entrypoint_pers.sh /entrypoint_pers.sh
-RUN chmod +x /entrypoint_pers.sh
-ENTRYPOINT ["/entrypoint_pers.sh"]
+# -----------------------------
+# 5. setup entrypoint
+# -----------------------------
+COPY Persistence/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
