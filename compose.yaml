@@ -47,7 +47,6 @@ services:
     container_name: app_cache
     image: docker.io/valkey/valkey:alpine
     restart: unless-stopped
-    # Expose port only if you need to inspect keys from your host machine
     ports:
       - "6379:6379"
     networks:
@@ -110,6 +109,7 @@ services:
       - jwt_private_key
       - jwt_public_key
       - postgres_password
+      - valkey_password
       - fernet_password
     networks:
       - app_db_net
@@ -129,6 +129,7 @@ services:
       - jwt_private_key
       - jwt_public_key
       - postgres_password
+      - valkey_password
       - fernet_password
     networks:
       - app_db_net
@@ -155,6 +156,8 @@ volumes:
 secrets:
   postgres_password:
     file: ./Secrets/postgres_password
+  valkey_password:
+    file: ./Secrets/valkey_password
   fernet_password:
     file: ./Secrets/fernet_password
   github_token_commons:
