@@ -1,5 +1,6 @@
+from pydantic import EmailStr, Field, SecretStr
+
 from shared.schemas import BaseSchema
-from pydantic import Field, EmailStr, SecretStr
 
 ##############################################################################################
 # Auth
