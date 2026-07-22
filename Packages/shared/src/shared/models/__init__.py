@@ -2,7 +2,15 @@
 
 from .actors import Actor, ActorSegment
 from .audit import ActivityLog, LogActionType
-from .auth import AccessLevel, RefreshSession, User, UserDetails, UserProfile, UserTier
+from .auth import (
+    AccessLevel,
+    RefreshSession,
+    SystemRole,
+    User,
+    UserDetails,
+    UserProfile,
+    UserTier,
+)
 from .files import File, FileType
 from .forms import (
     CardTemplate,
@@ -21,6 +29,7 @@ from .links import (
     UserActorLink,
     UserFileLink,
     UserSubmissionLink,
+    UserSystemRoleLink,
 )
 from .reference import FieldType, RelationalOperator, RuleType, SubmissionStatusType
 from .rules import FieldDependency, FieldRule, SectionDependency
@@ -38,17 +47,20 @@ from .submissions import (
 )
 
 __all__ = [
-    "LogActionType",
-    "FileType",
+    # Auth & Security
     "AccessLevel",
+    "SystemRole",
     "UserTier",
     "User",
-    "ActivityLog",
     "RefreshSession",
     "UserDetails",
-    "File",
     "UserProfile",
-    "UserFileLink",
+    # Audit & Files
+    "LogActionType",
+    "ActivityLog",
+    "FileType",
+    "File",
+    # Interactions
     "CommentType",
     "NotificationType",
     "Comment",
@@ -70,9 +82,11 @@ __all__ = [
     "Grade",
     "Result",
     # Links
-    "MultiChoiceOptionLink",
+    "UserFileLink",
     "UserActorLink",
     "UserSubmissionLink",
+    "UserSystemRoleLink",
+    "MultiChoiceOptionLink",
     # Reference
     "FieldType",
     "RelationalOperator",
