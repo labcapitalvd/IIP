@@ -4,38 +4,42 @@ import os
 import tomllib
 from datetime import datetime, timezone
 from decimal import Decimal
-from uuid import UUID
 
 from shared.db import SessionSync
 from shared.models import User, UserTier
-from shared.utils import hash_password, sanitize_text
+from shared.utils import hash_password
 from shared.utils.logger import get_logger
 from uuid_utils import uuid7
 
 logger = get_logger("seed/users")
-
-
 USERS_FILE = "/run/secrets/users_file"
-if not os.path.exists(USERS_FILE):
-    raise FileNotFoundError(f"USERS_FILE file not found at {USERS_FILE}")
-with open(USERS_FILE, "rb") as f:
-    users_toml = tomllib.load(f)
+
+
+def load_users_config() -> dict:
+    if not os.path.exists(USERS_FILE):
+        raise FileNotFoundError(f"USERS_FILE not found at {USERS_FILE}")
+    with open(USERS_FILE, "rb") as f:
+        return tomllib.load(f)
 
 
 def upgrade() -> None:
+    users_toml = load_users_config()
+
     with SessionSync() as session:
-        # 1. Fetch all tiers in a single query instead of 5 separate ones
+        # 1. Fetch tiers and map by t.code (matches UserTiersEnum.code)
         tiers: list[UserTier] = session.query(UserTier).all()
-        tier_map = {t.label.lower(): t.id for t in tiers}
+        tier_map = {t.code.lower(): t.id for t in tiers}
 
-        required_labels = {"root", "admin", "premium", "standard", "guest"}
-        if not required_labels.issubset(tier_map.keys()):
-            missing = required_labels - tier_map.keys()
-            logger.error(f"Missing tiers in DB: {missing}")
-            raise RuntimeError(f"Required tiers missing: {missing}")
+        required_codes = {"root", "admin", "premium", "standard", "guest"}
+        if not required_codes.issubset(tier_map.keys()):
+            missing = required_codes - tier_map.keys()
+            logger.error(f"Missing required tier codes in DB: {missing}")
+            raise RuntimeError(f"Required tier codes missing: {missing}")
 
-        # 2. Pre-fetch existing emails to avoid "N+1" query problem
-        incoming_emails = [u["email"] for u in users_toml.get("users", [])]
+        # 2. Pre-fetch existing emails
+        incoming_users = users_toml.get("users", [])
+        incoming_emails = [u["email"] for u in incoming_users if "email" in u]
+
         existing_emails = {
             email
             for (email,) in session.query(User.email)
@@ -43,32 +47,31 @@ def upgrade() -> None:
             .all()
         }
 
-        # 3. Batch build user objects
-        for u in users_toml.get("users", []):
+        # 3. Batch build users
+        for u in incoming_users:
             email = u["email"]
             username = u["username"]
 
             if email in existing_emails:
-                logger.info(f"User {username} already exists, skipping")
+                logger.info(f"User {username} ({email}) already exists, skipping")
                 continue
 
-            # Map username to tier, defaulting to admin if no match
-            # (Matches your logic where specific usernames might dictate roles)
-            tier_id = tier_map.get(username.lower(), tier_map["admin"])
+            # Read target tier from user dictionary (defaults to "standard")
+            target_tier_code = u.get("tier", "standard").lower()
+            tier_id = tier_map.get(target_tier_code, tier_map["standard"])
 
             user_obj = User(
                 id=str(uuid7()),
                 tier_id=str(tier_id),
                 username=username,
                 email=email,
-                password_hash=hash_password(sanitize_text(u["password"])),
+                password_hash=hash_password(u["password"]),  # Direct raw password
                 is_active=True,
                 is_verified=True,
                 updated_at=datetime.now(timezone.utc),
                 media_usage=Decimal("0"),
             )
             session.add(user_obj)
-            logger.info(f"Queued user: {username}")
+            logger.info(f"Queued user: {username} [Tier: {target_tier_code}]")
 
-        # 4. Single commit for the entire batch
         session.commit()

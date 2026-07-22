@@ -31,9 +31,7 @@ class UserRepository(BaseRepository[User]):
             select(User)
             .where(User.id == user_id)
             .options(
-                selectinload(User.file_links),
-                selectinload(User.actor_links),
-                selectinload(User.submission_links),
+                selectinload(User.tier),
             )
         )
         result = await self.session.execute(stmt)
@@ -42,18 +40,22 @@ class UserRepository(BaseRepository[User]):
         if not user:
             return {}
 
-        permission_map: dict[str, str] = {}
+        permission_map: dict[str, str] = {
+            "user_id": str(user.id),
+            "is_active": str(user.is_active).lower(),
+        }
 
-        for link in user.file_links:
-            if link.role:
-                permission_map[f"file:{link.file_id}"] = str(link.role)
+        # 1. ABAC Attributes (Tier Limits)
+        if user.tier:
+            permission_map.update(
+                {
+                    "tier": str(user.tier.label),
+                    "max_file_size": str(user.tier.max_file_size),
+                    "storage_quota": str(user.tier.storage_quota),
+                    "max_requests_per_minute": str(user.tier.max_requests_per_minute),
+                    "priority_level": str(user.tier.priority_level),
+                }
+            )
 
-        for link in user.actor_links:
-            if link.role:
-                permission_map[f"actor:{link.actor_id}"] = str(link.role)
-
-        for link in user.submission_links:
-            if link.role:
-                permission_map[f"submission:{link.submission_id}"] = str(link.role)
 
         return permission_map

@@ -5,18 +5,18 @@ services:
     env_file: ./.env
     restart: unless-stopped
     depends_on:
-      - api_auth
-      - api_core
+      - auth
+      - core
     secrets:
       - https_public
       - https_private
     networks:
       - app_nginx
     ports:
-      - "${PORT_AUTH}:${PORT_AUTH}"
-      - "${PORT_CORE}:${PORT_CORE}"
+      - "${PORT_AUTH:-8000}:${PORT_AUTH:-8000}"
+      - "${PORT_CORE:-8001}:${PORT_CORE:-8001}"
     volumes:
-      - "./nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "./Secrets/nginx.conf:/etc/nginx/nginx.conf:ro"
 
   db:
     container_name: app_db
@@ -47,12 +47,13 @@ services:
     container_name: app_cache
     image: docker.io/valkey/valkey:alpine
     restart: unless-stopped
+    command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}"] # or mount secret
     ports:
       - "6379:6379"
     networks:
       - app_cache_net
     healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
+      test: ["CMD-SHELL", "valkey-cli -a \"$VALKEY_PASSWORD\" ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -72,7 +73,7 @@ services:
       dockerfile: Persistence/Dockerfile
     image: docker.io/labcapital/apps:app-persister
     depends_on:
-      - api_core
+      - core
     env_file: ./.env
     volumes:
       - "./Persistence/src/migrator/alembic/versions:/api/migrator/alembic/versions"
@@ -91,11 +92,13 @@ services:
       - app_db_net
       - app_nginx
 
-  api_auth:
-    container_name: app_api_auth
+  auth:
+    container_name: app_auth
     build:
       context: .
       dockerfile: Auth/Dockerfile
+      args:
+        PORT_AUTH: ${PORT_AUTH:-8000}
     image: docker.io/labcapital/apps:app-auth
     depends_on:
       base:
@@ -116,14 +119,16 @@ services:
       - app_nginx
       - app_cache_net
 
-  api_core:
-    container_name: app_api_core
+  core:
+    container_name: app_core
     build:
       context: .
       dockerfile: Core/Dockerfile
+      args:
+        PORT_CORE: ${PORT_CORE:-8000}
     image: docker.io/labcapital/apps:app-core
     depends_on:
-      - api_auth
+      - auth
     env_file: ./.env
     secrets:
       - jwt_private_key
@@ -151,7 +156,7 @@ networks:
 
 volumes:
   postgresql:
-    name: stats_vol_pg
+    name: pg
 
 secrets:
   postgres_password:

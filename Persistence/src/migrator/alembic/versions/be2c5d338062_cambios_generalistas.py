@@ -1,8 +1,8 @@
-"""submission fixes for id
+"""cambios generalistas
 
-Revision ID: f6fb756a96ef
+Revision ID: be2c5d338062
 Revises: 
-Create Date: 2026-06-19 02:27:43.257650
+Create Date: 2026-07-22 21:09:18.775183
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'f6fb756a96ef'
+revision: str = 'be2c5d338062'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -45,6 +45,15 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='forms'
     )
+    op.create_table('access_levels',
+    sa.Column('code', sa.String(length=50), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code'),
+    schema='reference'
+    )
     op.create_table('comment_types',
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
@@ -53,10 +62,12 @@ def upgrade() -> None:
     schema='reference'
     )
     op.create_table('field_types',
+    sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code'),
     schema='reference'
     )
     op.create_table('file_types',
@@ -90,13 +101,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='reference'
     )
-    op.create_table('roles',
-    sa.Column('label', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    schema='reference'
-    )
     op.create_table('rule_types',
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
@@ -111,7 +115,17 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='reference'
     )
+    op.create_table('system_roles',
+    sa.Column('code', sa.String(length=50), nullable=False),
+    sa.Column('label', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code'),
+    schema='reference'
+    )
     op.create_table('user_tiers',
+    sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=50), nullable=False),
     sa.Column('max_file_size', sa.Numeric(precision=15, scale=0), nullable=False),
     sa.Column('storage_quota', sa.Numeric(precision=15, scale=0), nullable=False),
@@ -120,6 +134,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code'),
     schema='reference'
     )
     op.create_table('actors',
@@ -159,7 +174,7 @@ def upgrade() -> None:
     op.create_table('logs',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('log_action_type_id', sa.UUID(), nullable=False),
-    sa.Column('target', sa.Enum('LOG_ACTION_TYPES', 'FILE_TYPES', 'ROLES', 'USER_TIERS', 'USERS', 'LOGS', 'REFRESH_SESSIONS', 'USER_DETAILS', 'FILES', 'USER_PROFILES', 'LINK_USER_FILE', 'COMMENT_TYPES', 'NOTIFICATION_TYPES', 'COMMENTS', 'NOTIFICATIONS', 'ACTOR_SEGMENTS', 'ACTORS', 'LINK_USER_ACTOR', 'FIELD_TYPES', 'FORMS', 'SECTION_TYPES', 'SECTIONS', 'INFORMATIONS', 'QUESTIONS', 'CARD_TEMPLATES', 'FIELD_GROUPS', 'FIELDS', 'FIELD_CHOICES', 'RELATIONAL_OPERATORS', 'RULE_TYPES', 'SECTION_DEPENDENCIES', 'FIELD_DEPENDENCIES', 'FIELD_RULES', 'SUBMISSION_STATUS_TYPES', 'SUBMISSIONS', 'ASSIGNMENTS', 'CRITERIA', 'GRADES', 'RESULTS', 'ANSWERS_CARD_ENTRY', 'ANSWERS', 'ANSWERS_BOOLEAN', 'ANSWERS_DATE', 'ANSWERS_FILE', 'ANSWERS_MULTI_CHOICE', 'ANSWERS_NUMERIC', 'ANSWERS_SINGLE_CHOICE', 'ANSWERS_TEXT', 'LINK_USER_SUBMISSION', 'LINK_CHOICE_MULTICHOICE', name='targettableenum'), nullable=False),
+    sa.Column('target', sa.Enum('LOG_ACTION_TYPES', 'FILE_TYPES', 'USER_TIERS', 'ACCESS_LEVELS', 'SYSTEM_ROLES', 'COMMENT_TYPES', 'NOTIFICATION_TYPES', 'USERS', 'REFRESH_SESSIONS', 'USER_DETAILS', 'USER_PROFILES', 'LOGS', 'FILES', 'LINK_USER_FILE', 'LINK_USER_SYSTEM_ROLE', 'COMMENTS', 'NOTIFICATIONS', 'ACTOR_SEGMENTS', 'ACTORS', 'LINK_USER_ACTOR', 'FIELD_TYPES', 'RELATIONAL_OPERATORS', 'RULE_TYPES', 'SUBMISSION_STATUS_TYPES', 'FORMS', 'SECTION_TYPES', 'SECTIONS', 'INFORMATIONS', 'QUESTIONS', 'CARD_TEMPLATES', 'FIELD_GROUPS', 'FIELDS', 'FIELD_CHOICES', 'SECTION_DEPENDENCIES', 'FIELD_DEPENDENCIES', 'FIELD_RULES', 'SUBMISSIONS', 'ASSIGNMENTS', 'CRITERIA', 'GRADES', 'RESULTS', 'ANSWERS_CARD_ENTRY', 'ANSWERS', 'ANSWERS_BOOLEAN', 'ANSWERS_DATE', 'ANSWERS_FILE', 'ANSWERS_MULTI_CHOICE', 'ANSWERS_NUMERIC', 'ANSWERS_SINGLE_CHOICE', 'ANSWERS_TEXT', 'LINK_USER_SUBMISSION', 'LINK_CHOICE_MULTICHOICE', name='targettableenum'), nullable=False),
     sa.Column('target_id', sa.UUID(), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('timestamp', sa.DateTime(timezone=True), nullable=False),
@@ -213,7 +228,7 @@ def upgrade() -> None:
     op.create_table('comments',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('comment_type_id', sa.UUID(), nullable=False),
-    sa.Column('target', sa.Enum('LOG_ACTION_TYPES', 'FILE_TYPES', 'ROLES', 'USER_TIERS', 'USERS', 'LOGS', 'REFRESH_SESSIONS', 'USER_DETAILS', 'FILES', 'USER_PROFILES', 'LINK_USER_FILE', 'COMMENT_TYPES', 'NOTIFICATION_TYPES', 'COMMENTS', 'NOTIFICATIONS', 'ACTOR_SEGMENTS', 'ACTORS', 'LINK_USER_ACTOR', 'FIELD_TYPES', 'FORMS', 'SECTION_TYPES', 'SECTIONS', 'INFORMATIONS', 'QUESTIONS', 'CARD_TEMPLATES', 'FIELD_GROUPS', 'FIELDS', 'FIELD_CHOICES', 'RELATIONAL_OPERATORS', 'RULE_TYPES', 'SECTION_DEPENDENCIES', 'FIELD_DEPENDENCIES', 'FIELD_RULES', 'SUBMISSION_STATUS_TYPES', 'SUBMISSIONS', 'ASSIGNMENTS', 'CRITERIA', 'GRADES', 'RESULTS', 'ANSWERS_CARD_ENTRY', 'ANSWERS', 'ANSWERS_BOOLEAN', 'ANSWERS_DATE', 'ANSWERS_FILE', 'ANSWERS_MULTI_CHOICE', 'ANSWERS_NUMERIC', 'ANSWERS_SINGLE_CHOICE', 'ANSWERS_TEXT', 'LINK_USER_SUBMISSION', 'LINK_CHOICE_MULTICHOICE', name='targettableenum'), nullable=False),
+    sa.Column('target', sa.Enum('LOG_ACTION_TYPES', 'FILE_TYPES', 'USER_TIERS', 'ACCESS_LEVELS', 'SYSTEM_ROLES', 'COMMENT_TYPES', 'NOTIFICATION_TYPES', 'USERS', 'REFRESH_SESSIONS', 'USER_DETAILS', 'USER_PROFILES', 'LOGS', 'FILES', 'LINK_USER_FILE', 'LINK_USER_SYSTEM_ROLE', 'COMMENTS', 'NOTIFICATIONS', 'ACTOR_SEGMENTS', 'ACTORS', 'LINK_USER_ACTOR', 'FIELD_TYPES', 'RELATIONAL_OPERATORS', 'RULE_TYPES', 'SUBMISSION_STATUS_TYPES', 'FORMS', 'SECTION_TYPES', 'SECTIONS', 'INFORMATIONS', 'QUESTIONS', 'CARD_TEMPLATES', 'FIELD_GROUPS', 'FIELDS', 'FIELD_CHOICES', 'SECTION_DEPENDENCIES', 'FIELD_DEPENDENCIES', 'FIELD_RULES', 'SUBMISSIONS', 'ASSIGNMENTS', 'CRITERIA', 'GRADES', 'RESULTS', 'ANSWERS_CARD_ENTRY', 'ANSWERS', 'ANSWERS_BOOLEAN', 'ANSWERS_DATE', 'ANSWERS_FILE', 'ANSWERS_MULTI_CHOICE', 'ANSWERS_NUMERIC', 'ANSWERS_SINGLE_CHOICE', 'ANSWERS_TEXT', 'LINK_USER_SUBMISSION', 'LINK_CHOICE_MULTICHOICE', name='targettableenum'), nullable=False),
     sa.Column('target_id', sa.UUID(), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
@@ -240,13 +255,23 @@ def upgrade() -> None:
     op.create_table('user_actor_links',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('actor_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=True),
+    sa.Column('access_level_id', sa.UUID(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['access_level_id'], ['reference.access_levels.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'actor_id', 'id'),
+    schema='links'
+    )
+    op.create_table('user_system_role_links',
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('system_role_id', sa.UUID(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['system_role_id'], ['reference.system_roles.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('user_id', 'system_role_id', 'id'),
     schema='links'
     )
     op.create_table('submissions',
@@ -309,11 +334,11 @@ def upgrade() -> None:
     op.create_table('user_file_links',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=True),
+    sa.Column('access_level_id', sa.UUID(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['access_level_id'], ['reference.access_levels.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'file_id', 'id'),
     schema='links'
@@ -321,10 +346,10 @@ def upgrade() -> None:
     op.create_table('user_submission_links',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('role_id', sa.UUID(), nullable=True),
+    sa.Column('access_level_id', sa.UUID(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['role_id'], ['reference.roles.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['access_level_id'], ['reference.access_levels.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'submission_id', 'id'),
@@ -581,6 +606,7 @@ def downgrade() -> None:
     op.drop_table('sections', schema='forms')
     op.drop_table('user_profiles', schema='auth')
     op.drop_table('submissions', schema='submissions')
+    op.drop_table('user_system_role_links', schema='links')
     op.drop_table('user_actor_links', schema='links')
     op.drop_table('notifications', schema='interactions')
     op.drop_table('comments', schema='interactions')
@@ -592,15 +618,16 @@ def downgrade() -> None:
     op.drop_table('users', schema='auth')
     op.drop_table('actors', schema='actors')
     op.drop_table('user_tiers', schema='reference')
+    op.drop_table('system_roles', schema='reference')
     op.drop_table('submission_status_types', schema='reference')
     op.drop_table('rule_types', schema='reference')
-    op.drop_table('roles', schema='reference')
     op.drop_table('relational_operators', schema='reference')
     op.drop_table('notification_types', schema='reference')
     op.drop_table('log_action_types', schema='reference')
     op.drop_table('file_types', schema='reference')
     op.drop_table('field_types', schema='reference')
     op.drop_table('comment_types', schema='reference')
+    op.drop_table('access_levels', schema='reference')
     op.drop_table('section_types', schema='forms')
     op.drop_table('forms', schema='forms')
     op.drop_table('actor_segments', schema='actors')

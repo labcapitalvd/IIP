@@ -24,6 +24,7 @@ class TokenService:
         client_refresh_token, expr, jti = generate_token(
             user_id=user_id, username=username, token_type="refresh"
         )
+        assert jti is not None, "Refresh token must have a JTI"
 
         refresh_hash = hash_token(token=client_refresh_token)
 
@@ -37,10 +38,11 @@ class TokenService:
 
         uow.tokens.add(db_token)
 
+        ttl = max(0, expr - int(datetime.now(timezone.utc).timestamp()))
         await uow.sync_session_cache(
-            user_id=str(user_id),
-            jti=str(jti),
-            ttl_seconds=3600,
+            user_id=user_id,
+            jti=jti,
+            ttl_seconds=ttl,
         )
 
         return client_access_token, client_refresh_token

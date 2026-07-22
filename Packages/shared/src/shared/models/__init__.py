@@ -1,12 +1,17 @@
 # Módulo init que carga todos los modelos para simplificar importaciones y prevenir imports circulares.
 
-from .audit import ActivityLog, LogActionType
-from .auth import RefreshSession, Role, User, UserDetails, UserProfile, UserTier
-from .files import File, FileType
-from .interactions import Comment, CommentType, Notification, NotificationType
-from .links import UserFileLink
-
 from .actors import Actor, ActorSegment
+from .audit import ActivityLog, LogActionType
+from .auth import (
+    AccessLevel,
+    RefreshSession,
+    SystemRole,
+    User,
+    UserDetails,
+    UserProfile,
+    UserTier,
+)
+from .files import File, FileType
 from .forms import (
     CardTemplate,
     Field,
@@ -18,7 +23,14 @@ from .forms import (
     SectionType,
 )
 from .grading import Criterion, Grade, Result
-from .links import MultiChoiceOptionLink, UserActorLink, UserSubmissionLink
+from .interactions import Comment, CommentType, Notification, NotificationType
+from .links import (
+    MultiChoiceOptionLink,
+    UserActorLink,
+    UserFileLink,
+    UserSubmissionLink,
+    UserSystemRoleLink,
+)
 from .reference import FieldType, RelationalOperator, RuleType, SubmissionStatusType
 from .rules import FieldDependency, FieldRule, SectionDependency
 from .submissions import (
@@ -35,17 +47,20 @@ from .submissions import (
 )
 
 __all__ = [
-    "LogActionType",
-    "FileType",
-    "Role",
+    # Auth & Security
+    "AccessLevel",
+    "SystemRole",
     "UserTier",
     "User",
-    "ActivityLog",
     "RefreshSession",
     "UserDetails",
-    "File",
     "UserProfile",
-    "UserFileLink",
+    # Audit & Files
+    "LogActionType",
+    "ActivityLog",
+    "FileType",
+    "File",
+    # Interactions
     "CommentType",
     "NotificationType",
     "Comment",
@@ -67,9 +82,11 @@ __all__ = [
     "Grade",
     "Result",
     # Links
-    "MultiChoiceOptionLink",
+    "UserFileLink",
     "UserActorLink",
     "UserSubmissionLink",
+    "UserSystemRoleLink",
+    "MultiChoiceOptionLink",
     # Reference
     "FieldType",
     "RelationalOperator",

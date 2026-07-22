@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from shared.db import (
@@ -17,6 +18,9 @@ from sqlalchemy.orm import Mapped, relationship
 
 from .targets import CoreTargetTable, TargetTable
 
+if TYPE_CHECKING:
+    from .auth import User
+
 TargetTableEnum = generate_table_enum("TargetTableEnum", CoreTargetTable, TargetTable)
 
 
@@ -26,7 +30,6 @@ class NotificationType(Base):
 
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
-
 
     notifications: Mapped[list["Notification"]] = relationship(
         "Notification", back_populates="type"
@@ -49,7 +52,7 @@ class Notification(Base):
     is_read: Mapped[bool] = column_bool(default=False)
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user = relationship("User", back_populates="notifications")
+    user: Mapped["User"] = relationship("User", back_populates="notifications")
     type: Mapped["NotificationType"] = relationship(
         "NotificationType", back_populates="notifications"
     )
@@ -81,5 +84,5 @@ class Comment(Base):
     content: Mapped[str] = column_long_text()
     updated_at: Mapped[datetime] = column_updated_at()
 
-    user = relationship("User", back_populates="comments")
+    user: Mapped["User"] = relationship("User", back_populates="comments")
     type: Mapped["CommentType"] = relationship("CommentType", back_populates="comments")

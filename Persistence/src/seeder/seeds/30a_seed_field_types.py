@@ -1,29 +1,30 @@
-"""Poblado de field types"""
+"""Poblado de tipos de campos (FieldType)"""
 
 from shared.db import SessionSync
-from shared.utils.logger import get_logger
-
-
-from shared.models import FieldType
 from shared.enums import FieldTypesEnum as Types
+from shared.models import FieldType
+from shared.utils.logger import get_logger
 
 logger = get_logger("seed/field_types")
 
 
 def upgrade() -> None:
     with SessionSync() as session:
-        for tier in Types:
+        for item in Types:
             exists: FieldType | None = (
-                session.query(FieldType).filter_by(label=tier.label).first()
+                session.query(FieldType).filter_by(code=item.code).first()
             )
             if exists:
-                logger.info(f"{type} already exists in FieldType")
-                continue  # Skip this one
+                logger.info(f"FieldType '{item.code}' ya existe en la base de datos")
+                continue
+
             session.add(
                 FieldType(
-                    label=tier.label,
-                    description=tier.description,
+                    code=item.code,
+                    label=item.label,
+                    description=item.description,
                 )
             )
-            logger.info(f"{type} added to table FieldType")
+            logger.info(f"FieldType '{item.code}' añadido a la tabla")
+
         session.commit()

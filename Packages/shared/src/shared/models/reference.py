@@ -19,6 +19,7 @@ class FieldType(Base):
     __tablename__ = TargetTable.FIELD_TYPES.table
     __table_args__ = {"schema": TargetTable.FIELD_TYPES.schema}
 
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str] = column_long_text()
 
