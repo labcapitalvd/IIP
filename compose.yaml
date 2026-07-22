@@ -91,8 +91,8 @@ services:
       - app_db_net
       - app_nginx
 
-  api_auth:
-    container_name: app_api_auth
+  auth:
+    container_name: app_auth
     build:
       context: .
       dockerfile: Auth/Dockerfile
@@ -116,8 +116,8 @@ services:
       - app_nginx
       - app_cache_net
 
-  api_core:
-    container_name: app_api_core
+  core:
+    container_name: app_core
     build:
       context: .
       dockerfile: Core/Dockerfile
