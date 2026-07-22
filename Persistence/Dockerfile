@@ -29,6 +29,12 @@ COPY Persistence/src/scripts ./scripts
 RUN pip install --no-cache-dir --no-deps .
 
 # -----------------------------
+# 5. configure ports
+# -----------------------------
+ENV PORT_AUTH=8000
+ENV PORT_CORE=8001
+
+# -----------------------------
 # 5. setup entrypoint
 # -----------------------------
 COPY Persistence/entrypoint.sh /entrypoint.sh
