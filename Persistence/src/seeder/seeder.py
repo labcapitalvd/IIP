@@ -5,7 +5,7 @@ import traceback
 from shared.utils import print_list, print_banner
 from shared.utils.logger import get_logger, configure_logging
 
-logger = get_logger("seed/tables")
+logger = get_logger(__name__)
 
 
 def main():

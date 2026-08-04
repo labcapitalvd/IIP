@@ -8,7 +8,7 @@ from sqlalchemy.schema import CreateSchema
 
 from shared.utils import print_banner, print_list
 
-logger = get_logger("seed/schema")
+logger = get_logger(__name__)
 
 
 def get_all_schemas():
