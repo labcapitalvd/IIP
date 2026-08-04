@@ -21,6 +21,7 @@ def upgrade() -> None:
                 continue  # Skip this one
             session.add(
                 SubmissionStatusType(
+                    code=type.code,
                     label=type.label,
                     description=type.description,
                 )

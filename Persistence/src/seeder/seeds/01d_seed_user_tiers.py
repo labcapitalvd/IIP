@@ -28,6 +28,7 @@ def upgrade() -> None:
                     UserTier(
                         code=tier.code,
                         label=tier.label,
+                        description=tier.description,
                         max_file_size=tier.max_file_size,
                         storage_quota=tier.storage_quota,
                         max_requests_per_minute=tier.max_requests_per_minute,

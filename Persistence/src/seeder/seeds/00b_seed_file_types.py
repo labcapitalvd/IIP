@@ -21,6 +21,7 @@ def upgrade() -> None:
                 continue  # Skip this one
             session.add(
                 FileType(
+                    code=type.code,
                     label=type.label,
                     mime_type=type.mime_type,
                     extension=type.extension,
