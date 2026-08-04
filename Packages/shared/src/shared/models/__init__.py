@@ -3,6 +3,7 @@
 from .actors import Actor, ActorSegment
 from .audit import ActivityLog, LogActionType
 from .auth import (
+    Permission,
     RefreshSession,
     ResourceRole,
     SystemRole,
@@ -48,6 +49,7 @@ from .submissions import (
 
 __all__ = [
     # Auth & Security
+    "Permission",
     "ResourceRole",
     "SystemRole",
     "UserTier",
