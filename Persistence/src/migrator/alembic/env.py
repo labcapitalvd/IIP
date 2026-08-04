@@ -12,7 +12,7 @@ import math
 
 # Initialize global logging configuration
 configure_logging()
-logger = get_logger("alembic/env")
+logger = get_logger(__name__)
 
 print_banner(
     "ALEMBIC MIGRATIONS", border_char="=", padding_x=6, padding_y=1, align="center"
