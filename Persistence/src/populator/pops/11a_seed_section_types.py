@@ -24,7 +24,7 @@ from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
-logger = get_logger("pop/section_types")
+logger = get_logger(__name__)
 
 
 SECTION_TYPES = [

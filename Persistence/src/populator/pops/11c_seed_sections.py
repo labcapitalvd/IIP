@@ -40,7 +40,7 @@ from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
-logger = get_logger("pop/sections")
+logger = get_logger(__name__)
 
 
 # -----------------------------------------------------------------------------

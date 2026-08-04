@@ -34,7 +34,7 @@ from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
-logger = get_logger("pop/field_choices")
+logger = get_logger(__name__)
 CHOICE_FIELD_TYPES = {"SINGLE_CHOICE", "MULTI_CHOICE"}
 EXPECTED_CHOICE_COUNTS = {2019: 46, 2021: 46, 2023: 49}
 

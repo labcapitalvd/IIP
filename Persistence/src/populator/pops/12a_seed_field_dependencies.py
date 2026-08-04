@@ -53,7 +53,7 @@ from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
-logger = get_logger("pop/field_dependencies")
+logger = get_logger(__name__)
 
 ACTIVE_YEARS = (2021, 2023)
 EXPECTED_COUNTS_BY_YEAR = {
