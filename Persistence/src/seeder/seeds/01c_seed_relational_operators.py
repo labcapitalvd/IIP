@@ -10,6 +10,8 @@ logger = get_logger("seed/relational_operators")
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     with SessionSync() as session:
         for type in Types:
             exists: RelationalOperator | None = (
@@ -17,6 +19,7 @@ def upgrade() -> None:
             )
             if exists:
                 logger.info(f"{type} already exists in RelationalOperator")
+                skipped_count += 1
                 continue  # Skip this one
             session.add(
                 RelationalOperator(
@@ -26,4 +29,6 @@ def upgrade() -> None:
                 )
             )
             logger.info(f"{type} added to table RelationalOperator")
+            added_count += 1
         session.commit()
+    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")

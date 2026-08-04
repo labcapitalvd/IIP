@@ -10,6 +10,8 @@ logger = get_logger("seed/comment_types")
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     with SessionSync() as session:
         for type in Types:
             exists: CommentType | None = (
@@ -17,6 +19,7 @@ def upgrade() -> None:
             )
             if exists:
                 logger.info(f"{type} already exists in CommentType")
+                skipped_count += 1
                 continue  # Skip this one
             session.add(
                 CommentType(
@@ -26,4 +29,6 @@ def upgrade() -> None:
                 )
             )
             logger.info(f"{type} added to table CommentType")
+            added_count += 1
         session.commit()
+    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")

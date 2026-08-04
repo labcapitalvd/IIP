@@ -9,6 +9,8 @@ logger = get_logger("seed/user_tiers")
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     with SessionSync() as session:
         # Load existing tiers keyed by their unique programmatic 'code'
         existing_tiers = {t.code: t for t in session.query(UserTier).all()}
@@ -22,6 +24,8 @@ def upgrade() -> None:
                 db_tier.storage_quota = tier.storage_quota
                 db_tier.max_requests_per_minute = tier.max_requests_per_minute
                 db_tier.priority_level = tier.priority_level
+
+                skipped_count += 1
                 logger.info(f"UserTier '{tier.code}' updated")
             else:
                 session.add(
@@ -36,5 +40,6 @@ def upgrade() -> None:
                     )
                 )
                 logger.info(f"UserTier '{tier.code}' inserted")
-
+                added_count += 1
         session.commit()
+    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")

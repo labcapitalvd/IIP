@@ -9,6 +9,8 @@ logger = get_logger("seed/security_roles")
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     with SessionSync() as session:
         # =====================================================================
         # 1. Poblado de ResourceRole (ReBAC: owner, editor, evaluator, etc.)
@@ -17,6 +19,7 @@ def upgrade() -> None:
             exists = session.query(ResourceRole).filter_by(code=level_enum.code).first()
             if exists:
                 logger.info(f"ResourceRole '{level_enum.code}' already exists")
+                skipped_count += 1
                 continue
 
             session.add(
@@ -45,5 +48,6 @@ def upgrade() -> None:
                 )
             )
             logger.info(f"SystemRole '{role_enum.code}' added to table")
-
+            added_count += 1
         session.commit()
+    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")

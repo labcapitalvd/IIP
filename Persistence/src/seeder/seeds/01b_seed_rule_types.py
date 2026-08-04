@@ -11,6 +11,8 @@ logger = get_logger("seed/field_validation_rules")
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     with SessionSync() as session:
         for type in Types:
             exists: RuleType | None = (
@@ -18,6 +20,7 @@ def upgrade() -> None:
             )
             if exists:
                 logger.info(f"{type} already exists in RuleType")
+                skipped_count += 1
                 continue  # Skip this one
             session.add(
                 RuleType(
@@ -27,4 +30,6 @@ def upgrade() -> None:
                 )
             )
             logger.info(f"{type} added to table RuleType")
+            added_count += 1
         session.commit()
+    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")

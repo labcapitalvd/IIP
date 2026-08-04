@@ -11,6 +11,8 @@ logger = get_logger("seed/log_action_types")
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     with SessionSync() as session:
         for type in Types:
             exists: LogActionType | None = (
@@ -18,6 +20,7 @@ def upgrade() -> None:
             )
             if exists:
                 logger.info(msg=f"{type} already exists in LogActionType")
+                skipped_count += 1
                 continue  # Skip this one
             session.add(
                 LogActionType(
@@ -27,4 +30,6 @@ def upgrade() -> None:
                 )
             )
             logger.info(f"{type} added to table LogActionType")
+            added_count += 1
         session.commit()
+    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")

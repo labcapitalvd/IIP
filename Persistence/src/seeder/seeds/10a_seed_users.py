@@ -23,6 +23,8 @@ def load_users_config() -> dict:
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     users_toml = load_users_config()
 
     with SessionSync() as session:
@@ -54,6 +56,7 @@ def upgrade() -> None:
 
             if email in existing_emails:
                 logger.info(f"User {username} ({email}) already exists, skipping")
+                skipped_count += 1
                 continue
 
             # Read target tier from user dictionary (defaults to "standard")
@@ -73,5 +76,6 @@ def upgrade() -> None:
             )
             session.add(user_obj)
             logger.info(f"Queued user: {username} [Tier: {target_tier_code}]")
-
+            added_count += 1
         session.commit()
+    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
