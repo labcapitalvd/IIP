@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from shared.utils.logger import get_logger, configure_logging
 from shared.utils import print_banner, print_list
 
-logger = get_logger("pop/tables")
+logger = get_logger(__name__)
 
 # Load configuration from environment
 HOST_AUTH = os.getenv("HOST_AUTH", "auth")
@@ -217,6 +217,7 @@ class ServiceClient:
             response.raise_for_status()
             return response.json()
 
+
 async def run_populators():
     configure_logging()
 
@@ -226,7 +227,9 @@ async def run_populators():
         logger.error(f"pops directory not found: {pops_dir}")
         return
 
-    print_banner("DATABASE POPULATION", border_char="=", padding_x=6, padding_y=1, align="center")
+    print_banner(
+        "DATABASE POPULATION", border_char="=", padding_x=6, padding_y=1, align="center"
+    )
 
     # 1. Initialize and Auth Connectors once
     gh = GitHubConnector()
@@ -244,7 +247,11 @@ async def run_populators():
 
     logger.info(f"Running pops from {os.path.relpath(pops_dir)}")
 
-    pop_files = [f for f in sorted(os.listdir(pops_dir)) if f.endswith(".py") and f != "__init__.py"]
+    pop_files = [
+        f
+        for f in sorted(os.listdir(pops_dir))
+        if f.endswith(".py") and f != "__init__.py"
+    ]
     print_list("Files to populate", pop_files)
 
     # 2. Iterate through files
@@ -286,6 +293,7 @@ async def run_populators():
         padding_x=6,
         padding_y=0,
     )
+
 
 if __name__ == "__main__":
     asyncio.run(run_populators())
