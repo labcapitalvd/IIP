@@ -7,8 +7,8 @@ from shared.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-POSTGRES_USER = os.getenv("POSTGRES_USER", "app_user")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "app")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres_user")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "app_db")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "db")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_PASSWORD_FILE = "/run/secrets/postgres_password"

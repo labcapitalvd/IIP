@@ -5,12 +5,12 @@ from shared.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-VALKEY_USER = os.getenv("VALKEY_USER", "default")
+VALKEY_USER = os.getenv("VALKEY_USER", "valkey_user")
 VALKEY_HOST = os.getenv(
     "VALKEY_HOST", "cache"
 )  # Defaulting to a valkey container service name
 VALKEY_PORT = os.getenv("VALKEY_PORT", "6379")
-VALKEY_DB = os.getenv("VALKEY_DB", "0")
+VALKEY_DB = os.getenv("VALKEY_DB", "app_cache")
 VALKEY_PASSWORD_FILE = "/run/secrets/valkey_password"
 
 
