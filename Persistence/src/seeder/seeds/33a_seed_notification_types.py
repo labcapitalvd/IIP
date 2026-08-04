@@ -6,7 +6,7 @@ from shared.utils.logger import get_logger
 
 from shared.enums import NotificationTypesEnum as Types
 
-logger = get_logger("seed/notification_types")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

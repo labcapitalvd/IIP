@@ -5,7 +5,7 @@ from shared.enums import FieldTypesEnum as Types
 from shared.models import FieldType
 from shared.utils.logger import get_logger
 
-logger = get_logger("seed/field_types")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

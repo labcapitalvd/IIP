@@ -7,7 +7,7 @@ from shared.utils.logger import get_logger
 from shared.models import SubmissionStatusType
 from shared.enums import SubmissionStatusesEnum as Types
 
-logger = get_logger("seed/submission_status_types")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

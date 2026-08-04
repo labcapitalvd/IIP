@@ -6,7 +6,7 @@ from shared.utils.logger import get_logger
 from shared.models import RelationalOperator
 from shared.enums import RelationalOperatorsEnum as Types
 
-logger = get_logger("seed/relational_operators")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

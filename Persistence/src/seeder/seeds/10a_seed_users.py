@@ -11,7 +11,7 @@ from shared.utils import hash_password
 from shared.utils.logger import get_logger
 from uuid_utils import uuid7
 
-logger = get_logger("seed/users")
+logger = get_logger(__name__)
 USERS_FILE = "/run/secrets/users_file"
 
 

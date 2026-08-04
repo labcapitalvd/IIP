@@ -7,7 +7,7 @@ from shared.models import RuleType
 from shared.enums import RuleTypesEnum as Types
 
 
-logger = get_logger("seed/field_validation_rules")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

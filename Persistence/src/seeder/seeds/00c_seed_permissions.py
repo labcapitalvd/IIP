@@ -5,7 +5,7 @@ from shared.enums import PermissionsEnum  # Assuming you have an enum for permis
 from shared.models import Permission
 from shared.utils.logger import get_logger
 
-logger = get_logger("seed/permissions")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

@@ -5,7 +5,7 @@ from shared.enums import UserTiersEnum as Types
 from shared.models import UserTier
 from shared.utils.logger import get_logger
 
-logger = get_logger("seed/user_tiers")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

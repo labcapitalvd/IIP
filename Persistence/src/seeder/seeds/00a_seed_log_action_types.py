@@ -7,7 +7,7 @@ from shared.utils.logger import get_logger
 from shared.enums import LogActionTypesEnum as Types
 
 
-logger = get_logger("seed/log_action_types")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:

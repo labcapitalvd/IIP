@@ -5,7 +5,7 @@ from shared.enums import ResourceRolesEnum, SystemRolesEnum
 from shared.models import ResourceRole, SystemRole
 from shared.utils.logger import get_logger
 
-logger = get_logger("seed/security_roles")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:
