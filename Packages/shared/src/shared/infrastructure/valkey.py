@@ -6,11 +6,11 @@ from shared.utils.logger import get_logger
 logger = get_logger(__name__)
 
 VALKEY_USER = os.getenv("VALKEY_USER", "valkey_user")
+VALKEY_DB = os.getenv("VALKEY_DB", "app_cache")
 VALKEY_HOST = os.getenv(
     "VALKEY_HOST", "cache"
 )  # Defaulting to a valkey container service name
 VALKEY_PORT = os.getenv("VALKEY_PORT", "6379")
-VALKEY_DB = os.getenv("VALKEY_DB", "app_cache")
 VALKEY_PASSWORD_FILE = "/run/secrets/valkey_password"
 
 
@@ -29,13 +29,20 @@ def load_valkey_key() -> str:
         return key
 
 
-VALKEY_PASSWORD = os.getenv("VALKEY_PASSWORD") or (
-    load_valkey_key() if os.path.exists(VALKEY_PASSWORD_FILE) else None
-)
+env_key = os.getenv("VALKEY_PASSWORD")
+
+# Ensure FERNET_PASSWORD is always bytes
+if env_key:
+    vk_pass = env_key.encode()
+else:
+    vk_pass = load_valkey_key()
+
+VALKEY_PASSWORD = vk_pass
+
 
 logger.debug(f"""
 user:{VALKEY_USER}
-pass:{"*" * len(str(VALKEY_PASSWORD)) if VALKEY_PASSWORD else "None"}
+pass:{"*" * len(str(VALKEY_PASSWORD))}
 host:{VALKEY_HOST}
 port:{VALKEY_PORT}
 db:  {VALKEY_DB}""")

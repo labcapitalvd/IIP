@@ -31,6 +31,16 @@ def load_postgres_key() -> str:
 
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD") or load_postgres_key()
 
+env_key = os.getenv("POSTGRES_PASSWORD")
+
+# Ensure FERNET_PASSWORD is always bytes
+if env_key:
+    pg_pass = env_key.encode()
+else:
+    pg_pass = load_postgres_key()
+
+POSTGRES_PASSWORD = pg_pass
+
 logger.debug(f"""
 user:{POSTGRES_USER}
 pass:{"*" * len(str(POSTGRES_PASSWORD))}
