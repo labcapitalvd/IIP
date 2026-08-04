@@ -24,8 +24,8 @@ services:
     env_file: ./.env
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: ${POSTGRES_USER:-app_user}
-      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
+      POSTGRES_DB: ${POSTGRES_DB:-app_db}
     ports:
       - "5432:5432"
     networks:
@@ -37,7 +37,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U $${POSTGRES_USER:-app_user} -d $${POSTGRES_DB:-app}",
+          "pg_isready -U $${POSTGRES_USER:-postgres_user} -d $${POSTGRES_DB:-app_db}",
         ]
       interval: 5s
       timeout: 3s
@@ -83,6 +83,7 @@ services:
       - jwt_private_key
       - jwt_public_key
       - postgres_password
+      - valkey_password
       - fernet_password
       - github_token_commons
       - github_token_iip
