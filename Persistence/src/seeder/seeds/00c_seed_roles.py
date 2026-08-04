@@ -1,8 +1,8 @@
-"""Poblado de roles globales (SystemRole) y niveles de acceso (AccessLevel)"""
+"""Poblado de roles globales (SystemRole) y niveles de acceso (ResourceRole)"""
 
 from shared.db import SessionSync
-from shared.enums import AccessLevelsEnum, SystemRolesEnum
-from shared.models import AccessLevel, SystemRole
+from shared.enums import ResourceRolesEnum, SystemRolesEnum
+from shared.models import ResourceRole, SystemRole
 from shared.utils.logger import get_logger
 
 logger = get_logger("seed/security_roles")
@@ -11,22 +11,22 @@ logger = get_logger("seed/security_roles")
 def upgrade() -> None:
     with SessionSync() as session:
         # =====================================================================
-        # 1. Poblado de AccessLevel (ReBAC: owner, editor, evaluator, etc.)
+        # 1. Poblado de ResourceRole (ReBAC: owner, editor, evaluator, etc.)
         # =====================================================================
-        for level_enum in AccessLevelsEnum:
-            exists = session.query(AccessLevel).filter_by(code=level_enum.code).first()
+        for level_enum in ResourceRolesEnum:
+            exists = session.query(ResourceRole).filter_by(code=level_enum.code).first()
             if exists:
-                logger.info(f"AccessLevel '{level_enum.code}' already exists")
+                logger.info(f"ResourceRole '{level_enum.code}' already exists")
                 continue
 
             session.add(
-                AccessLevel(
+                ResourceRole(
                     code=level_enum.code,
                     label=level_enum.label,
                     description=level_enum.description,
                 )
             )
-            logger.info(f"AccessLevel '{level_enum.code}' added to table")
+            logger.info(f"ResourceRole '{level_enum.code}' added to table")
 
         # =====================================================================
         # 2. Poblado de SystemRole (RBAC Global: admin, grader, etc.)
