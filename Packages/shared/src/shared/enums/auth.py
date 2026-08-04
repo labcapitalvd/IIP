@@ -2,6 +2,78 @@ from enum import Enum
 from decimal import Decimal
 
 
+class PermissionsEnum(Enum):
+    """
+    Atomic granular permission keys used across API security guards.
+    Tuple: (key, code, label, description)
+    """
+
+    USERS_READ = (
+        "users:read",
+        "users_read",
+        "Read Users",
+        "Can view user profiles and account details.",
+    )
+    USERS_CREATE = (
+        "users:create",
+        "users_create",
+        "Create Users",
+        "Can create new user accounts.",
+    )
+    USERS_UPDATE = (
+        "users:update",
+        "users_update",
+        "Update Users",
+        "Can modify user profiles and details.",
+    )
+    USERS_DELETE = (
+        "users:delete",
+        "users_delete",
+        "Delete Users",
+        "Can remove user accounts from the platform.",
+    )
+    FORMS_BUILD = (
+        "forms:build",
+        "forms_build",
+        "Build Forms",
+        "Can create, update, and publish form templates.",
+    )
+    SUBMISSIONS_GRADE = (
+        "submissions:grade",
+        "submissions_grade",
+        "Grade Submissions",
+        "Can score and evaluate submitted forms.",
+    )
+    AUDIT_READ = (
+        "audit:read",
+        "audit_read",
+        "Read Audit Logs",
+        "Can view system audit logs and activity history.",
+    )
+
+    def __init__(self, key: str, code: str, label: str, description: str):
+        self._key = key
+        self._code = code
+        self._label = label
+        self._description = description
+
+    @property
+    def key(self) -> str:
+        return self._key
+
+    @property
+    def code(self) -> str:
+        return self._code
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+
 class ResourceRolesEnum(Enum):
     """
     Scoped resource permissions used in link tables
