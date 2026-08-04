@@ -2,7 +2,7 @@
 
 from .audit import LogActionTypesEnum
 from .auth import ResourceRolesEnum, SystemRolesEnum, UserTiersEnum
-from .files import FileTypesEnum
+from .files import FileTypesEnum, VisibilityScope
 from .interactions import CommentTypesEnum, NotificationTypesEnum
 from .reference import (
     FieldTypesEnum,
@@ -20,6 +20,7 @@ __all__ = [
     "UserTiersEnum",
     # Files
     "FileTypesEnum",
+    "VisibilityScope",
     # Reference
     "FieldTypesEnum",
     "RelationalOperatorsEnum",

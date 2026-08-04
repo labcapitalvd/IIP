@@ -3,16 +3,27 @@ from enum import Enum
 
 class LogActionTypesEnum(Enum):
     """The logging operations done on update on every table. Trace of what user did what."""
-    CREATE = "Se crea una nueva entrada."
-    UPDATE = "Se actualiza una entrada."
-    DELETE = "Se elimina una entrada."
-    GRADE = "Se califica una entrada."
-    UPLOAD = "Se carga un archivo."
 
-    def __init__(self, description: str):
-        self.description = description
+    # (code, label, description)
+    CREATE = ("CREATE", "Crear", "Se crea una nueva entrada.")
+    UPDATE = ("UPDATE", "Actualizar", "Se actualiza una entrada.")
+    DELETE = ("DELETE", "Eliminar", "Se elimina una entrada.")
+    GRADE = ("GRADE", "Calificar", "Se califica una entrada.")
+    UPLOAD = ("UPLOAD", "Cargar", "Se carga un archivo.")
+
+    def __init__(self, code: str, label: str, description: str):
+        self._code = code
+        self._label = label
+        self._description = description
 
     @property
-    def label(self):
-        return self.name
+    def code(self) -> str:
+        return self._code
 
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description

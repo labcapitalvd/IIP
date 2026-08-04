@@ -59,14 +59,22 @@ class FieldTypesEnum(Enum):
     def __init__(
         self, code: str, label: str, target_answer_model: str, description: str
     ):
-        self.code = code
+        self._code = code
         self._label = label
         self.target_answer_model = target_answer_model
-        self.description = description
+        self._description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     @property
     def label(self) -> str:
         return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
 
 
 class RelationalOperatorsEnum(Enum):
@@ -90,13 +98,21 @@ class RelationalOperatorsEnum(Enum):
     )
 
     def __init__(self, code: str, label: str, description: str):
-        self.code = code
+        self._code = code
         self._label = label
-        self.description = description
+        self._description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     @property
     def label(self) -> str:
         return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
 
 
 class RuleTypesEnum(Enum):
@@ -129,13 +145,21 @@ class RuleTypesEnum(Enum):
     )
 
     def __init__(self, code: str, label: str, description: str):
-        self.code = code
+        self._code = code
         self._label = label
-        self.description = description
+        self._description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     @property
     def label(self) -> str:
         return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
 
 
 class SubmissionStatusesEnum(Enum):
@@ -173,10 +197,18 @@ class SubmissionStatusesEnum(Enum):
     )
 
     def __init__(self, code: str, label: str, description: str):
-        self.code = code
+        self._code = code
         self._label = label
-        self.description = description
+        self._description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     @property
     def label(self) -> str:
         return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description

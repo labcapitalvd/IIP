@@ -1,8 +1,18 @@
 from enum import Enum
 from decimal import Decimal
 
+
+class VisibilityScope(str, Enum):
+    PUBLIC = "public"  # Accessible by anyone (e.g., avatar, public branding)
+    ACTOR_SCOPED = (
+        "actor_scoped"  # Inherits access rules from the parent Actor/Workspace
+    )
+    PRIVATE = "private"  # Explicitly restricted to owner
+
+
 class FileTypesEnum(Enum):
     """Files allowed into the filesystem by the db."""
+
     EXCEL_1 = ("application/vnd.ms-excel", ".xls", "tabular", Decimal(10 * 1024 * 1024))
     EXCEL_2 = (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -102,5 +112,3 @@ class FileTypesEnum(Enum):
             if ft.extension == ext:
                 return ft
         raise ValueError(f"No FileType with extension {ext}")
-
-

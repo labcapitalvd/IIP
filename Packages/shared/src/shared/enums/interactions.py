@@ -2,27 +2,69 @@ from enum import Enum
 
 
 class NotificationTypesEnum(Enum):
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
-    SUCCESS = "success"
+    """
+    Notification types matching the NotificationType database model.
+    Tuple: (code, label, description)
+    """
 
-    def __init__(self, description: str):
-        self.description = description
+    INFO = ("info", "Info", "Informational notification.")
+    WARNING = ("warning", "Warning", "Warning notification.")
+    ERROR = ("error", "Error", "Error notification.")
+    SUCCESS = ("success", "Success", "Success notification.")
 
-    @property
-    def label(self):
-        return self.name
-
-
-class CommentTypesEnum(str, Enum):
-    PUBLIC_FEEDBACK = "Alguien dio retroalimentación."
-    INTERNAL_NOTE = "Una nota interna"
-    REVISION_REQUEST = "Solicitud de revisión"
-
-    def __init__(self, description: str):
-        self.description = description
+    def __init__(self, code: str, label: str, description: str):
+        self._code = code
+        self._label = label
+        self._description = description
 
     @property
-    def label(self):
-        return self.name
+    def code(self) -> str:
+        return self._code
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+
+class CommentTypesEnum(Enum):
+    """
+    Comment types matching the CommentType database model.
+    Tuple: (code, label, description)
+    """
+
+    PUBLIC_FEEDBACK = (
+        "public_feedback",
+        "Public Feedback",
+        "Alguien dio retroalimentación.",
+    )
+    INTERNAL_NOTE = (
+        "internal_note",
+        "Internal Note",
+        "Una nota interna",
+    )
+    REVISION_REQUEST = (
+        "revision_request",
+        "Revision Request",
+        "Solicitud de revisión",
+    )
+
+    def __init__(self, code: str, label: str, description: str):
+        self._code = code
+        self._label = label
+        self._description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
