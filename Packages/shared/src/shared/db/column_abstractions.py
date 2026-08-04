@@ -4,7 +4,8 @@ from enum import Enum
 from typing import Any, Callable, Type, TypeAlias, TypeVar, Union
 from uuid import UUID
 
-from sqlalchemy import UUID as UUIDType
+from sqlalchemy import Uuid
+
 from sqlalchemy import (
     Boolean,
     Date,
@@ -41,7 +42,7 @@ def column_fk(
 ) -> Mapped[UUID]:
     assert "." in target, "FK target must be 'table.column'"
     return mapped_column(
-        UUIDType(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey(target, ondelete=ondelete, use_alter=use_alter, name=name),
         nullable=nullable,
         unique=unique,
@@ -226,7 +227,7 @@ def column_uuid(
     **kwargs: Any,
 ) -> Mapped[UUID]:
     return mapped_column(
-        UUIDType(as_uuid=True),
+        Uuid(as_uuid=True),
         nullable=nullable,
         unique=unique,
         index=index,

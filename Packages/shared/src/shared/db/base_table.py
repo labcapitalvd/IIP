@@ -6,14 +6,16 @@ from uuid import UUID
 from sqlalchemy import UUID as UUIDType
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import func  # <-- Import func from sqlalchemy
 from uuid_utils import uuid7
+
+from shared.db.column_abstractions import column_uuid
 
 
 class Base(DeclarativeBase):
-    id: Mapped[UUID] = mapped_column(
-        UUIDType(as_uuid=True),
+    id: Mapped[UUID] = column_uuid(
         primary_key=True,
-        default=lambda: UUID(str(uuid7())),
+        server_default=func.gen_random_uuid(),  # <-- Handled entirely by PostgreSQL
     )
 
 

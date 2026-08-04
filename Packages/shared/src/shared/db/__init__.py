@@ -26,6 +26,8 @@ from .column_abstractions import (
     column_jsonb,
 )
 
+from .mixins import CodeLabelDescriptionMixin
+
 from .sessions import SessionSync, SessionAsync, get_session, UnitOfWork
 
 __all__ = [
@@ -50,6 +52,8 @@ __all__ = [
     "column_bool",
     "column_slug",
     "column_jsonb",
+    # mixins
+    "CodeLabelDescriptionMixin",
     # engine
     "SessionSync",
     "SessionAsync",
