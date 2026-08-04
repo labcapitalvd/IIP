@@ -13,8 +13,8 @@ else
   echo "⚠️  Warning: .env file not found, environment variables may be missing."
 fi
 
-USER_VAR="${POSTGRES_USER:-app_user}"
-DB_VAR="${POSTGRES_DB:-app}"
+USER_VAR="${POSTGRES_USER:-postgres_user}"
+DB_VAR="${POSTGRES_DB:-app_db}"
 
 case "$MODE" in
   # ===========================================
