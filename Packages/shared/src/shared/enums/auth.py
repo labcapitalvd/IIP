@@ -2,7 +2,7 @@ from enum import Enum
 from decimal import Decimal
 
 
-class AccessLevelsEnum(Enum):
+class ResourceRolesEnum(Enum):
     """
     Scoped resource permissions used in link tables
     (UserFileLink, UserSubmissionLink, UserActorLink).

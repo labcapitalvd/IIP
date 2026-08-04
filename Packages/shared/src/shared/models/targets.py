@@ -2,12 +2,15 @@ from shared.db import TableInfo
 
 
 class CoreTargetTable:
-    # --- Reference Schema ---
+    # --- Reference & Security Schemas ---
     LOG_ACTION_TYPES = TableInfo("log_action_types", "reference")
     FILE_TYPES = TableInfo("file_types", "reference")
     USER_TIERS = TableInfo("user_tiers", "reference")
-    ACCESS_LEVELS = TableInfo("access_levels", "reference")
+    RESOURCE_ROLES = TableInfo(
+        "resource_roles", "reference"
+    )  # Renamed from ACCESS_LEVELS
     SYSTEM_ROLES = TableInfo("system_roles", "reference")
+    PERMISSIONS = TableInfo("permissions", "reference")
     COMMENT_TYPES = TableInfo("comment_types", "reference")
     NOTIFICATION_TYPES = TableInfo("notification_types", "reference")
 
@@ -20,9 +23,13 @@ class CoreTargetTable:
     # --- Audit & Files Schema ---
     LOGS = TableInfo("logs", "audit")
     FILES = TableInfo("files", "files")
+    ATTACHMENTS = TableInfo("attachments", "files")
 
-    # --- Links Schema ---
-    LINK_USER_FILE = TableInfo("user_file_links", "links")
+    # --- Links Schema (Core Authorization & Membership) ---
+    LINK_SYSTEM_ROLE_PERMISSION = TableInfo("system_role_permission_links", "links")
+    LINK_RESOURCE_ROLE_PERMISSION = TableInfo(
+        "resource_role_permission_links", "links"
+    )  # Renamed from LINK_ACCESS_LEVEL_PERMISSION
     LINK_USER_SYSTEM_ROLE = TableInfo("user_system_role_links", "links")
 
     # --- Interactions Schema ---
@@ -65,7 +72,7 @@ class TargetTable(CoreTargetTable):
     GRADES = TableInfo("grades", "grading")
     RESULTS = TableInfo("results", "grading")
 
-    # --- Answers & Submission Links ---
+    # --- Answers & Form Links ---
     ANSWERS_CARD_ENTRY = TableInfo("answers_card_entry", "submissions")
     ANSWERS = TableInfo("answers", "submissions")
     ANSWERS_BOOLEAN = TableInfo("answers_boolean", "submissions")
@@ -75,5 +82,4 @@ class TargetTable(CoreTargetTable):
     ANSWERS_NUMERIC = TableInfo("answers_numeric", "submissions")
     ANSWERS_SINGLE_CHOICE = TableInfo("answers_single_choice", "submissions")
     ANSWERS_TEXT = TableInfo("answers_texts", "submissions")
-    LINK_USER_SUBMISSION = TableInfo("user_submission_links", "links")
     LINK_CHOICE_MULTICHOICE = TableInfo("choice_multichoice_links", "links")

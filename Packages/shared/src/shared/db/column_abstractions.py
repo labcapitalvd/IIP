@@ -240,17 +240,20 @@ def column_enum(
     nullable: bool = False,
     unique: bool = False,
     index: bool = False,
-    default: TEnum | None = None,
+    default: TEnum | Callable[[], TEnum] | None = None,
     name: str | None = None,
     **kwargs: Any,
 ) -> Mapped[TEnum]:
-    safe_default = default.value if isinstance(default, Enum) else default
     return mapped_column(
-        PgEnum(enum_cls, name=name or enum_cls.__name__.lower(), create_type=True),
+        PgEnum(
+            enum_cls,
+            name=name or enum_cls.__name__.lower(),
+            create_type=True,
+        ),
         nullable=nullable,
         unique=unique,
         index=index,
-        default=safe_default,
+        default=default,
         **kwargs,
     )
 
