@@ -10,7 +10,7 @@ class TierRepository(BaseRepository[UserTier]):
         return result.scalar_one_or_none()
 
     async def get_default(self) -> UserTier:
-        role = await self.get_by_label("STANDARD")
-        if not role:
-            raise ValueError("Default role not found")
-        return role
+        tier = await self.get_by_label("STANDARD")
+        if not tier:
+            raise ValueError("Default tier not found")
+        return tier
