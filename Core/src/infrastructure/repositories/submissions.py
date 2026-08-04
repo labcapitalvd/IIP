@@ -26,7 +26,7 @@ class SubmissionRepository(BaseRepository[Submission]):
             .options(
                 selectinload(Submission.answers)
                 .selectinload(Answer.card_entry)
-                .selectinload(AnswerCardEntry.answers)
+                .selectinload(AnswerCardEntry.child_answers)
             )
         )
         result = await self.session.execute(stmt)

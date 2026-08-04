@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from shared.db import BaseRepository
-from shared.models import MultiChoiceOptionLink, UserActorLink, UserSubmissionLink
+from shared.models import MultiChoiceOptionLink, UserActorLink
 from sqlalchemy import select
 
 
@@ -36,12 +36,5 @@ class UserActorLinkRepository(BaseRepository[UserActorLink]):
 
     async def get_by_actor_id(self, actor_id: UUID) -> UserActorLink | None:
         stmt = select(UserActorLink).where(UserActorLink.actor_id == actor_id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-
-class UserSubmissionLinkRepository(BaseRepository[UserSubmissionLink]):
-    async def get_by_id(self, id: UUID) -> UserSubmissionLink | None:
-        stmt = select(UserSubmissionLink).where(UserSubmissionLink.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
