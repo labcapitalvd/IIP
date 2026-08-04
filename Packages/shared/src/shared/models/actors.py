@@ -25,7 +25,7 @@ class ActorSegment(Base):
 
     __tablename__ = TargetTable.ACTOR_SEGMENTS.table
     __table_args__ = {"schema": TargetTable.ACTOR_SEGMENTS.schema}
-
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255, unique=True)
     description: Mapped[str | None] = column_long_text(nullable=True)
 
@@ -51,6 +51,7 @@ class Actor(Base):
     initials: Mapped[str | None] = column_short_text(
         length=50, nullable=True, unique=True
     )
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255, unique=True)
     description: Mapped[str | None] = column_long_text(nullable=True)
     mission: Mapped[str | None] = column_long_text(nullable=True)

@@ -1,4 +1,3 @@
-import enum
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -15,21 +14,17 @@ from shared.db import (
     column_short_text,
     column_updated_at,
     column_uuid,
+    column_long_text,
 )
 
+from shared.enums import VisibilityScope
+
 from .targets import TargetTable
+
 
 if TYPE_CHECKING:
     from .actors import Actor
     from .auth import User
-
-
-class VisibilityScope(str, enum.Enum):
-    PUBLIC = "public"  # Accessible by anyone (e.g., avatar, public branding)
-    ACTOR_SCOPED = (
-        "actor_scoped"  # Inherits access rules from the parent Actor/Workspace
-    )
-    PRIVATE = "private"  # Explicitly restricted to owner
 
 
 class FileType(Base):
@@ -40,7 +35,9 @@ class FileType(Base):
     __tablename__ = TargetTable.FILE_TYPES.table
     __table_args__ = {"schema": TargetTable.FILE_TYPES.schema}
 
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
     mime_type: Mapped[str] = column_short_text(length=255)
     extension: Mapped[str] = column_short_text(length=255)
     category: Mapped[str] = column_short_text(length=255)
@@ -70,7 +67,6 @@ class File(Base):
         length=64, unique=True, index=True, nullable=False
     )
     filesize: Mapped[Decimal] = column_decimal(precision=15, scale=0)
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     type: Mapped["FileType"] = relationship("FileType", back_populates="files")
@@ -105,13 +101,11 @@ class Attachment(Base):
 
     entity_type: Mapped[str | None] = column_short_text(length=50, nullable=True)
     entity_id: Mapped[UUID | None] = column_uuid(nullable=True)
-
-    visibility: Mapped[VisibilityScope] = column_enum(
+    visibility: Mapped["VisibilityScope"] = column_enum(
         VisibilityScope,
         default=VisibilityScope.PRIVATE,
         name="visibility_scope",
     )
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     file: Mapped["File"] = relationship("File", back_populates="attachments")

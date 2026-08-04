@@ -36,10 +36,10 @@ class CardTemplate(Base):
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE", unique=True
     )
 
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
     helper: Mapped[str] = column_long_text(nullable=True)
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     question: Mapped["Question"] = relationship(
@@ -74,11 +74,11 @@ class Field(Base):
         target=f"{TargetTable.FIELD_TYPES.fq_name}.id", ondelete="CASCADE"
     )
 
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
     required: Mapped[bool] = column_bool()
     display_order: Mapped[int] = column_integer(default=0)
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     field_type: Mapped["FieldType"] = relationship(
@@ -118,8 +118,9 @@ class FieldChoice(Base):
         target=f"{TargetTable.FIELDS.fq_name}.id", ondelete="CASCADE"
     )
 
-    label: Mapped[str] = column_short_text(255)
-    description: Mapped[str] = column_short_text(255)
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
 
     updated_at: Mapped[datetime] = column_updated_at()
@@ -147,10 +148,10 @@ class FieldGroup(Base):
         nullable=False,
     )
 
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     card_template: Mapped["CardTemplate"] = relationship(
@@ -167,9 +168,9 @@ class Form(Base):
     __tablename__ = TargetTable.FORMS.table
     __table_args__ = {"schema": TargetTable.FORMS.schema}
 
-    anno: Mapped[int] = column_integer(unique=True)
-    label: Mapped[str] = column_short_text()
-    description: Mapped[str] = column_long_text()
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     sections: Mapped[List["Section"]] = relationship("Section", back_populates="form")
 
@@ -189,13 +190,13 @@ class Question(Base):
         target=f"{TargetTable.FILES.fq_name}.id", ondelete="CASCADE", nullable=True
     )
 
-    label: Mapped[str] = column_short_text(255)
-    description: Mapped[str] = column_long_text()
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
     helper: Mapped[str] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
     required: Mapped[bool] = column_bool()
     is_loop: Mapped[bool] = column_bool()
-
     updated_at: Mapped[datetime] = column_updated_at()
 
     section: Mapped["Section"] = relationship("Section", back_populates="questions")
@@ -241,9 +242,9 @@ class Section(Base):
         ondelete="SET NULL",
         nullable=True,
     )
-
-    label: Mapped[str] = column_short_text(255)
-    description: Mapped[str] = column_long_text()
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
     helper: Mapped[str] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
 
@@ -280,8 +281,8 @@ class SectionType(Base):
 
     __tablename__ = TargetTable.SECTION_TYPES.table
     __table_args__ = {"schema": TargetTable.SECTION_TYPES.schema}
-
-    label: Mapped[str] = column_short_text(255)
-    description: Mapped[str] = column_long_text()
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     sections: Mapped[List["Section"]] = relationship("Section", back_populates="type")

@@ -45,6 +45,7 @@ class Permission(Base):
     __table_args__ = {"schema": TargetTable.PERMISSIONS.schema}
 
     key: Mapped[str] = column_short_text(length=100, unique=True)
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
 
@@ -115,7 +116,8 @@ class UserTier(Base):
     __table_args__ = {"schema": TargetTable.USER_TIERS.schema}
 
     code: Mapped[str] = column_short_text(50, unique=True)
-    label: Mapped[str] = column_short_text(50)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
     max_file_size: Mapped[Decimal] = column_decimal(precision=15, scale=0)
     storage_quota: Mapped[Decimal] = column_decimal(precision=15, scale=0)
     max_requests_per_minute: Mapped[int] = column_integer()
