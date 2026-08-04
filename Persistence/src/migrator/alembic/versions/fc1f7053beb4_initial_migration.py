@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: fa314427e2a0
+Revision ID: fc1f7053beb4
 Revises: 
-Create Date: 2026-08-04 23:11:12.359164
+Create Date: 2026-08-04 23:49:50.297290
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'fa314427e2a0'
+revision: str = 'fc1f7053beb4'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     sa.UniqueConstraint('label'),
@@ -35,7 +35,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='forms'
@@ -44,7 +44,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='forms'
@@ -53,7 +53,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -62,7 +62,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -75,7 +75,7 @@ def upgrade() -> None:
     sa.Column('extension', sa.String(length=255), nullable=False),
     sa.Column('category', sa.String(length=255), nullable=False),
     sa.Column('max_size', sa.Numeric(precision=15, scale=0), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -84,7 +84,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -93,7 +93,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -103,7 +103,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     sa.UniqueConstraint('key'),
@@ -113,7 +113,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -122,7 +122,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -131,7 +131,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -140,7 +140,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -149,7 +149,7 @@ def upgrade() -> None:
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
@@ -163,13 +163,13 @@ def upgrade() -> None:
     sa.Column('max_requests_per_minute', sa.Integer(), nullable=False),
     sa.Column('priority_level', sa.Integer(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='reference'
     )
     op.create_table('actors',
-    sa.Column('actor_segment_id', sa.UUID(), nullable=False),
+    sa.Column('actor_segment_id', sa.Uuid(), nullable=False),
     sa.Column('sigep_code', sa.Integer(), nullable=True),
     sa.Column('treasury_code', sa.Integer(), nullable=True),
     sa.Column('initials', sa.String(length=50), nullable=True),
@@ -178,7 +178,7 @@ def upgrade() -> None:
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('mission', sa.Text(), nullable=True),
     sa.Column('vision', sa.Text(), nullable=True),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['actor_segment_id'], ['actors.actor_segments.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
@@ -189,7 +189,7 @@ def upgrade() -> None:
     schema='actors'
     )
     op.create_table('users',
-    sa.Column('tier_id', sa.UUID(), nullable=False),
+    sa.Column('tier_id', sa.Uuid(), nullable=False),
     sa.Column('username', sa.String(length=32), nullable=False),
     sa.Column('email', sa.String(length=100), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
@@ -197,7 +197,7 @@ def upgrade() -> None:
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('media_usage', sa.Numeric(precision=15, scale=0), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['tier_id'], ['reference.user_tiers.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
@@ -205,33 +205,33 @@ def upgrade() -> None:
     schema='auth'
     )
     op.create_table('resource_role_permission_links',
-    sa.Column('resource_role_id', sa.UUID(), nullable=False),
-    sa.Column('permission_id', sa.UUID(), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('resource_role_id', sa.Uuid(), nullable=False),
+    sa.Column('permission_id', sa.Uuid(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['permission_id'], ['reference.permissions.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['resource_role_id'], ['reference.resource_roles.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('resource_role_id', 'permission_id', 'id'),
     schema='links'
     )
     op.create_table('system_role_permission_links',
-    sa.Column('system_role_id', sa.UUID(), nullable=False),
-    sa.Column('permission_id', sa.UUID(), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('system_role_id', sa.Uuid(), nullable=False),
+    sa.Column('permission_id', sa.Uuid(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['permission_id'], ['reference.permissions.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['system_role_id'], ['reference.system_roles.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('system_role_id', 'permission_id', 'id'),
     schema='links'
     )
     op.create_table('logs',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('log_action_type_id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('log_action_type_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('target', sa.Enum('LOG_ACTION_TYPES', 'FILE_TYPES', 'USER_TIERS', 'RESOURCE_ROLES', 'SYSTEM_ROLES', 'PERMISSIONS', 'COMMENT_TYPES', 'NOTIFICATION_TYPES', 'USERS', 'REFRESH_SESSIONS', 'USER_DETAILS', 'USER_PROFILES', 'LOGS', 'FILES', 'ATTACHMENTS', 'LINK_SYSTEM_ROLE_PERMISSION', 'LINK_RESOURCE_ROLE_PERMISSION', 'LINK_USER_SYSTEM_ROLE', 'COMMENTS', 'NOTIFICATIONS', 'ACTOR_SEGMENTS', 'ACTORS', 'LINK_USER_ACTOR', 'FIELD_TYPES', 'RELATIONAL_OPERATORS', 'RULE_TYPES', 'SUBMISSION_STATUS_TYPES', 'FORMS', 'SECTION_TYPES', 'SECTIONS', 'INFORMATIONS', 'QUESTIONS', 'CARD_TEMPLATES', 'FIELD_GROUPS', 'FIELDS', 'FIELD_CHOICES', 'SECTION_DEPENDENCIES', 'FIELD_DEPENDENCIES', 'FIELD_RULES', 'SUBMISSIONS', 'ASSIGNMENTS', 'CRITERIA', 'GRADES', 'RESULTS', 'ANSWERS_CARD_ENTRY', 'ANSWERS', 'ANSWERS_BOOLEAN', 'ANSWERS_DATE', 'ANSWERS_FILE', 'ANSWERS_MULTI_CHOICE', 'ANSWERS_NUMERIC', 'ANSWERS_SINGLE_CHOICE', 'ANSWERS_TEXT', 'LINK_CHOICE_MULTICHOICE', name='targettableenum'), nullable=False),
-    sa.Column('target_id', sa.UUID(), nullable=False),
+    sa.Column('target_id', sa.Uuid(), nullable=False),
     sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['log_action_type_id'], ['reference.log_action_types.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -239,25 +239,25 @@ def upgrade() -> None:
     schema='audit'
     )
     op.create_table('refresh_sessions',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('jti', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('jti', sa.Uuid(), nullable=False),
     sa.Column('refresh_hash', sa.String(length=255), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='auth'
     )
     op.create_table('user_details',
-    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('phone', sa.String(length=50), nullable=True),
     sa.Column('email_pro', sa.String(length=255), nullable=False),
     sa.Column('job_title', sa.String(length=255), nullable=True),
     sa.Column('area', sa.String(length=255), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email_pro'),
@@ -265,14 +265,14 @@ def upgrade() -> None:
     schema='auth'
     )
     op.create_table('files',
-    sa.Column('file_type_id', sa.UUID(), nullable=False),
-    sa.Column('uploaded_by_user_id', sa.UUID(), nullable=True),
+    sa.Column('file_type_id', sa.Uuid(), nullable=False),
+    sa.Column('uploaded_by_user_id', sa.Uuid(), nullable=True),
     sa.Column('filename', sa.String(length=64), nullable=False),
     sa.Column('filepath', sa.String(length=255), nullable=False),
     sa.Column('filehash', sa.String(length=64), nullable=False),
     sa.Column('filesize', sa.Numeric(precision=15, scale=0), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['file_type_id'], ['reference.file_types.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['uploaded_by_user_id'], ['auth.users.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
@@ -280,15 +280,15 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_files_files_filehash'), 'files', ['filehash'], unique=True, schema='files')
     op.create_table('comments',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('comment_type_id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('comment_type_id', sa.Uuid(), nullable=False),
     sa.Column('target', sa.Enum('LOG_ACTION_TYPES', 'FILE_TYPES', 'USER_TIERS', 'RESOURCE_ROLES', 'SYSTEM_ROLES', 'PERMISSIONS', 'COMMENT_TYPES', 'NOTIFICATION_TYPES', 'USERS', 'REFRESH_SESSIONS', 'USER_DETAILS', 'USER_PROFILES', 'LOGS', 'FILES', 'ATTACHMENTS', 'LINK_SYSTEM_ROLE_PERMISSION', 'LINK_RESOURCE_ROLE_PERMISSION', 'LINK_USER_SYSTEM_ROLE', 'COMMENTS', 'NOTIFICATIONS', 'ACTOR_SEGMENTS', 'ACTORS', 'LINK_USER_ACTOR', 'FIELD_TYPES', 'RELATIONAL_OPERATORS', 'RULE_TYPES', 'SUBMISSION_STATUS_TYPES', 'FORMS', 'SECTION_TYPES', 'SECTIONS', 'INFORMATIONS', 'QUESTIONS', 'CARD_TEMPLATES', 'FIELD_GROUPS', 'FIELDS', 'FIELD_CHOICES', 'SECTION_DEPENDENCIES', 'FIELD_DEPENDENCIES', 'FIELD_RULES', 'SUBMISSIONS', 'ASSIGNMENTS', 'CRITERIA', 'GRADES', 'RESULTS', 'ANSWERS_CARD_ENTRY', 'ANSWERS', 'ANSWERS_BOOLEAN', 'ANSWERS_DATE', 'ANSWERS_FILE', 'ANSWERS_MULTI_CHOICE', 'ANSWERS_NUMERIC', 'ANSWERS_SINGLE_CHOICE', 'ANSWERS_TEXT', 'LINK_CHOICE_MULTICHOICE', name='targettableenum'), nullable=False),
-    sa.Column('target_id', sa.UUID(), nullable=False),
+    sa.Column('target_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['comment_type_id'], ['reference.comment_types.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -296,14 +296,14 @@ def upgrade() -> None:
     schema='interactions'
     )
     op.create_table('notifications',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('notification_type_id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('notification_type_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('is_read', sa.Boolean(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['notification_type_id'], ['reference.notification_types.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -311,11 +311,11 @@ def upgrade() -> None:
     schema='interactions'
     )
     op.create_table('user_actor_links',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('actor_id', sa.UUID(), nullable=False),
-    sa.Column('resource_role_id', sa.UUID(), nullable=True),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('actor_id', sa.Uuid(), nullable=False),
+    sa.Column('resource_role_id', sa.Uuid(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['resource_role_id'], ['reference.resource_roles.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
@@ -323,22 +323,22 @@ def upgrade() -> None:
     schema='links'
     )
     op.create_table('user_system_role_links',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('system_role_id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('system_role_id', sa.Uuid(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['system_role_id'], ['reference.system_roles.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id', 'system_role_id', 'id'),
     schema='links'
     )
     op.create_table('submissions',
-    sa.Column('actor_id', sa.UUID(), nullable=False),
-    sa.Column('form_id', sa.UUID(), nullable=False),
-    sa.Column('status_id', sa.UUID(), nullable=False),
+    sa.Column('actor_id', sa.Uuid(), nullable=False),
+    sa.Column('form_id', sa.Uuid(), nullable=False),
+    sa.Column('status_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['form_id'], ['forms.forms.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['status_id'], ['reference.submission_status_types.id'], ondelete='SET NULL'),
@@ -346,14 +346,14 @@ def upgrade() -> None:
     schema='submissions'
     )
     op.create_table('attachments',
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.Column('user_id', sa.UUID(), nullable=True),
-    sa.Column('actor_id', sa.UUID(), nullable=True),
+    sa.Column('file_id', sa.Uuid(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=True),
+    sa.Column('actor_id', sa.Uuid(), nullable=True),
     sa.Column('entity_type', sa.String(length=50), nullable=True),
-    sa.Column('entity_id', sa.UUID(), nullable=True),
+    sa.Column('entity_id', sa.Uuid(), nullable=True),
     sa.Column('visibility', sa.Enum('PUBLIC', 'ACTOR_SCOPED', 'PRIVATE', name='visibility_scope'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['actor_id'], ['actors.actors.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
@@ -362,16 +362,16 @@ def upgrade() -> None:
     )
     op.create_index('idx_attachment_entity', 'attachments', ['entity_type', 'entity_id'], unique=False, schema='files')
     op.create_table('sections',
-    sa.Column('form_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=True),
-    sa.Column('parent_id', sa.UUID(), nullable=True),
-    sa.Column('section_type_id', sa.UUID(), nullable=True),
+    sa.Column('form_id', sa.Uuid(), nullable=False),
+    sa.Column('file_id', sa.Uuid(), nullable=True),
+    sa.Column('parent_id', sa.Uuid(), nullable=True),
+    sa.Column('section_type_id', sa.Uuid(), nullable=True),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('helper', sa.Text(), nullable=True),
     sa.Column('display_order', sa.Integer(), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['form_id'], ['forms.forms.id'], ),
     sa.ForeignKeyConstraint(['parent_id'], ['forms.sections.id'], ondelete='CASCADE'),
@@ -385,21 +385,21 @@ def upgrade() -> None:
     op.create_index('idx_sections_parent_id', 'sections', ['parent_id'], unique=False, schema='forms')
     op.create_index('idx_sections_section_type_id', 'sections', ['section_type_id'], unique=False, schema='forms')
     op.create_table('results',
-    sa.Column('submission_id', sa.UUID(), nullable=False),
+    sa.Column('submission_id', sa.Uuid(), nullable=False),
     sa.Column('final_score', sa.Numeric(precision=8, scale=2), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('submission_id'),
     schema='grading'
     )
     op.create_table('user_profiles',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('avatar_attachment_id', sa.UUID(), nullable=True),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('avatar_attachment_id', sa.Uuid(), nullable=True),
     sa.Column('biography', sa.Text(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['avatar_attachment_id'], ['files.attachments.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -407,8 +407,8 @@ def upgrade() -> None:
     schema='auth'
     )
     op.create_table('questions',
-    sa.Column('section_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=True),
+    sa.Column('section_id', sa.Uuid(), nullable=False),
+    sa.Column('file_id', sa.Uuid(), nullable=True),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
@@ -417,7 +417,7 @@ def upgrade() -> None:
     sa.Column('required', sa.Boolean(), nullable=False),
     sa.Column('is_loop', sa.Boolean(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['section_id'], ['forms.sections.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
@@ -425,11 +425,11 @@ def upgrade() -> None:
     schema='forms'
     )
     op.create_table('section_dependencies',
-    sa.Column('target_section_id', sa.UUID(), nullable=False),
-    sa.Column('depends_on_section_id', sa.UUID(), nullable=False),
-    sa.Column('relational_operator_id', sa.UUID(), nullable=False),
+    sa.Column('target_section_id', sa.Uuid(), nullable=False),
+    sa.Column('depends_on_section_id', sa.Uuid(), nullable=False),
+    sa.Column('relational_operator_id', sa.Uuid(), nullable=False),
     sa.Column('expected_value', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['depends_on_section_id'], ['forms.sections.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['relational_operator_id'], ['reference.relational_operators.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['target_section_id'], ['forms.sections.id'], ondelete='CASCADE'),
@@ -437,13 +437,13 @@ def upgrade() -> None:
     schema='rules'
     )
     op.create_table('card_templates',
-    sa.Column('question_id', sa.UUID(), nullable=False),
+    sa.Column('question_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('helper', sa.Text(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
@@ -451,42 +451,42 @@ def upgrade() -> None:
     schema='forms'
     )
     op.create_table('criteria',
-    sa.Column('question_id', sa.UUID(), nullable=False),
+    sa.Column('question_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('weight', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('max_score', sa.Numeric(precision=5, scale=2), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='grading'
     )
     op.create_table('field_groups',
-    sa.Column('card_template_id', sa.UUID(), nullable=False),
+    sa.Column('card_template_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['card_template_id'], ['forms.card_templates.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='forms'
     )
     op.create_table('fields',
-    sa.Column('field_group_id', sa.UUID(), nullable=False),
-    sa.Column('field_type_id', sa.UUID(), nullable=False),
+    sa.Column('field_group_id', sa.Uuid(), nullable=False),
+    sa.Column('field_type_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('required', sa.Boolean(), nullable=False),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['field_group_id'], ['forms.field_groups.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['field_type_id'], ['reference.field_types.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -494,24 +494,24 @@ def upgrade() -> None:
     schema='forms'
     )
     op.create_table('field_choices',
-    sa.Column('field_id', sa.UUID(), nullable=False),
+    sa.Column('field_id', sa.Uuid(), nullable=False),
     sa.Column('code', sa.String(length=50), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('display_order', sa.Integer(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['field_id'], ['forms.fields.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('code'),
     schema='forms'
     )
     op.create_table('field_dependencies',
-    sa.Column('target_field_id', sa.UUID(), nullable=False),
-    sa.Column('depends_on_field_id', sa.UUID(), nullable=False),
-    sa.Column('relational_operator_id', sa.UUID(), nullable=False),
+    sa.Column('target_field_id', sa.Uuid(), nullable=False),
+    sa.Column('depends_on_field_id', sa.Uuid(), nullable=False),
+    sa.Column('relational_operator_id', sa.Uuid(), nullable=False),
     sa.Column('expected_value', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['depends_on_field_id'], ['forms.fields.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['relational_operator_id'], ['reference.relational_operators.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['target_field_id'], ['forms.fields.id'], ondelete='CASCADE'),
@@ -519,24 +519,24 @@ def upgrade() -> None:
     schema='rules'
     )
     op.create_table('field_rules',
-    sa.Column('field_id', sa.UUID(), nullable=False),
-    sa.Column('rule_type_id', sa.UUID(), nullable=False),
+    sa.Column('field_id', sa.Uuid(), nullable=False),
+    sa.Column('rule_type_id', sa.Uuid(), nullable=False),
     sa.Column('rule_value', sa.String(length=255), nullable=False),
     sa.Column('error_message', sa.String(length=255), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['field_id'], ['forms.fields.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['rule_type_id'], ['reference.rule_types.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='rules'
     )
     op.create_table('answers',
-    sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('field_id', sa.UUID(), nullable=False),
-    sa.Column('card_entry_id', sa.UUID(), nullable=True),
+    sa.Column('submission_id', sa.Uuid(), nullable=False),
+    sa.Column('field_id', sa.Uuid(), nullable=False),
+    sa.Column('card_entry_id', sa.Uuid(), nullable=True),
     sa.Column('discriminator', sa.String(length=50), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['card_entry_id'], ['submissions.answers_card_entry.id'], name='fk_answers_card_entry_instance', ondelete='CASCADE', use_alter=True),
     sa.ForeignKeyConstraint(['field_id'], ['forms.fields.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['submission_id'], ['submissions.submissions.id'], ondelete='CASCADE'),
@@ -545,16 +545,16 @@ def upgrade() -> None:
     )
     op.create_index('idx_answers_submission_field', 'answers', ['submission_id', 'field_id'], unique=False, schema='submissions')
     op.create_table('answers_boolean',
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('value', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
     op.create_table('answers_card_entry',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('question_id', sa.UUID(), nullable=False),
-    sa.Column('card_template_id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('question_id', sa.Uuid(), nullable=False),
+    sa.Column('card_template_id', sa.Uuid(), nullable=False),
     sa.Column('title', sa.String(length=255), nullable=False),
     sa.Column('card_index', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['card_template_id'], ['forms.card_templates.id'], ondelete='CASCADE'),
@@ -564,57 +564,57 @@ def upgrade() -> None:
     schema='submissions'
     )
     op.create_table('answers_date',
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('value', sa.Date(), server_default=sa.text('CURRENT_DATE'), nullable=True),
     sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
     op.create_table('answers_file',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value_id', sa.UUID(), nullable=True),
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('value_id', sa.Uuid(), nullable=True),
     sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['value_id'], ['files.files.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
     op.create_table('answers_multi_choice',
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
     sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
     op.create_table('answers_numeric',
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('value', sa.Numeric(precision=18, scale=4), nullable=False),
     sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
     op.create_table('answers_single_choice',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('value_id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('value_id', sa.Uuid(), nullable=False),
     sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['value_id'], ['forms.field_choices.id'], ),
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
     op.create_table('answers_texts',
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('value', sa.Text(), nullable=False),
     sa.ForeignKeyConstraint(['id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     schema='submissions'
     )
     op.create_table('grades',
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('submission_id', sa.UUID(), nullable=False),
-    sa.Column('criterion_id', sa.UUID(), nullable=False),
-    sa.Column('card_entry_id', sa.UUID(), nullable=True),
-    sa.Column('answer_id', sa.UUID(), nullable=True),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('submission_id', sa.Uuid(), nullable=False),
+    sa.Column('criterion_id', sa.Uuid(), nullable=False),
+    sa.Column('card_entry_id', sa.Uuid(), nullable=True),
+    sa.Column('answer_id', sa.Uuid(), nullable=True),
     sa.Column('grade', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['answer_id'], ['submissions.answers.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['card_entry_id'], ['submissions.answers_card_entry.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['criterion_id'], ['grading.criteria.id'], ondelete='SET NULL'),
@@ -624,10 +624,10 @@ def upgrade() -> None:
     schema='grading'
     )
     op.create_table('choice_multichoice_links',
-    sa.Column('choice_id', sa.UUID(), nullable=False),
-    sa.Column('multi_choice_answer_id', sa.UUID(), nullable=False),
+    sa.Column('choice_id', sa.Uuid(), nullable=False),
+    sa.Column('multi_choice_answer_id', sa.Uuid(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['choice_id'], ['forms.field_choices.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['multi_choice_answer_id'], ['submissions.answers_multi_choice.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('choice_id', 'multi_choice_answer_id', 'id'),
