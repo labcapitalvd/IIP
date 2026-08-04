@@ -55,7 +55,7 @@ def upgrade() -> None:
             username = u["username"]
 
             if email in existing_emails:
-                logger.info(f"User {username} ({email}) already exists, skipping")
+                logger.debug(f"User {username} ({email}) already exists, skipping")
                 skipped_count += 1
                 continue
 
@@ -75,7 +75,7 @@ def upgrade() -> None:
                 media_usage=Decimal("0"),
             )
             session.add(user_obj)
-            logger.info(f"Queued user: {username} [Tier: {target_tier_code}]")
+            logger.debug(f"Queued user: {username} [Tier: {target_tier_code}]")
             added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

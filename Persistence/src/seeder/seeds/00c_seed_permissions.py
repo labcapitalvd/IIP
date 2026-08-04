@@ -15,7 +15,7 @@ def upgrade() -> None:
         for perm_enum in PermissionsEnum:
             exists = session.query(Permission).filter_by(code=perm_enum.code).first()
             if exists:
-                logger.info(f"Permission '{perm_enum.code}' already exists")
+                logger.debug(f"Permission '{perm_enum.code}' already exists")
                 skipped_count += 1
                 continue
 
@@ -27,7 +27,7 @@ def upgrade() -> None:
                     description=perm_enum.description,
                 )
             )
-            logger.info(f"Permission '{perm_enum.code}' added to table")
+            logger.debug(f"Permission '{perm_enum.code}' added to table")
             added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

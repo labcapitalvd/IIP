@@ -17,7 +17,7 @@ def upgrade() -> None:
                 session.query(FieldType).filter_by(code=item.code).first()
             )
             if exists:
-                logger.info(f"FieldType '{item.code}' ya existe en la base de datos")
+                logger.debug(f"FieldType '{item.code}' ya existe en la base de datos")
                 skipped_count += 1
                 continue
 
@@ -28,7 +28,7 @@ def upgrade() -> None:
                     description=item.description,
                 )
             )
-            logger.info(f"FieldType '{item.code}' añadido a la tabla")
+            logger.debug(f"FieldType '{item.code}' añadido a la tabla")
             added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

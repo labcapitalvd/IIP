@@ -19,7 +19,7 @@ def upgrade() -> None:
                 session.query(LogActionType).filter_by(label=type.label).first()
             )
             if exists:
-                logger.info(msg=f"{type} already exists in LogActionType")
+                logger.debug(msg=f"{type} already exists in LogActionType")
                 skipped_count += 1
                 continue  # Skip this one
             session.add(
@@ -29,7 +29,7 @@ def upgrade() -> None:
                     description=type.description,
                 )
             )
-            logger.info(f"{type} added to table LogActionType")
+            logger.debug(f"{type} added to table LogActionType")
             added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

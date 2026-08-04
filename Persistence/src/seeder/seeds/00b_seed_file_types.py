@@ -19,7 +19,7 @@ def upgrade() -> None:
                 session.query(FileType).filter_by(label=type.label).first()
             )
             if exists:
-                logger.info(msg=f"{type} already exists in FileType")
+                logger.debug(msg=f"{type} already exists in FileType")
                 skipped_count += 1
                 continue  # Skip this one
             session.add(
@@ -32,7 +32,7 @@ def upgrade() -> None:
                     max_size=type.max_size,
                 )
             )
-            logger.info(f"{type} added to table FileType")
+            logger.debug(f"{type} added to table FileType")
             added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

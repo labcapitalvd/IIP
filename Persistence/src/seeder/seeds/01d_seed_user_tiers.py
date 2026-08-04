@@ -26,7 +26,7 @@ def upgrade() -> None:
                 db_tier.priority_level = tier.priority_level
 
                 skipped_count += 1
-                logger.info(f"UserTier '{tier.code}' updated")
+                logger.debug(f"UserTier '{tier.code}' updated")
             else:
                 session.add(
                     UserTier(
@@ -39,7 +39,7 @@ def upgrade() -> None:
                         priority_level=tier.priority_level,
                     )
                 )
-                logger.info(f"UserTier '{tier.code}' inserted")
+                logger.debug(f"UserTier '{tier.code}' inserted")
                 added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

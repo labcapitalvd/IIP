@@ -18,7 +18,7 @@ def upgrade() -> None:
         for level_enum in ResourceRolesEnum:
             exists = session.query(ResourceRole).filter_by(code=level_enum.code).first()
             if exists:
-                logger.info(f"ResourceRole '{level_enum.code}' already exists")
+                logger.debug(f"ResourceRole '{level_enum.code}' already exists")
                 skipped_count += 1
                 continue
 
@@ -29,7 +29,7 @@ def upgrade() -> None:
                     description=level_enum.description,
                 )
             )
-            logger.info(f"ResourceRole '{level_enum.code}' added to table")
+            logger.debug(f"ResourceRole '{level_enum.code}' added to table")
 
         # =====================================================================
         # 2. Poblado de SystemRole (RBAC Global: admin, grader, etc.)
@@ -37,7 +37,7 @@ def upgrade() -> None:
         for role_enum in SystemRolesEnum:
             exists = session.query(SystemRole).filter_by(code=role_enum.code).first()
             if exists:
-                logger.info(f"SystemRole '{role_enum.code}' already exists")
+                logger.debug(f"SystemRole '{role_enum.code}' already exists")
                 continue
 
             session.add(
@@ -47,7 +47,7 @@ def upgrade() -> None:
                     description=role_enum.description,
                 )
             )
-            logger.info(f"SystemRole '{role_enum.code}' added to table")
+            logger.debug(f"SystemRole '{role_enum.code}' added to table")
             added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

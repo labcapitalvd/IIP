@@ -18,7 +18,7 @@ def upgrade() -> None:
                 session.query(NotificationType).filter_by(label=type.label).first()
             )
             if exists:
-                logger.info(f"{type} already exists in NotificationType")
+                logger.debug(f"{type} already exists in NotificationType")
                 skipped_count += 1
                 continue  # Skip this one
             session.add(
@@ -28,7 +28,7 @@ def upgrade() -> None:
                     description=type.description,
                 )
             )
-            logger.info(f"{type} added to table NotificationType")
+            logger.debug(f"{type} added to table NotificationType")
             added_count += 1
         session.commit()
-    logger.info(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")
