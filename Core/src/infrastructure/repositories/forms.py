@@ -15,62 +15,37 @@ from sqlalchemy import select
 
 
 class CardTemplateRepository(BaseRepository[CardTemplate]):
-    async def get_by_id(self, id: UUID) -> CardTemplate | None:
-        stmt = select(CardTemplate).where(CardTemplate.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+    model = CardTemplate 
 
 
 class FieldChoiceRepository(BaseRepository[FieldChoice]):
-    async def get_by_id(self, id: UUID) -> FieldChoice | None:
-        stmt = select(FieldChoice).where(FieldChoice.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+    model = FieldChoice
 
 
 class FieldGroupRepository(BaseRepository[FieldGroup]):
-    async def get_by_id(self, id: UUID) -> FieldGroup | None:
-        stmt = select(FieldGroup).where(FieldGroup.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+    model = FieldGroup 
 
 
 class FieldRepository(BaseRepository[Field]):
-    async def get_by_id(self, id: UUID) -> Field | None:
-        stmt = select(Field).where(Field.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+    model = Field 
 
 
 class FormRepository(BaseRepository[Form]):
-    async def get_by_id(self, id: UUID) -> Form | None:
-        stmt = select(Form).where(Form.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def get_by_anno(self, anno: int) -> Form | None:
+    model = Form 
+    async def get_by_code(self, code: int) -> Form | None:
         """Obtiene un formulario por su año (que es único)."""
-        stmt = select(Form).where(Form.anno == anno)
+        stmt = select(Form).where(Form.code == code)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
 
 class QuestionRepository(BaseRepository[Question]):
-    async def get_by_id(self, id: UUID) -> Question | None:
-        stmt = select(Question).where(Question.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+    model = Question 
 
 
 class SectionRepository(BaseRepository[Section]):
-    async def get_by_id(self, id: UUID) -> Section | None:
-        stmt = select(Section).where(Section.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+    model = Section 
 
 
 class SectionTypeRepository(BaseRepository[SectionType]):
-    async def get_by_id(self, id: UUID) -> SectionType | None:
-        stmt = select(SectionType).where(SectionType.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+    model = SectionType
