@@ -10,6 +10,7 @@ from shared.db import (
     column_integer,
     column_short_text,
     column_updated_at,
+    column_long_text,
 )
 from sqlalchemy.orm import Mapped, relationship
 
@@ -39,7 +40,9 @@ class Criterion(Base):
         ondelete="CASCADE",
         nullable=False,
     )
-    description: Mapped[str] = column_short_text(length=255)
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
     weight: Mapped[Decimal] = column_decimal(precision=5, scale=2)
     display_order: Mapped[int] = column_integer(default=0)
 

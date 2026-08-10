@@ -8,10 +8,10 @@ import tomllib
 from typing import Type, TypeVar, List, Any
 from pydantic import BaseModel
 
-from shared.utils.logger import get_logger
-from shared.utils import print_list
+from shared.utils.logger import get_logger, configure_logging
+from shared.utils import print_banner, print_list
 
-logger = get_logger("pop/tables")
+logger = get_logger(__name__)
 
 # Load configuration from environment
 HOST_AUTH = os.getenv("HOST_AUTH", "auth")
@@ -219,11 +219,17 @@ class ServiceClient:
 
 
 async def run_populators():
+    configure_logging()
+
     pops_dir = os.path.join(os.path.dirname(__file__), "pops")
 
     if not os.path.isdir(pops_dir):
         logger.error(f"pops directory not found: {pops_dir}")
         return
+
+    print_banner(
+        "DATABASE POPULATION", border_char="=", padding_x=6, padding_y=1, align="center"
+    )
 
     # 1. Initialize and Auth Connectors once
     gh = GitHubConnector()
@@ -234,18 +240,22 @@ async def run_populators():
         auth_port=PORT_AUTH,
     )
 
-    logger.info(f"Authenticating ServiceClient for seeding...")
+    logger.info("Authenticating ServiceClient for seeding...")
     if not await api.login(SEED_USER, SEED_PASS):
         logger.critical("Seeding aborted: Could not authenticate with API.")
         return
 
     logger.info(f"Running pops from {os.path.relpath(pops_dir)}")
 
-    # 2. Iterate through files (sorted handles dependency order if you prefix with numbers like 01_actors.py)
-    for filename in sorted(os.listdir(pops_dir)):
-        if not filename.endswith(".py") or filename == "__init__.py":
-            continue
+    pop_files = [
+        f
+        for f in sorted(os.listdir(pops_dir))
+        if f.endswith(".py") and f != "__init__.py"
+    ]
+    print_list("Files to populate", pop_files)
 
+    # 2. Iterate through files
+    for filename in pop_files:
         module_name = filename[:-3]
         file_path = os.path.join(pops_dir, filename)
 
@@ -262,11 +272,11 @@ async def run_populators():
             if hasattr(mod, "upgrade") and callable(mod.upgrade):
                 logger.info(f"--- Executing: {module_name}.upgrade() ---")
 
-                # Check if the module is async (which it should be now)
+                # Check if the module is async
                 if asyncio.iscoroutinefunction(mod.upgrade):
                     await mod.upgrade(gh=gh, api=api)
                 else:
-                    # Fallback for sync modules if you haven't converted them all yet
+                    # Fallback for sync modules
                     mod.upgrade(gh=gh, api=api)
             else:
                 logger.warning(f"{module_name} has no callable upgrade()")
@@ -276,7 +286,13 @@ async def run_populators():
             traceback.print_exc()
 
     logger.info("Popping process finished successfully.")
-    print_list("Files to populate", os.listdir(pops_dir))
+
+    print_banner(
+        "POPULATING PROCESS COMPLETE",
+        border_char="─",
+        padding_x=6,
+        padding_y=0,
+    )
 
 
 if __name__ == "__main__":

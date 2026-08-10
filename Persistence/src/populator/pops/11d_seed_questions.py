@@ -41,7 +41,7 @@ from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
-logger = get_logger("pop/questions")
+logger = get_logger(__name__)
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",

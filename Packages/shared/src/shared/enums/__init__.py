@@ -1,8 +1,8 @@
 # Módulo init que carga todos los enums.
 
 from .audit import LogActionTypesEnum
-from .auth import AccessLevelsEnum, SystemRolesEnum, UserTiersEnum
-from .files import FileTypesEnum
+from .auth import PermissionsEnum, ResourceRolesEnum, SystemRolesEnum, UserTiersEnum
+from .files import FileTypesEnum, VisibilityScope
 from .interactions import CommentTypesEnum, NotificationTypesEnum
 from .reference import (
     FieldTypesEnum,
@@ -15,11 +15,13 @@ __all__ = [
     # Audit
     "LogActionTypesEnum",
     # Auth
-    "AccessLevelsEnum",
+    "PermissionsEnum",
+    "ResourceRolesEnum",
     "SystemRolesEnum",
     "UserTiersEnum",
     # Files
     "FileTypesEnum",
+    "VisibilityScope",
     # Reference
     "FieldTypesEnum",
     "RelationalOperatorsEnum",

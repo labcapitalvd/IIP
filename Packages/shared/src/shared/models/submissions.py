@@ -3,6 +3,9 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
+from sqlalchemy import Index
+from sqlalchemy.orm import Mapped, relationship
+
 from shared.db import (
     Base,
     column_bool,
@@ -16,15 +19,13 @@ from shared.db import (
     column_updated_at,
 )
 from shared.enums import FieldTypesEnum as AnswerType
-from sqlalchemy import ForeignKey, Index, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .targets import TargetTable
 
 if TYPE_CHECKING:
     from .files import File
     from .forms import CardTemplate, Field, FieldChoice
-    from .links import MultiChoiceOptionLink, UserSubmissionLink
+    from .links import MultiChoiceOptionLink
     from .reference import SubmissionStatusType
 
 
@@ -220,9 +221,6 @@ class Submission(Base):
     # Relationships
     status: Mapped["SubmissionStatusType"] = relationship(
         "SubmissionStatusType", back_populates="submissions"
-    )
-    user_links: Mapped[List["UserSubmissionLink"]] = relationship(
-        "UserSubmissionLink", back_populates="submission"
     )
 
     answers: Mapped[List["Answer"]] = relationship(

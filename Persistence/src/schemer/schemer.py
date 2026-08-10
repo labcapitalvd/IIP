@@ -2,13 +2,13 @@ import inspect
 
 from shared.models.targets import TargetTable
 from shared.db import SessionSync, TableInfo
-from shared.utils.logger import get_logger
+from shared.utils.logger import get_logger, configure_logging
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
-from shared.utils import print_list
+from shared.utils import print_banner, print_list
 
-logger = get_logger("seed/schema")
+logger = get_logger(__name__)
 
 
 def get_all_schemas():
@@ -23,8 +23,18 @@ def get_all_schemas():
 
 
 def main():
+    configure_logging()
+
     created = []
     failed = []
+
+    print_banner(
+        "DATABASE SCHEMA CREATION",
+        border_char="=",
+        padding_x=6,
+        padding_y=1,
+        align="center",
+    )
 
     schemas = get_all_schemas()
 
@@ -46,8 +56,15 @@ def main():
     logger.info(f"Created ({len(created)}): {created}")
     logger.info(f"Failed  ({len(failed)}): {failed}")
 
-    print_list("Created", created)
-    print_list("Failed", failed)
+    print_list("Created Schemas", created)
+    print_list("Failed Schemas", failed)
+
+    print_banner(
+        "SCHEMING PROCESS COMPLETE",
+        border_char="─",
+        padding_x=6,
+        padding_y=0,
+    )
 
     return created, failed
 

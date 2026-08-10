@@ -1,6 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+from sqlalchemy.orm import Mapped, relationship
 
 from shared.db import (
     Base,
@@ -14,37 +17,64 @@ from shared.db import (
     column_updated_at,
     column_uuid,
 )
-from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable
 
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
-    from .links import UserSystemRoleLink
+    from .files import Attachment
+    from .interactions import Comment, Notification
+    from .links import (
+        ResourceRolePermissionLink,
+        SystemRolePermissionLink,
+        UserActorLink,
+        UserSystemRoleLink,
+    )
 
 
 # =====================================================================
-# 1. RESOURCE ReBAC ACCESS LEVELS (Scoped to File, Submission, Actor)
+# 1. PERMISSIONS & SCOPED RESOURCE ROLES (ReBAC)
 # =====================================================================
 
 
-class AccessLevel(Base):
+class Permission(Base):
     """
-    Represents entity-scoped access levels (e.g., 'viewer', 'editor', 'evaluator').
-    Used in link tables like UserFileLink, UserSubmissionLink, UserActorLink.
+    Represents an atomic, granular action key used across API security guards.
     """
 
-    __tablename__ = TargetTable.ACCESS_LEVELS.table
-    __table_args__ = {"schema": TargetTable.ACCESS_LEVELS.schema}
+    __tablename__ = TargetTable.PERMISSIONS.table
+    __table_args__ = {"schema": TargetTable.PERMISSIONS.schema}
 
-    code: Mapped[str] = column_short_text(length=50, unique=True)  # e.g., 'evaluator'
-    label: Mapped[str] = column_short_text(length=255)  # e.g., 'Evaluator'
+    key: Mapped[str] = column_short_text(length=100, unique=True)
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
 
-    file_links = relationship("UserFileLink", back_populates="access_level")
-    submission_links = relationship("UserSubmissionLink", back_populates="access_level")
-    actor_links = relationship("UserActorLink", back_populates="access_level")
+    system_role_links: Mapped[list["SystemRolePermissionLink"]] = relationship(
+        "SystemRolePermissionLink", back_populates="permission"
+    )
+    resource_role_links: Mapped[list["ResourceRolePermissionLink"]] = relationship(
+        "ResourceRolePermissionLink", back_populates="permission"
+    )
+
+
+class ResourceRole(Base):
+    """
+    Represents an entity-scoped capability bundle (ReBAC role) attached to an Actor.
+    """
+
+    __tablename__ = TargetTable.RESOURCE_ROLES.table
+    __table_args__ = {"schema": TargetTable.RESOURCE_ROLES.schema}
+
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
+
+    permission_links: Mapped[list["ResourceRolePermissionLink"]] = relationship(
+        "ResourceRolePermissionLink", back_populates="resource_role"
+    )
+    actor_links: Mapped[list["UserActorLink"]] = relationship(
+        "UserActorLink", back_populates="resource_role"
+    )
 
 
 # =====================================================================
@@ -54,34 +84,40 @@ class AccessLevel(Base):
 
 class SystemRole(Base):
     """
-    Represents global application roles (e.g., 'PlatformAdmin', 'Grader', 'StandardUser').
+    Represents a platform-wide Role-Based Access Control (RBAC) role.
     """
 
     __tablename__ = TargetTable.SYSTEM_ROLES.table
     __table_args__ = {"schema": TargetTable.SYSTEM_ROLES.schema}
 
-    code: Mapped[str] = column_short_text(length=50, unique=True)  # e.g., 'admin'
-    label: Mapped[str] = column_short_text(length=255)  # e.g., 'Platform Admin'
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
 
-    user_links = relationship("UserSystemRoleLink", back_populates="system_role")
+    permission_links: Mapped[list["SystemRolePermissionLink"]] = relationship(
+        "SystemRolePermissionLink", back_populates="system_role"
+    )
+    user_links: Mapped[list["UserSystemRoleLink"]] = relationship(
+        "UserSystemRoleLink", back_populates="system_role"
+    )
 
 
 # =====================================================================
-# 3. ENTITLEMENTS / TIERS (Quotas & Limits)
+# 3. ENTITLEMENTS / TIERS
 # =====================================================================
 
 
 class UserTier(Base):
     """
-    Represents platform tiers and operational quotas/limits.
+    Defines operational quotas, limits, and service-level entitlements for users.
     """
 
     __tablename__ = TargetTable.USER_TIERS.table
     __table_args__ = {"schema": TargetTable.USER_TIERS.schema}
 
-    code: Mapped[str] = column_short_text(50, unique=True)  # e.g., 'free', 'pro'
-    label: Mapped[str] = column_short_text(50)
+    code: Mapped[str] = column_short_text(50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
+    description: Mapped[str | None] = column_long_text(nullable=True)
     max_file_size: Mapped[Decimal] = column_decimal(precision=15, scale=0)
     storage_quota: Mapped[Decimal] = column_decimal(precision=15, scale=0)
     max_requests_per_minute: Mapped[int] = column_integer()
@@ -93,19 +129,21 @@ class UserTier(Base):
 
 
 # =====================================================================
-# 4. AUTH & PROFILE CORE MODELS
+# 4. AUTH & PROFILE MODELS
 # =====================================================================
 
 
 class RefreshSession(Base):
     """
-    Holds active JWT refresh token sessions.
+    Tracks active JWT refresh token sessions and device authentication states.
     """
 
     __tablename__ = TargetTable.REFRESH_SESSIONS.table
     __table_args__ = {"schema": TargetTable.REFRESH_SESSIONS.schema}
 
-    user_id: Mapped[UUID] = column_fk(target=f"{TargetTable.USERS.fq_name}.id")
+    user_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.USERS.fq_name}.id", ondelete="CASCADE"
+    )
 
     jti: Mapped[UUID] = column_uuid()
     refresh_hash: Mapped[str] = column_short_text()
@@ -118,14 +156,15 @@ class RefreshSession(Base):
 
 class UserDetails(Base):
     """
-    Additional personal and professional user attributes.
+    Stores private operational, contact, and professional details for a user.
     """
 
     __tablename__ = TargetTable.USER_DETAILS.table
     __table_args__ = {"schema": TargetTable.USER_DETAILS.schema}
 
-    user_id: Mapped[UUID] = column_fk(f"{TargetTable.USERS.fq_name}.id", unique=True)
-
+    user_id: Mapped[UUID] = column_fk(
+        f"{TargetTable.USERS.fq_name}.id", unique=True, ondelete="CASCADE"
+    )
     name: Mapped[str] = column_short_text(length=255, nullable=False)
     phone: Mapped[str | None] = column_short_text(length=50, nullable=True)
     email_pro: Mapped[str] = column_short_text(length=255, unique=True, nullable=False)
@@ -139,19 +178,19 @@ class UserDetails(Base):
 
 class UserProfile(Base):
     """
-    Public-facing profile and avatar image link.
+    Stores public-facing account profile metadata and media associations.
     """
 
     __tablename__ = TargetTable.USER_PROFILES.table
     __table_args__ = {"schema": TargetTable.USER_PROFILES.schema}
 
     user_id: Mapped[UUID] = column_fk(
-        target=f"{TargetTable.USERS.fq_name}.id", unique=True
+        target=f"{TargetTable.USERS.fq_name}.id", unique=True, ondelete="CASCADE"
     )
-    file_id: Mapped[UUID | None] = column_fk(
-        target=f"{TargetTable.FILES.fq_name}.id",
-        ondelete="CASCADE",
-        unique=True,
+
+    avatar_attachment_id: Mapped[UUID | None] = column_fk(
+        target=f"{TargetTable.ATTACHMENTS.fq_name}.id",
+        ondelete="SET NULL",
         nullable=True,
     )
 
@@ -160,12 +199,12 @@ class UserProfile(Base):
     updated_at: Mapped[datetime] = column_updated_at()
 
     user: Mapped["User"] = relationship("User", back_populates="profile", uselist=False)
-    file = relationship("File", back_populates="profile", uselist=False)
+    avatar_attachment: Mapped["Attachment | None"] = relationship("Attachment")
 
 
 class User(Base):
     """
-    Core User identity model.
+    Core authentication identity and user account model.
     """
 
     __tablename__ = TargetTable.USERS.table
@@ -187,26 +226,33 @@ class User(Base):
 
     # Core Relationships
     profile: Mapped["UserProfile | None"] = relationship(
-        "UserProfile", back_populates="user", uselist=False
+        "UserProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
     details: Mapped["UserDetails | None"] = relationship(
-        "UserDetails", back_populates="user", uselist=False
+        "UserDetails",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
-    tier: Mapped["UserTier"] = relationship(
-        "UserTier", back_populates="users", uselist=False
+    tier: Mapped["UserTier"] = relationship("UserTier", back_populates="users")
+    refresh_sessions: Mapped[list["RefreshSession"]] = relationship(
+        "RefreshSession", back_populates="user", cascade="all, delete-orphan"
     )
-    refresh_sessions = relationship("RefreshSession", back_populates="user")
-
-    # Global RBAC Links
     system_role_links: Mapped[list["UserSystemRoleLink"]] = relationship(
-        "UserSystemRoleLink", back_populates="user"
+        "UserSystemRoleLink", back_populates="user", cascade="all, delete-orphan"
     )
-
-    # Resource ReBAC Links
-    file_links = relationship("UserFileLink", back_populates="user")
-    actor_links = relationship("UserActorLink", back_populates="user")
-    submission_links = relationship("UserSubmissionLink", back_populates="user")
+    actor_links: Mapped[list["UserActorLink"]] = relationship(
+        "UserActorLink", back_populates="user", cascade="all, delete-orphan"
+    )
+    attachments: Mapped[list["Attachment"]] = relationship(
+        "Attachment", back_populates="user", cascade="all, delete-orphan"
+    )
 
     # Activity Relationships
-    notifications = relationship("Notification", back_populates="user")
-    comments = relationship("Comment", back_populates="user")
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification", back_populates="user"
+    )
+    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="user")

@@ -21,7 +21,7 @@ class FieldType(Base):
 
     code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     fields: Mapped[List["Field"]] = relationship("Field", back_populates="field_type")
 
@@ -29,9 +29,9 @@ class FieldType(Base):
 class RelationalOperator(Base):
     __tablename__ = TargetTable.RELATIONAL_OPERATORS.table
     __table_args__ = {"schema": TargetTable.RELATIONAL_OPERATORS.schema}
-
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     field_dependencies: Mapped[List["FieldDependency"]] = relationship(
         "FieldDependency", back_populates="operator_type"
@@ -46,9 +46,9 @@ class RuleType(Base):
 
     __tablename__ = TargetTable.RULE_TYPES.table
     __table_args__ = {"schema": TargetTable.RULE_TYPES.schema}
-
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     field_rules: Mapped[List["FieldRule"]] = relationship(
         "FieldRule", back_populates="rule"
@@ -59,8 +59,9 @@ class SubmissionStatusType(Base):
     __tablename__ = TargetTable.SUBMISSION_STATUS_TYPES.table
     __table_args__ = {"schema": TargetTable.SUBMISSION_STATUS_TYPES.schema}
 
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     submissions: Mapped[List["Submission"]] = relationship(
         "Submission", back_populates="status"

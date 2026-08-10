@@ -7,23 +7,29 @@ from shared.models import RuleType
 from shared.enums import RuleTypesEnum as Types
 
 
-logger = get_logger("seed/field_validation_rules")
+logger = get_logger(__name__)
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     with SessionSync() as session:
         for type in Types:
             exists: RuleType | None = (
                 session.query(RuleType).filter_by(label=type.label).first()
             )
             if exists:
-                logger.info(f"{type} already exists in RuleType")
+                logger.debug(f"{type} already exists in RuleType")
+                skipped_count += 1
                 continue  # Skip this one
             session.add(
                 RuleType(
+                    code=type.code,
                     label=type.label,
                     description=type.description,
                 )
             )
-            logger.info(f"{type} added to table RuleType")
+            logger.debug(f"{type} added to table RuleType")
+            added_count += 1
         session.commit()
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

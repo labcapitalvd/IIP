@@ -11,7 +11,7 @@ from shared.utils import hash_password
 from shared.utils.logger import get_logger
 from uuid_utils import uuid7
 
-logger = get_logger("seed/users")
+logger = get_logger(__name__)
 USERS_FILE = "/run/secrets/users_file"
 
 
@@ -23,6 +23,8 @@ def load_users_config() -> dict:
 
 
 def upgrade() -> None:
+    added_count = 0
+    skipped_count = 0
     users_toml = load_users_config()
 
     with SessionSync() as session:
@@ -53,7 +55,8 @@ def upgrade() -> None:
             username = u["username"]
 
             if email in existing_emails:
-                logger.info(f"User {username} ({email}) already exists, skipping")
+                logger.debug(f"User {username} ({email}) already exists, skipping")
+                skipped_count += 1
                 continue
 
             # Read target tier from user dictionary (defaults to "standard")
@@ -72,6 +75,7 @@ def upgrade() -> None:
                 media_usage=Decimal("0"),
             )
             session.add(user_obj)
-            logger.info(f"Queued user: {username} [Tier: {target_tier_code}]")
-
+            logger.debug(f"Queued user: {username} [Tier: {target_tier_code}]")
+            added_count += 1
         session.commit()
+    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")

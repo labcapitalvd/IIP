@@ -56,7 +56,7 @@ from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
-logger = get_logger("pop/field_rules")
+logger = get_logger(__name__)
 
 ACTIVE_YEARS = (2019, 2021, 2023)
 

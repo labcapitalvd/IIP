@@ -7,8 +7,8 @@ from shared.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-POSTGRES_USER = os.getenv("POSTGRES_USER", "app_user")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "app")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres_user")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "app_db")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "db")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_PASSWORD_FILE = "/run/secrets/postgres_password"
@@ -30,6 +30,16 @@ def load_postgres_key() -> str:
 
 
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD") or load_postgres_key()
+
+env_key = os.getenv("POSTGRES_PASSWORD")
+
+# Ensure FERNET_PASSWORD is always bytes
+if env_key:
+    pg_pass = env_key.encode()
+else:
+    pg_pass = load_postgres_key()
+
+POSTGRES_PASSWORD = pg_pass
 
 logger.debug(f"""
 user:{POSTGRES_USER}

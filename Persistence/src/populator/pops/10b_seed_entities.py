@@ -61,7 +61,7 @@ from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
 
 
-logger = get_logger("pop/actors")
+logger = get_logger(__name__)
 
 ENTITIES_FILE = Path(
     os.getenv(

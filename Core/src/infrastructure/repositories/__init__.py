@@ -10,7 +10,7 @@ from .forms import (
     SectionTypeRepository,
 )
 from .grading import CriterionRepository, GradeRepository, ResultRepository
-from .links import MultiChoiceOptionLinkRepository, UserActorLinkRepository, UserSubmissionLinkRepository
+from .links import MultiChoiceOptionLinkRepository, UserActorLinkRepository 
 from .reference import (
     FieldTypeRepository,
     RelationalOperatorRepository,
@@ -47,7 +47,6 @@ __all__ = [
     #Links
     "MultiChoiceOptionLinkRepository",
     "UserActorLinkRepository",
-    "UserSubmissionLinkRepository",
     #reference
     "FieldTypeRepository",
     "RelationalOperatorRepository",

@@ -27,9 +27,9 @@ TargetTableEnum = generate_table_enum("TargetTableEnum", CoreTargetTable, Target
 class NotificationType(Base):
     __tablename__ = TargetTable.NOTIFICATION_TYPES.table
     __table_args__ = {"schema": TargetTable.NOTIFICATION_TYPES.schema}
-
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     notifications: Mapped[list["Notification"]] = relationship(
         "Notification", back_populates="type"
@@ -46,8 +46,8 @@ class Notification(Base):
     notification_type_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.NOTIFICATION_TYPES.fq_name}.id", ondelete="CASCADE"
     )
-
-    label: Mapped[str] = column_short_text(255)
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
     content: Mapped[str] = column_long_text()
     is_read: Mapped[bool] = column_bool(default=False)
     updated_at: Mapped[datetime] = column_updated_at()
@@ -61,9 +61,9 @@ class Notification(Base):
 class CommentType(Base):
     __tablename__ = TargetTable.COMMENT_TYPES.table
     __table_args__ = {"schema": TargetTable.COMMENT_TYPES.schema}
-
+    code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
-    description: Mapped[str] = column_long_text()
+    description: Mapped[str | None] = column_long_text(nullable=True)
 
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="type")
 
@@ -79,8 +79,8 @@ class Comment(Base):
 
     target: Mapped[Enum] = column_enum(TargetTableEnum)
     target_id: Mapped[UUID] = column_uuid()
-
-    label: Mapped[str] = column_short_text(255)
+    code: Mapped[str] = column_short_text(length=50, unique=True)
+    label: Mapped[str] = column_short_text(length=255)
     content: Mapped[str] = column_long_text()
     updated_at: Mapped[datetime] = column_updated_at()
 

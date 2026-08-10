@@ -39,7 +39,7 @@ from shared.utils.logger import get_logger
 from sqlalchemy import text
 from uuid_utils import uuid7
 
-logger = get_logger("pop/loop_questions")
+logger = get_logger(__name__)
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",

@@ -2,7 +2,79 @@ from enum import Enum
 from decimal import Decimal
 
 
-class AccessLevelsEnum(Enum):
+class PermissionsEnum(Enum):
+    """
+    Atomic granular permission keys used across API security guards.
+    Tuple: (key, code, label, description)
+    """
+
+    USERS_READ = (
+        "users:read",
+        "users_read",
+        "Read Users",
+        "Can view user profiles and account details.",
+    )
+    USERS_CREATE = (
+        "users:create",
+        "users_create",
+        "Create Users",
+        "Can create new user accounts.",
+    )
+    USERS_UPDATE = (
+        "users:update",
+        "users_update",
+        "Update Users",
+        "Can modify user profiles and details.",
+    )
+    USERS_DELETE = (
+        "users:delete",
+        "users_delete",
+        "Delete Users",
+        "Can remove user accounts from the platform.",
+    )
+    FORMS_BUILD = (
+        "forms:build",
+        "forms_build",
+        "Build Forms",
+        "Can create, update, and publish form templates.",
+    )
+    SUBMISSIONS_GRADE = (
+        "submissions:grade",
+        "submissions_grade",
+        "Grade Submissions",
+        "Can score and evaluate submitted forms.",
+    )
+    AUDIT_READ = (
+        "audit:read",
+        "audit_read",
+        "Read Audit Logs",
+        "Can view system audit logs and activity history.",
+    )
+
+    def __init__(self, key: str, code: str, label: str, description: str):
+        self._key = key
+        self._code = code
+        self._label = label
+        self._description = description
+
+    @property
+    def key(self) -> str:
+        return self._key
+
+    @property
+    def code(self) -> str:
+        return self._code
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+
+class ResourceRolesEnum(Enum):
     """
     Scoped resource permissions used in link tables
     (UserFileLink, UserSubmissionLink, UserActorLink).
@@ -36,13 +108,21 @@ class AccessLevelsEnum(Enum):
     )
 
     def __init__(self, code: str, label: str, description: str):
-        self.code = code
+        self._code = code
         self._label = label
-        self.description = description
+        self._description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     @property
     def label(self) -> str:
         return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
 
 
 class SystemRolesEnum(Enum):
@@ -78,24 +158,33 @@ class SystemRolesEnum(Enum):
     )
 
     def __init__(self, code: str, label: str, description: str):
-        self.code = code
+        self._code = code
         self._label = label
-        self.description = description
+        self._description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     @property
     def label(self) -> str:
         return self._label
 
+    @property
+    def description(self) -> str:
+        return self._description
+
 
 class UserTiersEnum(Enum):
     """
     Platform tiers and quota limits (UserTier).
-    Tuple: (code, label, max_file_size, storage_quota, max_requests_per_minute, priority_level)
+    Tuple: (code, label, description, max_file_size, storage_quota, max_requests_per_minute, priority_level)
     """
 
     ROOT = (
         "root",
         "Root / System",
+        "System root tier with uncapped limits.",
         Decimal(500 * 1024 * 1024),  # 500 MB
         Decimal(100 * 1024 * 1024 * 1024),  # 100 GB
         500,
@@ -104,6 +193,7 @@ class UserTiersEnum(Enum):
     ADMIN = (
         "admin",
         "Administrator",
+        "Admin tier with elevated enterprise limits.",
         Decimal(100 * 1024 * 1024),  # 100 MB
         Decimal(50 * 1024 * 1024 * 1024),  # 50 GB
         300,
@@ -112,6 +202,7 @@ class UserTiersEnum(Enum):
     PREMIUM = (
         "premium",
         "Premium Tier",
+        "Premium tier for power users.",
         Decimal(50 * 1024 * 1024),  # 50 MB
         Decimal(20 * 1024 * 1024 * 1024),  # 20 GB
         120,
@@ -120,6 +211,7 @@ class UserTiersEnum(Enum):
     STANDARD = (
         "standard",
         "Standard Tier",
+        "Standard tier for regular users.",
         Decimal(10 * 1024 * 1024),  # 10 MB
         Decimal(10 * 1024 * 1024 * 1024),  # 10 GB
         60,
@@ -128,6 +220,7 @@ class UserTiersEnum(Enum):
     GUEST = (
         "guest",
         "Guest / Free Tier",
+        "Free tier with restricted access.",
         Decimal(5 * 1024 * 1024),  # 5 MB
         Decimal(5 * 1024 * 1024 * 1024),  # 5 GB
         30,
@@ -138,18 +231,44 @@ class UserTiersEnum(Enum):
         self,
         code: str,
         label: str,
+        description: str,
         max_file_size: Decimal,
         storage_quota: Decimal,
         max_requests_per_minute: int,
         priority_level: int,
     ):
-        self.code = code
+        self._code = code
         self._label = label
-        self.max_file_size = max_file_size
-        self.storage_quota = storage_quota
-        self.max_requests_per_minute = max_requests_per_minute
-        self.priority_level = priority_level
+        self._description = description
+        self._max_file_size = max_file_size
+        self._storage_quota = storage_quota
+        self._max_requests_per_minute = max_requests_per_minute
+        self._priority_level = priority_level
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     @property
     def label(self) -> str:
         return self._label
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @property
+    def max_file_size(self) -> Decimal:
+        return self._max_file_size
+
+    @property
+    def storage_quota(self) -> Decimal:
+        return self._storage_quota
+
+    @property
+    def max_requests_per_minute(self) -> int:
+        return self._max_requests_per_minute
+
+    @property
+    def priority_level(self) -> int:
+        return self._priority_level

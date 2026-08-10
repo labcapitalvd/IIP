@@ -1,29 +1,33 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import Generic, Type, TypeVar
+from enum import Enum, StrEnum
+from typing import Generic, TypeVar
 from uuid import UUID
 
 from sqlalchemy import UUID as UUIDType
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import func  # <-- Import func from sqlalchemy
 from uuid_utils import uuid7
+
+from shared.db.column_abstractions import column_uuid
 
 
 class Base(DeclarativeBase):
-    id: Mapped[UUID] = mapped_column(
-        UUIDType(as_uuid=True),
+    id: Mapped[UUID] = column_uuid(
         primary_key=True,
-        default=lambda: UUID(str(uuid7())),
+        server_default=func.gen_random_uuid(),  # <-- Handled entirely by PostgreSQL
     )
 
 
-ModelT = TypeVar("ModelT")
+ModelT = TypeVar("ModelT", bound=Base)
 
 
 class BaseRepository(Generic[ModelT]):
     """Generic base CRUD repository shared across microservices."""
 
-    def __init__(self, session: AsyncSession):
+    model: type[ModelT]
+
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     def add(self, entity: ModelT) -> None:
@@ -31,6 +35,10 @@ class BaseRepository(Generic[ModelT]):
 
     async def delete(self, entity: ModelT) -> None:
         await self.session.delete(entity)
+
+    async def get_by_id(self, id: UUID) -> ModelT | None:
+        """Generic PK lookup."""
+        return await self.session.get(self.model, id)
 
 
 @dataclass(frozen=True)
@@ -43,12 +51,11 @@ class TableInfo:
         return f"{self.schema}.{self.table}"
 
 
-def generate_table_enum(name, *registries) -> Type[Enum]:
+def generate_table_enum(name: str, *registries) -> type[Enum]:
     members = {}
     for registry in registries:
-        # Get all upper-case attributes that are TableInfo instances
         for key, value in registry.__dict__.items():
             if key.isupper() and isinstance(value, TableInfo):
-                # Use fq_name as the value stored in the DB
                 members[key] = value.fq_name
-    return Enum(name, members)
+
+    return StrEnum(name, members)
