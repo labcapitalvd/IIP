@@ -16,18 +16,18 @@ class ActorRepository(BaseRepository[Actor]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_label(self, label: str) -> Actor | None:
+    async def get_by_code(self, code: str) -> Actor | None:
         stmt = (
             select(Actor)
             .options(joinedload(Actor.actor_segment))
-            .where(Actor.label == label)
+            .where(Actor.code == code)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_all(self) -> Sequence[Actor]:
         stmt = (
-            select(Actor).options(joinedload(Actor.actor_segment)).order_by(Actor.label)
+            select(Actor).options(joinedload(Actor.actor_segment)).order_by(Actor.code)
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -43,11 +43,11 @@ class ActorSegmentRepository(BaseRepository[ActorSegment]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_label(self, label: str) -> ActorSegment | None:
+    async def get_by_code(self, code: str) -> ActorSegment | None:
         stmt = (
             select(ActorSegment)
             .options(selectinload(ActorSegment.actors))
-            .where(ActorSegment.label == label)
+            .where(ActorSegment.code == code)
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -56,7 +56,7 @@ class ActorSegmentRepository(BaseRepository[ActorSegment]):
         stmt = (
             select(ActorSegment)
             .options(joinedload(ActorSegment.actors))
-            .order_by(ActorSegment.label)
+            .order_by(ActorSegment.code)
         )
         result = await self.session.execute(stmt)
         return result.unique().scalars().all()
