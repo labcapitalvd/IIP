@@ -149,6 +149,7 @@ Docker Commands:
 Database (Alembic) Commands:
     --backup               Create a timestamped database backup.
     --restore [file]       Restore from a .sql backup.
+    --revision [name]      Create a revision of the database at current time.
 
 Other:
     --help, -h             Show this help message.
