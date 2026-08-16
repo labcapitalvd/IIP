@@ -363,7 +363,7 @@ async def validate_forms(conn) -> None:
     logger.info("forms.forms validation passed successfully.")
 
 
-async def upgrade(gh, api) -> None:
+async def upgrade() -> None:
     """Carga forms.forms."""
     logger.info("Starting forms.forms population...")
 

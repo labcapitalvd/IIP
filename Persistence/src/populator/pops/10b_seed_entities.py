@@ -881,9 +881,8 @@ async def validate_loaded_actors(
         raise ValueError(f"No se cargaron las entidades: {missing}")
 
 
-async def upgrade(gh=None, api=None) -> None:
+async def upgrade() -> None:
     """Carga entidades y resuelve sus sectores mediante UUIDv7 reales."""
-    del gh, api
 
     logger.info(f"Starting actors population from {ENTITIES_FILE}")
     source_rows = load_source_rows(ENTITIES_FILE)

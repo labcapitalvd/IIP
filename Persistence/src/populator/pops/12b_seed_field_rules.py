@@ -698,9 +698,8 @@ async def validate_loaded_rules(
 # -----------------------------------------------------------------------------
 
 
-async def upgrade(gh=None, api=None) -> None:
+async def upgrade() -> None:
     """Puebla las reglas mínimas y máximas justificadas por el instrumento."""
-    del gh, api
 
     path = Path(H.FILE_PATH)
     if not path.is_file():

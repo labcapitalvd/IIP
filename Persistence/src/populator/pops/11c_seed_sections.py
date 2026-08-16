@@ -979,9 +979,7 @@ async def validate_loaded_sections(
 # FUNCIÓN PRINCIPAL
 # -----------------------------------------------------------------------------
 
-async def upgrade(gh, api) -> None:
-    del gh
-    del api
+async def upgrade() -> None:
 
     path = Path(LOCAL_IIP_STRUCTURE_FILE)
     active_years = get_active_years()
@@ -1124,4 +1122,4 @@ async def upgrade(gh, api) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(upgrade(None, None))
+    asyncio.run(upgrade())

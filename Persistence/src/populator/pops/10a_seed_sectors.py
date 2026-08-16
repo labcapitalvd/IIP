@@ -466,9 +466,8 @@ async def validate_loaded_segments(conn, expected: list[dict[str, str]]) -> None
         raise ValueError(f"No se cargaron los sectores: {missing}")
 
 
-async def upgrade(gh=None, api=None) -> None:
+async def upgrade() -> None:
     """Carga los sectores derivados de ``Entidades.csv``."""
-    del gh, api
 
     logger.info(f"Starting actor_segments population from {ENTITIES_FILE}")
     source_rows = load_source_rows(ENTITIES_FILE)

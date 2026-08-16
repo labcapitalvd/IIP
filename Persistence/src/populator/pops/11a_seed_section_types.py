@@ -171,7 +171,7 @@ async def validate_section_types(conn) -> None:
     logger.info("section_types validation passed successfully.")
 
 
-async def upgrade(gh, api) -> None:
+async def upgrade() -> None:
     """Carga forms.section_types."""
     logger.info("Starting forms.section_types population...")
 
