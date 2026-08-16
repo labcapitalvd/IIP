@@ -46,12 +46,10 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import text
-from uuid_utils import uuid7
-
 from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
-
+from sqlalchemy import text
+from uuid_utils import uuid7
 
 logger = get_logger(__name__)
 

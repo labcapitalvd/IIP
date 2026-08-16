@@ -44,17 +44,15 @@ import os
 import re
 import unicodedata
 from collections import OrderedDict, defaultdict
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from uuid import UUID
 
 import pandas as pd
-from sqlalchemy import text
-from uuid_utils import uuid7
-
 from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
-
+from sqlalchemy import text
+from uuid_utils import uuid7
 
 logger = get_logger(__name__)
 
