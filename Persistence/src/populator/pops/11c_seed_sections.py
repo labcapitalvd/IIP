@@ -78,6 +78,7 @@ DISPLAY_PREFIX = {
 # UTILIDADES
 # -----------------------------------------------------------------------------
 
+
 def get_active_years() -> tuple[int, ...]:
     """Obtiene los años activos desde IIP_ACTIVE_YEARS o usa los predeterminados."""
     raw_value = os.getenv("IIP_ACTIVE_YEARS")
@@ -134,9 +135,7 @@ def normalize_key(value):
 
     value = unicodedata.normalize("NFKD", value)
     value = "".join(
-        character
-        for character in value
-        if not unicodedata.combining(character)
+        character for character in value if not unicodedata.combining(character)
     )
     value = value.casefold()
     value = re.sub(r"\s+", " ", value)
@@ -262,6 +261,7 @@ def truncate_text(value, max_length):
 # LECTURA Y NORMALIZACIÓN DEL EXCEL
 # -----------------------------------------------------------------------------
 
+
 def required_columns_for_year(year: int) -> dict[str, str]:
     return {
         "component_code": "Componente",
@@ -339,24 +339,20 @@ def normalize_annual_structure(df: pd.DataFrame, year: int) -> pd.DataFrame:
         raise ValueError(f"La hoja {year} no produjo una jerarquía válida.")
 
     normalized["component_code"] = normalized["component_raw_code"].apply(
-        lambda value: make_code("C", value)
+        lambda value: make_code(f"{year}_C", value)
     )
     normalized["variable_local_code"] = normalized["variable_raw_code"].apply(
-        lambda value: make_code("V", value)
+        lambda value: make_code(f"{year}_V", value)
     )
     normalized["indicator_local_code"] = normalized["indicator_raw_code"].apply(
-        lambda value: make_code("I", value)
+        lambda value: make_code(f"{year}_I", value)
     )
 
     normalized["variable_code"] = (
-        normalized["component_code"]
-        + "_"
-        + normalized["variable_local_code"]
+        normalized["component_code"] + "_" + normalized["variable_local_code"]
     )
     normalized["indicator_code"] = (
-        normalized["variable_code"]
-        + "_"
-        + normalized["indicator_local_code"]
+        normalized["variable_code"] + "_" + normalized["indicator_local_code"]
     )
 
     return normalized
@@ -366,9 +362,7 @@ def validate_repeated_record(existing: dict, candidate: dict, key: tuple) -> Non
     conflicts: list[str] = []
 
     if normalize_key(existing["label"]) != normalize_key(candidate["label"]):
-        conflicts.append(
-            f"label {existing['label']!r} != {candidate['label']!r}"
-        )
+        conflicts.append(f"label {existing['label']!r} != {candidate['label']!r}")
 
     if normalize_key(existing["description"]) != normalize_key(
         candidate["description"]
@@ -377,8 +371,7 @@ def validate_repeated_record(existing: dict, candidate: dict, key: tuple) -> Non
 
     if existing["parent_code"] != candidate["parent_code"]:
         conflicts.append(
-            f"parent_code {existing['parent_code']!r} "
-            f"!= {candidate['parent_code']!r}"
+            f"parent_code {existing['parent_code']!r} != {candidate['parent_code']!r}"
         )
 
     if conflicts:
@@ -421,9 +414,7 @@ def build_section_records(normalized: pd.DataFrame) -> list[dict]:
                 "level": "COMPONENTE",
                 "code": row["component_code"],
                 "parent_code": None,
-                "label": make_section_label(
-                    "COMPONENTE", row["component_raw_code"]
-                ),
+                "label": make_section_label("COMPONENTE", row["component_raw_code"]),
                 "description": row["component_description"],
                 "display_order": make_display_order(row["component_raw_code"]),
             },
@@ -474,6 +465,7 @@ def build_section_records(normalized: pd.DataFrame) -> list[dict]:
 # POSTGRESQL: METADATOS Y CATÁLOGOS
 # -----------------------------------------------------------------------------
 
+
 async def get_table_columns(conn) -> dict:
     result = await conn.execute(
         text(
@@ -509,6 +501,7 @@ async def get_table_columns(conn) -> dict:
 def validate_required_db_columns(db_columns: dict) -> None:
     required = {
         "id",
+        "code",
         "form_id",
         "file_id",
         "parent_id",
@@ -599,9 +592,7 @@ async def get_section_types_lookup(conn) -> dict[str, str]:
             )
 
         if not is_uuidv7(ids[0]):
-            raise ValueError(
-                f"El section_type_id de {level} no es UUIDv7: {ids[0]}"
-            )
+            raise ValueError(f"El section_type_id de {level} no es UUIDv7: {ids[0]}")
 
         lookup[level] = ids[0]
 
@@ -614,6 +605,7 @@ async def get_existing_sections(conn, active_years: tuple[int, ...]) -> list[dic
             """
             SELECT
                 s.id::text AS id,
+                s.code as section_code,
                 s.form_id::text AS form_id,
                 s.parent_id::text AS parent_id,
                 s.section_type_id::text AS section_type_id,
@@ -645,6 +637,7 @@ async def get_existing_sections(conn, active_years: tuple[int, ...]) -> list[dic
 # -----------------------------------------------------------------------------
 # IDENTIFICACIÓN DE REGISTROS EXISTENTES SIN DEPENDER DEL HELPER
 # -----------------------------------------------------------------------------
+
 
 def select_unique_candidate(candidates: list[dict], reason: str, source_record: dict):
     if not candidates:
@@ -688,7 +681,24 @@ def find_existing_section(
         and row["section_type_id"] == section_type_id
     ]
 
-    # 1. Compatibilidad con el helper de versiones anteriores.
+    # 1. Coincidencia directa por código técnico de sección (ej. '2019_C1')
+    code_candidates = [
+        row
+        for row in available
+        if row.get("code") == source_record["code"]
+        or row.get("section_code") == source_record["code"]
+    ]
+
+    candidate = select_unique_candidate(
+        code_candidates,
+        "código técnico de sección",
+        source_record,
+    )
+
+    if candidate:
+        return candidate
+
+    # 2. Compatibilidad con el helper de versiones anteriores.
     helper_candidates = []
 
     for row in available:
@@ -722,7 +732,7 @@ def find_existing_section(
     normalized_label = normalize_key(source_record["label"])
     normalized_description = normalize_key(source_record["description"])
 
-    # 2. Formato nuevo: label técnico y parent_id correcto.
+    # 3. Formato nuevo: label técnico y parent_id correcto.
     candidate = select_unique_candidate(
         [
             row
@@ -737,7 +747,7 @@ def find_existing_section(
     if candidate:
         return candidate
 
-    # 3. Formato anterior: el nombre completo estaba en label.
+    # 4. Formato anterior: el nombre completo estaba en label.
     candidate = select_unique_candidate(
         [
             row
@@ -755,13 +765,9 @@ def find_existing_section(
     if candidate:
         return candidate
 
-    # 4. Permite reparar un parent_id incorrecto si el label técnico es único.
+    # 5. Permite reparar un parent_id incorrecto si el label técnico es único.
     candidate = select_unique_candidate(
-        [
-            row
-            for row in available
-            if normalize_key(row["label"]) == normalized_label
-        ],
+        [row for row in available if normalize_key(row["label"]) == normalized_label],
         "label técnico único",
         source_record,
     )
@@ -769,7 +775,7 @@ def find_existing_section(
     if candidate:
         return candidate
 
-    # 5. Último respaldo para migrar el formato anterior.
+    # 6. Último respaldo para migrar el formato anterior.
     candidate = select_unique_candidate(
         [
             row
@@ -790,6 +796,7 @@ def find_existing_section(
 # INSERT / UPDATE
 # -----------------------------------------------------------------------------
 
+
 def prepare_db_record(
     source_record: dict,
     db_columns: dict,
@@ -798,6 +805,10 @@ def prepare_db_record(
     parent_id: str | None,
     existing_id: str | None,
 ) -> dict:
+    code = truncate_text(
+        source_record["code"],
+        db_columns.get("code", {}).get("max_length"),
+    )
     label = truncate_text(
         source_record["label"],
         db_columns["label"]["max_length"],
@@ -807,6 +818,8 @@ def prepare_db_record(
         db_columns["description"]["max_length"],
     )
 
+    if code is None:
+        raise ValueError(f"Sección sin code: {source_record}")
     if label is None:
         raise ValueError(f"Sección sin label: {source_record}")
 
@@ -826,6 +839,7 @@ def prepare_db_record(
 
     return {
         "id": section_id,
+        "code": code,
         "form_id": form_id,
         "file_id": None,
         "parent_id": parent_id,
@@ -843,6 +857,7 @@ async def insert_section(conn, record: dict) -> None:
             """
             INSERT INTO forms.sections (
                 id,
+                code,
                 form_id,
                 file_id,
                 parent_id,
@@ -854,6 +869,7 @@ async def insert_section(conn, record: dict) -> None:
             )
             VALUES (
                 CAST(:id AS uuid),
+                :code,
                 CAST(:form_id AS uuid),
                 CAST(:file_id AS uuid),
                 CAST(:parent_id AS uuid),
@@ -875,6 +891,7 @@ async def update_section(conn, record: dict) -> None:
             """
             UPDATE forms.sections
             SET
+                code = :code,
                 form_id = CAST(:form_id AS uuid),
                 file_id = CAST(:file_id AS uuid),
                 parent_id = CAST(:parent_id AS uuid),
@@ -894,6 +911,7 @@ async def update_section(conn, record: dict) -> None:
 # VALIDACIÓN FINAL
 # -----------------------------------------------------------------------------
 
+
 async def validate_loaded_sections(
     conn,
     expected_id_by_key: dict[tuple[int, str, str], str],
@@ -907,6 +925,7 @@ async def validate_loaded_sections(
             """
             SELECT
                 id::text AS id,
+                code,
                 form_id::text AS form_id,
                 parent_id::text AS parent_id,
                 section_type_id::text AS section_type_id,
@@ -919,10 +938,7 @@ async def validate_loaded_sections(
         )
     )
 
-    rows_by_id = {
-        row["id"]: dict(row)
-        for row in result.mappings().all()
-    }
+    rows_by_id = {row["id"]: dict(row) for row in result.mappings().all()}
 
     for key, expected_id in expected_id_by_key.items():
         expected = expected_by_key[key]
@@ -934,6 +950,10 @@ async def validate_loaded_sections(
         if not is_uuidv7(row["id"]):
             raise ValueError(f"La sección {key} no tiene UUIDv7: {row['id']}")
 
+        if row["code"] != expected["code"]:
+            raise ValueError(
+                f"code incorrecto para {key}: {row['code']!r} != {expected['code']!r}"
+            )
         if row["form_id"] != forms_lookup[expected["year"]]:
             raise ValueError(f"form_id incorrecto para {key}")
 
@@ -952,9 +972,7 @@ async def validate_loaded_sections(
                 f"{row['label']!r} != {expected['label']!r}"
             )
 
-        if normalize_key(row["description"]) != normalize_key(
-            expected["description"]
-        ):
+        if normalize_key(row["description"]) != normalize_key(expected["description"]):
             raise ValueError(
                 f"description incorrecta para {key}: "
                 f"{row['description']!r} != {expected['description']!r}"
@@ -962,8 +980,7 @@ async def validate_loaded_sections(
 
         if clean_text(row["helper"]) is not None:
             raise ValueError(
-                f"helper debe quedar vacío para {key}, pero contiene: "
-                f"{row['helper']!r}"
+                f"helper debe quedar vacío para {key}, pero contiene: {row['helper']!r}"
             )
 
         if int(row["display_order"]) != int(expected["display_order"]):
@@ -978,6 +995,7 @@ async def validate_loaded_sections(
 # -----------------------------------------------------------------------------
 # FUNCIÓN PRINCIPAL
 # -----------------------------------------------------------------------------
+
 
 async def upgrade() -> None:
 
@@ -1006,10 +1024,7 @@ async def upgrade() -> None:
             all_records.extend(year_records)
 
             counts = {
-                level: sum(
-                    record["level"] == level
-                    for record in year_records
-                )
+                level: sum(record["level"] == level for record in year_records)
                 for level in SECTION_LEVELS
             }
 
@@ -1045,9 +1060,7 @@ async def upgrade() -> None:
 
             for level in SECTION_LEVELS:
                 level_records = [
-                    record
-                    for record in all_records
-                    if record["level"] == level
+                    record for record in all_records if record["level"] == level
                 ]
 
                 for source_record in level_records:
