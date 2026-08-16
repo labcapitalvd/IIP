@@ -1,11 +1,11 @@
 """Poblado de file types"""
 
+from sqlalchemy import select
+
 from shared.db import SessionSync
+from shared.enums import FileTypesEnum as Types
 from shared.models import FileType
 from shared.utils.logger import get_logger
-
-from shared.enums import FileTypesEnum as Types
-
 
 logger = get_logger(__name__)
 
@@ -13,26 +13,37 @@ logger = get_logger(__name__)
 def upgrade() -> None:
     added_count = 0
     skipped_count = 0
+
     with SessionSync() as session:
-        for type in Types:
-            exists: FileType | None = (
-                session.query(FileType).filter_by(label=type.label).first()
-            )
-            if exists:
-                logger.debug(msg=f"{type} already exists in FileType")
+        # Fetch all existing labels in 1 single query
+        existing_labels = set(session.scalars(select(FileType.label)).all())
+
+        new_records: list[FileType] = []
+
+        for file_type in Types:
+            if file_type.label in existing_labels:
+                logger.debug(f"{file_type.label} already exists in FileType")
                 skipped_count += 1
-                continue  # Skip this one
-            session.add(
+                continue
+
+            new_records.append(
                 FileType(
-                    code=type.code,
-                    label=type.label,
-                    mime_type=type.mime_type,
-                    extension=type.extension,
-                    category=type.category,
-                    max_size=type.max_size,
+                    code=file_type.code,
+                    label=file_type.label,
+                    mime_type=file_type.mime_type,
+                    extension=file_type.extension,
+                    category=file_type.category,
+                    max_size=file_type.max_size,
                 )
             )
-            logger.debug(f"{type} added to table FileType")
+            logger.debug(f"Queued {file_type.label} for FileType")
             added_count += 1
-        session.commit()
-    logger.debug(f"Seed complete: {added_count} added, {skipped_count} skipped.")
+
+        # Bulk insert all new types at once
+        if new_records:
+            session.add_all(new_records)
+            session.commit()
+
+    logger.info(
+        f"FileType seed complete: {added_count} added, {skipped_count} skipped."
+    )
