@@ -1,11 +1,10 @@
 """Poblado de tipos de campos (FieldType)"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import FieldTypesEnum as Types
 from shared.models import FieldType
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 

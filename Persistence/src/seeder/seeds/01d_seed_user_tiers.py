@@ -1,11 +1,10 @@
 """Poblado de user tiers"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import UserTiersEnum as Types
 from shared.models import UserTier
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 

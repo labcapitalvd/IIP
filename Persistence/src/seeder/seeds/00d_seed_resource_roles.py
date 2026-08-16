@@ -1,11 +1,10 @@
 """Poblado de roles de recursos ReBAC (ResourceRole)"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import ResourceRolesEnum
 from shared.models import ResourceRole
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 

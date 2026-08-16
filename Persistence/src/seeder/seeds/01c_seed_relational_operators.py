@@ -1,11 +1,10 @@
 """Poblado de relational operators"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import RelationalOperatorsEnum as Types
 from shared.models import RelationalOperator
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 

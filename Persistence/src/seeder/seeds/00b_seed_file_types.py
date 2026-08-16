@@ -1,11 +1,10 @@
 """Poblado de file types"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import FileTypesEnum as Types
 from shared.models import FileType
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
