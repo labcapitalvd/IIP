@@ -1,11 +1,10 @@
 """Poblado de log action types"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import LogActionTypesEnum as Types
 from shared.models import LogActionType
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 

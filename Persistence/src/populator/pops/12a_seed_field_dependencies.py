@@ -46,12 +46,10 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import text
-from uuid_utils import uuid7
-
 from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
-
+from sqlalchemy import text
+from uuid_utils import uuid7
 
 logger = get_logger(__name__)
 
@@ -600,7 +598,7 @@ async def load_fields(conn) -> dict[tuple[int, str, str, int], dict]:
                 question.form_id::text AS question_form_id,
                 question.label AS question_label,
 
-                form.anno
+                form.code
 
             FROM forms.fields field
 
@@ -616,10 +614,10 @@ async def load_fields(conn) -> dict[tuple[int, str, str, int], dict]:
             JOIN forms.forms form
                 ON form.id = question.form_id
 
-            WHERE form.anno IN (2021, 2023)
+            WHERE form.code IN (2021, 2023)
 
             ORDER BY
-                form.anno,
+                form.code,
                 question.label,
                 field_group.card_template_id,
                 field.display_order,
@@ -659,7 +657,7 @@ async def load_fields(conn) -> dict[tuple[int, str, str, int], dict]:
         )
 
         key = field_key(
-            int(row["anno"]),
+            int(row["code"]),
             row["question_label"],
             group_kind,
             int(row["display_order"]),
@@ -861,7 +859,7 @@ async def load_existing_dependencies(
                 ON target.id = dependency.target_field_id
             JOIN forms.forms form
                 ON form.id = target.form_id
-            WHERE form.anno IN (2021, 2023)
+            WHERE form.code IN (2021, 2023)
             ORDER BY dependency.target_field_id, dependency.id;
             """
         )
@@ -997,7 +995,7 @@ async def validate_loaded_dependencies(
 
                 target.form_id::text AS target_form_id,
                 controller.form_id::text AS controller_form_id,
-                form.anno
+                form.code
 
             FROM rules.field_dependencies dependency
 
@@ -1013,9 +1011,9 @@ async def validate_loaded_dependencies(
             JOIN forms.forms form
                 ON form.id = target.form_id
 
-            WHERE form.anno IN (2021, 2023)
+            WHERE form.code IN (2021, 2023)
 
-            ORDER BY form.anno, dependency.target_field_id, dependency.id;
+            ORDER BY form.code, dependency.target_field_id, dependency.id;
             """
         )
     )
@@ -1045,7 +1043,7 @@ async def validate_loaded_dependencies(
 
     for target_id, expected_item in expected_by_target.items():
         row = loaded_by_target[target_id]
-        counts[int(row["anno"])] += 1
+        counts[int(row["code"])] += 1
 
         if not is_uuidv7(row["dependency_id"]):
             raise ValueError(

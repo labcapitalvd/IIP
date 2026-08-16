@@ -26,12 +26,10 @@ from pathlib import Path
 from uuid import UUID
 
 import pandas as pd
-from sqlalchemy import text
-from uuid_utils import uuid7
-
 from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
-
+from sqlalchemy import text
+from uuid_utils import uuid7
 
 logger = get_logger(__name__)
 
@@ -183,7 +181,7 @@ async def table_columns(conn, schema: str, table: str) -> dict:
 
 async def get_form(conn) -> str:
     result = await conn.execute(
-        text("SELECT id::text AS id FROM forms.forms WHERE anno = :year;"),
+        text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
         {"year": YEAR},
     )
     rows = result.mappings().all()

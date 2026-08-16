@@ -1,11 +1,10 @@
 """Poblado de permisos atómicos y granulares (Permission)"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import PermissionsEnum
 from shared.models import Permission
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 

@@ -44,17 +44,15 @@ import os
 import re
 import unicodedata
 from collections import OrderedDict, defaultdict
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from uuid import UUID
 
 import pandas as pd
-from sqlalchemy import text
-from uuid_utils import uuid7
-
 from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
-
+from sqlalchemy import text
+from uuid_utils import uuid7
 
 logger = get_logger(__name__)
 
@@ -432,18 +430,18 @@ async def resolve_questions(
                 question.description,
                 question.display_order,
                 question.form_id::text AS form_id,
-                form.anno
+                form.code
             FROM forms.questions question
             JOIN forms.forms form
               ON form.id = question.form_id
-            ORDER BY form.anno, question.label, question.id;
+            ORDER BY form.code, question.label, question.id;
             """
         )
     )
 
     grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["code"])
         if year not in active_years:
             continue
         grouped[(year, normalize_text(row["label"]))].append(dict(row))
@@ -650,21 +648,21 @@ async def validate_loaded_criteria(
                 criterion.description,
                 criterion.weight,
                 criterion.display_order,
-                form.anno
+                form.code
             FROM grading.criteria criterion
             JOIN forms.questions question
               ON question.id = criterion.question_id
             JOIN forms.forms form
               ON form.id = question.form_id
             WHERE criterion.question_id IS NOT NULL
-            ORDER BY form.anno, criterion.question_id;
+            ORDER BY form.code, criterion.question_id;
             """
         )
     )
 
     loaded: dict[str, dict] = {}
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["code"])
         if year not in active_years:
             continue
         question_id = row["question_id"]
@@ -702,7 +700,7 @@ async def validate_loaded_criteria(
                 f"display_order incorrecto para {question_id}."
             )
 
-        counts[int(row["anno"])] += 1
+        counts[int(row["code"])] += 1
 
     expected_counts = {
         year: EXPECTED_COUNTS[year]

@@ -21,7 +21,6 @@ questions, sections o card_templates.
 from __future__ import annotations
 
 import asyncio
-import math
 import os
 import re
 import unicodedata
@@ -30,12 +29,10 @@ from pathlib import Path
 from uuid import UUID
 
 import pandas as pd
-from sqlalchemy import text
-from uuid_utils import uuid7
-
 from shared.infrastructure import async_engine
 from shared.utils.logger import get_logger
-
+from sqlalchemy import text
+from uuid_utils import uuid7
 
 logger = get_logger(__name__)
 
@@ -782,17 +779,17 @@ async def get_forms(conn) -> dict[int, str]:
     result = await conn.execute(
         text(
             """
-            SELECT anno, id::text AS id
+            SELECT code, id::text AS id
             FROM forms.forms
-            WHERE anno IN (2019, 2021, 2023)
-            ORDER BY anno;
+            WHERE code IN (2019, 2021, 2023)
+            ORDER BY code;
             """
         )
     )
 
     grouped: dict[int, list[str]] = defaultdict(list)
     for row in result.mappings().all():
-        grouped[int(row["anno"])].append(row["id"])
+        grouped[int(row["code"])].append(row["id"])
 
     lookup: dict[int, str] = {}
     for year in ACTIVE_YEARS:
@@ -823,12 +820,12 @@ async def get_questions(
                 question.label,
                 question.description,
                 question.is_loop,
-                form.anno
+                form.code
             FROM forms.questions question
             JOIN forms.forms form
               ON form.id = question.form_id
-            WHERE form.anno IN (2019, 2021, 2023)
-            ORDER BY form.anno, question.label, question.id;
+            WHERE form.code IN (2019, 2021, 2023)
+            ORDER BY form.code, question.label, question.id;
             """
         )
     )
@@ -836,7 +833,7 @@ async def get_questions(
     grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
         grouped[
-            (int(row["anno"]), normalize_text(row["label"]))
+            (int(row["code"]), normalize_text(row["label"]))
         ].append(dict(row))
 
     expected = {

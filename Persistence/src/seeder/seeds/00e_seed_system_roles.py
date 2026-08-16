@@ -1,11 +1,10 @@
 """Poblado de roles globales (SystemRole) y niveles de acceso (ResourceRole)"""
 
-from sqlalchemy import select
-
 from shared.db import SessionSync
 from shared.enums import ResourceRolesEnum, SystemRolesEnum
 from shared.models import ResourceRole, SystemRole
 from shared.utils.logger import get_logger
+from sqlalchemy import select
 
 logger = get_logger(__name__)
 
