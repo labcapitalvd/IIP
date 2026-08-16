@@ -99,9 +99,7 @@ def normalize_text(value):
         return None
     value = unicodedata.normalize("NFKD", value)
     value = "".join(
-        character
-        for character in value
-        if not unicodedata.combining(character)
+        character for character in value if not unicodedata.combining(character)
     )
     value = value.casefold()
     value = re.sub(r"\s+", " ", value)
@@ -165,8 +163,7 @@ def parse_positive_integer(value, context: str) -> int:
 def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     if sheet_name not in excel.sheet_names:
         raise ValueError(
-            f"No existe la hoja {sheet_name!r}. "
-            f"Hojas disponibles: {excel.sheet_names}"
+            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
         )
     frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
     frame.columns = [str(column).strip() for column in frame.columns]
@@ -177,10 +174,7 @@ def map_field_type(data_type: str) -> str:
     token = normalize_token(data_type)
     field_type = DATA_TYPE_TO_FIELD_TYPE.get(token)
     if field_type is None:
-        raise ValueError(
-            f"Tipo_dato sin mapeo: {data_type!r} "
-            f"(normalizado={token!r})."
-        )
+        raise ValueError(f"Tipo_dato sin mapeo: {data_type!r} (normalizado={token!r}).")
     return field_type
 
 
@@ -204,9 +198,7 @@ def load_structure(
         required = {"Pregunta", f"Pregunta {year}"}
         missing = required - set(frame.columns)
         if missing:
-            raise ValueError(
-                f"Faltan columnas en la hoja {year}: {sorted(missing)}"
-            )
+            raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
 
         registry: OrderedDict[str, str] = OrderedDict()
         for _, row in frame.iterrows():
@@ -236,9 +228,7 @@ def load_structure(
     }
     missing = required_loops - set(frame_2023.columns)
     if missing:
-        raise ValueError(
-            f"Faltan columnas de bucle en 2023: {sorted(missing)}"
-        )
+        raise ValueError(f"Faltan columnas de bucle en 2023: {sorted(missing)}")
 
     loops: OrderedDict[str, dict] = OrderedDict()
 
@@ -252,9 +242,7 @@ def load_structure(
         subquestion_text = clean(row["Subpregunta_bucle"])
 
         if loop_text is None or parent_code is None:
-            raise ValueError(
-                f"Bucle incompleto en fila {int(index) + 2}: {loop_code}."
-            )
+            raise ValueError(f"Bucle incompleto en fila {int(index) + 2}: {loop_code}.")
 
         item = loops.setdefault(
             loop_code,
@@ -267,13 +255,10 @@ def load_structure(
             },
         )
 
-        if (
-            normalize_text(item["loop_text"]) != normalize_text(loop_text)
-            or normalize_text(item["parent_code"]) != normalize_text(parent_code)
-        ):
-            raise ValueError(
-                f"Información contradictoria para {loop_code}."
-            )
+        if normalize_text(item["loop_text"]) != normalize_text(
+            loop_text
+        ) or normalize_text(item["parent_code"]) != normalize_text(parent_code):
+            raise ValueError(f"Información contradictoria para {loop_code}.")
 
         if subquestion_text is None:
             continue
@@ -294,9 +279,7 @@ def load_structure(
     for loop_code, item in loops.items():
         orders = sorted(item["subquestions"])
         if orders != list(range(1, len(orders) + 1)):
-            raise ValueError(
-                f"Órdenes no consecutivos en {loop_code}: {orders}"
-            )
+            raise ValueError(f"Órdenes no consecutivos en {loop_code}: {orders}")
         item["subquestions"] = [
             {
                 "order": order,
@@ -306,13 +289,9 @@ def load_structure(
         ]
 
     if len(loops) != 27:
-        raise ValueError(
-            f"Se esperaban 27 bucles y se encontraron {len(loops)}."
-        )
+        raise ValueError(f"Se esperaban 27 bucles y se encontraron {len(loops)}.")
     if sum(len(item["subquestions"]) for item in loops.values()) != 101:
-        raise ValueError(
-            "La suma de subpreguntas de bucle debe ser 101."
-        )
+        raise ValueError("La suma de subpreguntas de bucle debe ser 101.")
 
     return main_questions, loops
 
@@ -337,9 +316,7 @@ def load_responses(
         }
         missing = required - set(frame.columns)
         if missing:
-            raise ValueError(
-                f"Faltan columnas en {sheet_name}: {sorted(missing)}"
-            )
+            raise ValueError(f"Faltan columnas en {sheet_name}: {sorted(missing)}")
 
         has_subquestion = "Texto_subpregunta" in frame.columns
         questions: OrderedDict[
@@ -354,11 +331,7 @@ def load_responses(
             if question_code is None or question_text is None or data_type is None:
                 continue
 
-            subquestion = (
-                clean(row["Texto_subpregunta"])
-                if has_subquestion
-                else None
-            )
+            subquestion = clean(row["Texto_subpregunta"]) if has_subquestion else None
             group_key = normalize_text(subquestion)
             group = questions.setdefault(question_code, OrderedDict()).setdefault(
                 group_key,
@@ -370,9 +343,7 @@ def load_responses(
                 },
             )
 
-            if normalize_text(group["question_text"]) != normalize_text(
-                question_text
-            ):
+            if normalize_text(group["question_text"]) != normalize_text(question_text):
                 raise ValueError(
                     f"Texto_pregunta contradictorio para {question_code} "
                     f"en {sheet_name}."
@@ -399,18 +370,14 @@ def load_responses(
 
 
 def group_definition(group: dict) -> dict:
-    data_types = unique_in_order(
-        row["data_type"] for row in group["rows"]
-    )
+    data_types = unique_in_order(row["data_type"] for row in group["rows"])
     if len(data_types) != 1:
         raise ValueError(
             "Una misma pregunta/subpregunta tiene varios Tipo_dato: "
             f"{data_types}. Fila inicial: {group['first_row']}"
         )
 
-    question_types = unique_in_order(
-        row["question_type"] for row in group["rows"]
-    )
+    question_types = unique_in_order(row["question_type"] for row in group["rows"])
 
     return {
         "subquestion": group["subquestion"],
@@ -449,21 +416,14 @@ def build_field_specs(
             groups = responses[year].get(question_code)
             if not groups:
                 raise ValueError(
-                    f"{question_code} de {year} no aparece en "
-                    f"Respuestas_{year}."
+                    f"{question_code} de {year} no aparece en Respuestas_{year}."
                 )
 
-            all_rows = [
-                row
-                for group in groups.values()
-                for row in group["rows"]
-            ]
+            all_rows = [row for group in groups.values() for row in group["rows"]]
 
             if year == 2021 and question_code == "Pregunta 21.1":
                 if len(all_rows) < 2:
-                    raise ValueError(
-                        "Pregunta 21.1 de 2021 no contiene sus dos filas."
-                    )
+                    raise ValueError("Pregunta 21.1 de 2021 no contiene sus dos filas.")
 
                 specs.append(
                     {
@@ -497,18 +457,13 @@ def build_field_specs(
                 )
                 continue
 
-            data_types = unique_in_order(
-                row["data_type"] for row in all_rows
-            )
+            data_types = unique_in_order(row["data_type"] for row in all_rows)
             if len(data_types) != 1:
                 raise ValueError(
-                    f"{question_code} de {year} tiene varios Tipo_dato: "
-                    f"{data_types}"
+                    f"{question_code} de {year} tiene varios Tipo_dato: {data_types}"
                 )
 
-            question_types = unique_in_order(
-                row["question_type"] for row in all_rows
-            )
+            question_types = unique_in_order(row["question_type"] for row in all_rows)
 
             specs.append(
                 {
@@ -519,9 +474,7 @@ def build_field_specs(
                     "display_order": 1,
                     "description": question_text,
                     "data_type": data_types[0],
-                    "question_type": (
-                        question_types[0] if question_types else None
-                    ),
+                    "question_type": (question_types[0] if question_types else None),
                     "option_rows": all_rows,
                 }
             )
@@ -530,14 +483,9 @@ def build_field_specs(
     for question_code, question_text in main_questions[2023].items():
         groups = responses[2023].get(question_code)
         if not groups:
-            raise ValueError(
-                f"{question_code} no aparece en Respuestas_2023."
-            )
+            raise ValueError(f"{question_code} no aparece en Respuestas_2023.")
 
-        definitions = [
-            group_definition(group)
-            for group in groups.values()
-        ]
+        definitions = [group_definition(group) for group in groups.values()]
 
         # Pregunta 28.1 es mixta: el grupo sin Texto_subpregunta es directo.
         if question_code in loops:
@@ -555,9 +503,7 @@ def build_field_specs(
                     "response_question_code": question_code,
                     "group_kind": "DIRECT",
                     "display_order": display_order,
-                    "description": (
-                        definition["subquestion"] or question_text
-                    ),
+                    "description": (definition["subquestion"] or question_text),
                     "data_type": definition["data_type"],
                     "question_type": definition["question_type"],
                     "option_rows": definition["option_rows"],
@@ -574,8 +520,7 @@ def build_field_specs(
     ]
     if len(auxiliary) != 1:
         raise ValueError(
-            "Se esperaba una única selección múltiple auxiliar en "
-            "Pregunta 24.1."
+            "Se esperaba una única selección múltiple auxiliar en Pregunta 24.1."
         )
 
     current_orders = [
@@ -604,9 +549,7 @@ def build_field_specs(
     for loop_code, loop in loops.items():
         groups = responses[2023].get(loop_code)
         if not groups:
-            raise ValueError(
-                f"{loop_code} no aparece en Respuestas_2023."
-            )
+            raise ValueError(f"{loop_code} no aparece en Respuestas_2023.")
 
         definitions = [
             group_definition(group)
@@ -671,7 +614,9 @@ def build_field_specs(
     return specs
 
 
-def load_instrument(path: Path) -> tuple[
+def load_instrument(
+    path: Path,
+) -> tuple[
     dict[int, OrderedDict[str, str]],
     OrderedDict[str, dict],
     dict[int, OrderedDict[str, OrderedDict[str | None, dict]]],
@@ -769,10 +714,7 @@ async def ensure_field_types(conn) -> dict[str, str]:
         grouped[label] = [field_type_id]
         logger.info(f"Created reference.field_types: {label}")
 
-    return {
-        label: grouped[label][0]
-        for label in FIELD_TYPE_DESCRIPTIONS
-    }
+    return {label: grouped[label][0] for label in FIELD_TYPE_DESCRIPTIONS}
 
 
 async def get_forms(conn) -> dict[int, str]:
@@ -781,7 +723,7 @@ async def get_forms(conn) -> dict[int, str]:
             """
             SELECT code, id::text AS id
             FROM forms.forms
-            WHERE code IN (2019, 2021, 2023)
+            WHERE code IN ('2019', '2021', '2023')
             ORDER BY code;
             """
         )
@@ -816,15 +758,17 @@ async def get_questions(
             """
             SELECT
                 question.id::text AS question_id,
-                question.form_id::text AS form_id,
+                section.form_id::text AS form_id,
                 question.label,
                 question.description,
                 question.is_loop,
                 form.code
             FROM forms.questions question
+            JOIN forms.sections section
+              ON section.id = question.section_id
             JOIN forms.forms form
-              ON form.id = question.form_id
-            WHERE form.code IN (2019, 2021, 2023)
+              ON form.id = section.form_id
+            WHERE form.code IN ('2019', '2021', '2023')
             ORDER BY form.code, question.label, question.id;
             """
         )
@@ -832,14 +776,10 @@ async def get_questions(
 
     grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        grouped[
-            (int(row["code"]), normalize_text(row["label"]))
-        ].append(dict(row))
+        grouped[(int(row["code"]), normalize_text(row["label"]))].append(dict(row))
 
     expected = {
-        (year, code)
-        for year, questions in main_questions.items()
-        for code in questions
+        (year, code) for year, questions in main_questions.items() for code in questions
     }
     expected.update((2023, code) for code in loops)
 
@@ -854,8 +794,7 @@ async def get_questions(
             )
         if not is_uuidv7(rows[0]["question_id"]):
             raise ValueError(
-                f"question_id de {year}/{code} no es UUIDv7: "
-                f"{rows[0]['question_id']}"
+                f"question_id de {year}/{code} no es UUIDv7: {rows[0]['question_id']}"
             )
         lookup[(year, code)] = rows[0]
 
@@ -871,21 +810,26 @@ async def get_groups(
     result = await conn.execute(
         text(
             """
-            SELECT
-                group_row.id::text AS field_group_id,
-                group_row.question_id::text AS question_id,
-                group_row.card_template_id::text AS card_template_id,
-                group_row.form_id::text AS form_id,
-                template.question_id::text AS template_question_id
-            FROM forms.field_groups group_row
-            LEFT JOIN forms.card_templates template
-              ON template.id = group_row.card_template_id
-            ORDER BY group_row.question_id,
-                     group_row.card_template_id,
-                     group_row.id;
+SELECT
+    group_row.id::text AS field_group_id,
+    template.question_id::text AS question_id,
+    group_row.card_template_id::text AS card_template_id,
+    s.form_id::text AS form_id,
+    template.question_id::text AS template_question_id
+FROM forms.field_groups group_row
+LEFT JOIN forms.card_templates template
+  ON template.id = group_row.card_template_id
+LEFT JOIN forms.questions q
+  ON q.id = template.question_id
+LEFT JOIN forms.sections s
+  ON s.id = q.section_id
+ORDER BY template.question_id,
+         group_row.card_template_id,
+         group_row.id;
             """
         )
     )
+    # ... rest of the function implementation ...
 
     direct_by_question: dict[str, list[dict]] = defaultdict(list)
     card_by_question: dict[str, list[dict]] = defaultdict(list)
@@ -931,13 +875,10 @@ async def get_groups(
             )
         row = rows[0]
         if not is_uuidv7(row["field_group_id"]):
-            raise ValueError(
-                f"field_group CARD no UUIDv7: {row['field_group_id']}"
-            )
+            raise ValueError(f"field_group CARD no UUIDv7: {row['field_group_id']}")
         if row["template_question_id"] != question["question_id"]:
             raise ValueError(
-                f"El card_template del grupo de {loop_code} pertenece a otra "
-                "pregunta."
+                f"El card_template del grupo de {loop_code} pertenece a otra pregunta."
             )
         card_lookup[loop_code] = row["field_group_id"]
 
@@ -950,7 +891,6 @@ async def get_existing_fields(conn) -> dict[tuple[str, int], dict]:
             """
             SELECT
                 id::text AS field_id,
-                form_id::text AS form_id,
                 field_group_id::text AS field_group_id,
                 field_type_id::text AS field_type_id,
                 label,
@@ -965,9 +905,7 @@ async def get_existing_fields(conn) -> dict[tuple[str, int], dict]:
 
     grouped: dict[tuple[str, int], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        grouped[
-            (row["field_group_id"], int(row["display_order"]))
-        ].append(dict(row))
+        grouped[(row["field_group_id"], int(row["display_order"]))].append(dict(row))
 
     lookup: dict[tuple[str, int], dict] = {}
     for key, rows in grouped.items():
@@ -977,9 +915,7 @@ async def get_existing_fields(conn) -> dict[tuple[str, int], dict]:
                 f"{[row['field_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["field_id"]):
-            raise ValueError(
-                f"field existente no UUIDv7: {rows[0]['field_id']}"
-            )
+            raise ValueError(f"field existente no UUIDv7: {rows[0]['field_id']}")
         lookup[key] = rows[0]
 
     return lookup
@@ -991,7 +927,6 @@ async def save_field(conn, record: dict, update: bool) -> None:
             """
             UPDATE forms.fields
             SET
-                form_id = CAST(:form_id AS uuid),
                 field_group_id = CAST(:field_group_id AS uuid),
                 field_type_id = CAST(:field_type_id AS uuid),
                 label = :label,
@@ -1007,7 +942,6 @@ async def save_field(conn, record: dict, update: bool) -> None:
             """
             INSERT INTO forms.fields (
                 id,
-                form_id,
                 field_group_id,
                 field_type_id,
                 label,
@@ -1018,7 +952,6 @@ async def save_field(conn, record: dict, update: bool) -> None:
             )
             VALUES (
                 CAST(:id AS uuid),
-                CAST(:form_id AS uuid),
                 CAST(:field_group_id AS uuid),
                 CAST(:field_type_id AS uuid),
                 :label,
@@ -1060,9 +993,9 @@ async def get_field_map_for_specs(
 
     by_group_order: dict[tuple[str, int], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        by_group_order[
-            (row["field_group_id"], int(row["display_order"]))
-        ].append(dict(row))
+        by_group_order[(row["field_group_id"], int(row["display_order"]))].append(
+            dict(row)
+        )
 
     field_map: dict[tuple[int, str, str, int], dict] = {}
     for spec in specs:
@@ -1111,7 +1044,6 @@ async def upgrade() -> None:
         columns = await table_columns(conn, "forms", "fields")
         required_columns = {
             "id",
-            "form_id",
             "field_group_id",
             "field_type_id",
             "label",
@@ -1122,11 +1054,8 @@ async def upgrade() -> None:
         }
         missing = required_columns - set(columns)
         if missing:
-            raise ValueError(
-                f"Faltan columnas en forms.fields: {sorted(missing)}"
-            )
+            raise ValueError(f"Faltan columnas en forms.fields: {sorted(missing)}")
 
-        forms = await get_forms(conn)
         questions = await get_questions(conn, main_questions, loops)
         direct_groups, card_groups = await get_groups(
             conn,
@@ -1155,12 +1084,9 @@ async def upgrade() -> None:
 
             db_record = {
                 "id": field_id,
-                "form_id": forms[spec["year"]],
                 "field_group_id": group_id,
                 "field_type_id": field_types[spec["field_type_label"]],
-                "label": truncate(
-                    spec["label"], columns["label"]["max_length"]
-                ),
+                "label": truncate(spec["label"], columns["label"]["max_length"]),
                 "description": truncate(
                     spec["description"],
                     columns["description"]["max_length"],
