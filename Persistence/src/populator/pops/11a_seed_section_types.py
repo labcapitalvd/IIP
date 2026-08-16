@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 
 SECTION_TYPES = [
     {
-        "code": "comp",
+        "code": "C",
         "label": "COMPONENTE",
         "description": (
             "Nivel principal de organización del formulario. Agrupa un conjunto "
@@ -36,7 +36,7 @@ SECTION_TYPES = [
         ),
     },
     {
-        "code": "var",
+        "code": "V",
         "label": "VARIABLE",
         "description": (
             "Nivel intermedio de organización del formulario. Representa una "
@@ -45,7 +45,7 @@ SECTION_TYPES = [
         ),
     },
     {
-        "code": "ind",
+        "code": "I",
         "label": "INDICADOR",
         "description": (
             "Nivel específico de medición dentro del formulario. Representa el "
