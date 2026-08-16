@@ -181,7 +181,7 @@ async def table_columns(conn, schema: str, table: str) -> dict:
 
 async def get_form(conn) -> str:
     result = await conn.execute(
-        text("SELECT id::text AS id FROM forms.forms WHERE anno = :year;"),
+        text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
         {"year": YEAR},
     )
     rows = result.mappings().all()

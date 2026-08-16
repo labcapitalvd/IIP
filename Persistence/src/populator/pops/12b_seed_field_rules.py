@@ -609,7 +609,7 @@ async def validate_loaded_rules(
                 field_rule.error_message,
                 UPPER(TRIM(rule_type.label)) AS rule_type_label,
                 UPPER(TRIM(field_type.label)) AS field_type_label,
-                form.anno
+                form.code
             FROM rules.field_rules field_rule
             JOIN reference.rule_types rule_type
               ON rule_type.id = field_rule.rule_type_id
@@ -619,8 +619,8 @@ async def validate_loaded_rules(
               ON field_type.id = field.field_type_id
             JOIN forms.forms form
               ON form.id = field.form_id
-            WHERE form.anno IN (2019, 2021, 2023)
-            ORDER BY form.anno, field_rule.field_id, rule_type.label;
+            WHERE form.code IN (2019, 2021, 2023)
+            ORDER BY form.code, field_rule.field_id, rule_type.label;
             """
         )
     )
@@ -676,7 +676,7 @@ async def validate_loaded_rules(
                 f"error_message incorrecto para {key}."
             )
 
-        counts_by_year[int(row["anno"])] += 1
+        counts_by_year[int(row["code"])] += 1
 
     if dict(counts_by_year) != EXPECTED_RULE_COUNTS_BY_YEAR:
         raise ValueError(

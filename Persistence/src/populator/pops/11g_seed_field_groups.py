@@ -233,12 +233,12 @@ async def table_columns(conn, schema: str, table: str) -> dict:
 
 async def get_forms(conn, years: tuple[int, ...]) -> dict[int, str]:
     result = await conn.execute(
-        text("SELECT anno, id::text AS id FROM forms.forms ORDER BY anno;")
+        text("SELECT code, id::text AS id FROM forms.forms ORDER BY code;")
     )
 
     grouped: dict[int, list[str]] = defaultdict(list)
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["code"])
         if year in years:
             grouped[year].append(row["id"])
 
@@ -271,18 +271,18 @@ async def get_questions(
                 question.description,
                 question.display_order,
                 question.is_loop,
-                form.anno
+                form.code
             FROM forms.questions question
             JOIN forms.sections section ON question.section_id = section.id
             JOIN forms.forms form ON form.id = section.form_id
-            ORDER BY form.anno, question.label, question.id;
+            ORDER BY form.code, question.label, question.id;
             """
         )
     )
 
     grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["code"])
         if year in years:
             grouped[(year, normalize(row["label"]))].append(dict(row))
 

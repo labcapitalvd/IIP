@@ -355,7 +355,7 @@ async def table_columns(conn, schema: str, table: str) -> dict:
 
 async def get_form(conn) -> str:
     result = await conn.execute(
-        text("SELECT id::text AS id FROM forms.forms WHERE anno = :year;"),
+        text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
         {"year": YEAR},
     )
     rows = result.mappings().all()
@@ -394,7 +394,7 @@ async def get_indicator_map(conn) -> dict[tuple[str, str, str], str]:
              AND UPPER(TRIM(component_type.label)) = 'COMPONENTE'
             JOIN forms.forms form
               ON form.id = indicator.form_id
-            WHERE form.anno = :year;
+            WHERE form.code = :year;
             """
         ),
         {"year": YEAR},
