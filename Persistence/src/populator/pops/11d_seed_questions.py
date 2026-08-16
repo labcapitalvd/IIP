@@ -290,12 +290,12 @@ async def table_columns(conn, schema: str, table: str) -> dict:
 
 async def get_forms(conn, years: tuple[int, ...]) -> dict[int, str]:
     result = await conn.execute(
-        text("SELECT anno, id::text AS id FROM forms.forms ORDER BY anno;")
+        text("SELECT code, id::text AS id FROM forms.forms ORDER BY code;")
     )
 
     grouped: dict[int, list[str]] = defaultdict(list)
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["code"])
         if year in years:
             grouped[year].append(row["id"])
 
@@ -323,7 +323,7 @@ async def get_indicator_map(
         text(
             """
             SELECT
-                form.anno,
+                form.code,
                 component.label AS component_label,
                 variable.label AS variable_label,
                 indicator.label AS indicator_label,
@@ -344,14 +344,14 @@ async def get_indicator_map(
              AND UPPER(TRIM(component_type.label)) = 'COMPONENTE'
             JOIN forms.forms form
               ON form.id = indicator.form_id
-            ORDER BY form.anno, component.label, variable.label, indicator.label;
+            ORDER BY form.code, component.label, variable.label, indicator.label;
             """
         )
     )
 
     lookup: dict[tuple[int, str, str, str], str] = {}
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["code"])
         if year not in years:
             continue
 
@@ -384,25 +384,26 @@ async def get_existing_questions(
             SELECT
                 question.id::text AS question_id,
                 question.section_id::text AS section_id,
+                question.code,
                 question.label,
                 question.description,
                 question.display_order,
                 question.required,
                 question.is_loop,
-                form.anno
+                form.code AS form_code
             FROM forms.questions question
             JOIN forms.sections section 
               ON section.id = question.section_id
             JOIN forms.forms form 
               ON form.id = section.form_id
-            ORDER BY form.anno, question.label, question.id;
+            ORDER BY form.code, question.label, question.id;
             """
         )
     )
 
     grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["form_code"])
         if year in years:
             grouped[(year, normalize(row["label"]))].append(dict(row))
 
@@ -426,6 +427,7 @@ async def save_question(conn, record: dict, update: bool) -> None:
             """
             UPDATE forms.questions
             SET
+                code = :code,
                 section_id = CAST(:section_id AS uuid),
                 file_id = NULL,
                 label = :label,
@@ -443,6 +445,7 @@ async def save_question(conn, record: dict, update: bool) -> None:
             """
             INSERT INTO forms.questions (
                 id,
+                code,
                 section_id,
                 file_id,
                 label,
@@ -455,6 +458,7 @@ async def save_question(conn, record: dict, update: bool) -> None:
             )
             VALUES (
                 CAST(:id AS uuid),
+                :code,
                 CAST(:section_id AS uuid),
                 NULL,
                 :label,
@@ -483,12 +487,13 @@ async def validate_loaded(
             SELECT
                 question.id::text AS question_id,
                 question.section_id::text AS section_id,
+                question.code,
                 question.label,
                 question.description,
                 question.helper,
                 question.required,
                 question.is_loop,
-                form.anno,
+                form.code AS form_code,
                 section_type.label AS section_type
             FROM forms.questions question
             JOIN forms.sections section
@@ -497,14 +502,14 @@ async def validate_loaded(
               ON form.id = section.form_id
             LEFT JOIN forms.section_types section_type
               ON section_type.id = section.section_type_id
-            ORDER BY form.anno, question.label;
+            ORDER BY form.code, question.label;
             """
         )
     )
 
     by_key: dict[tuple[int, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        by_key[(int(row["anno"]), normalize(row["label"]))].append(dict(row))
+        by_key[(int(row["form_code"]), normalize(row["label"]))].append(dict(row))
 
     for source in source_records:
         key = (source["year"], normalize(source["question"]))
@@ -524,7 +529,6 @@ async def validate_loaded(
         )
         expected_section_id = indicators[hierarchy_key]
 
-        # Validación corregida: ya no se busca row["form_id"]
         if row["section_id"] != expected_section_id:
             raise ValueError(f"section_id incorrecto para {key}.")
         if normalize(row["description"]) != normalize(source["question_text"]):
@@ -568,6 +572,7 @@ async def upgrade() -> None:
         columns = await table_columns(conn, "forms", "questions")
         required_columns = {
             "id",
+            "code",
             "section_id",
             "file_id",
             "label",
@@ -615,9 +620,18 @@ async def upgrade() -> None:
                 raise ValueError(f"ID no UUIDv7: {question_id}")
 
             helper_value = None if columns["helper"]["nullable"] else ""
+
+            # Extracción limpia del número de la pregunta
+            raw_num = re.sub(r"[^\d.]", "", source["question"]).replace(".", "_")
+            code = (
+                f"{source['year']}_Q{raw_num}"
+                if raw_num
+                else f"{source['year']}_{source['question']}"
+            )
+
             db_record = {
                 "id": question_id,
-                "form_id": forms[source["year"]],
+                "code": code,
                 "section_id": section_id,
                 "label": truncate(source["question"], columns["label"]["max_length"]),
                 "description": truncate(
