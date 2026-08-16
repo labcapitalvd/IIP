@@ -1,14 +1,11 @@
 from logging.config import fileConfig
 
 from alembic import context
-
-from shared.infrastructure import sync_engine, SYNC_URL
 from shared.db import Base
+from shared.infrastructure import SYNC_URL, sync_engine
 from shared.models import __all__ as model_names
 from shared.utils import format_banner, format_list
-from shared.utils.logger import get_logger, configure_logging
-
-import math
+from shared.utils.logger import configure_logging, get_logger
 
 # Initialize global logging configuration
 configure_logging()
