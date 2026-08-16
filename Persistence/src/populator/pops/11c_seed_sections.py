@@ -535,9 +535,9 @@ async def get_forms_lookup(
     result = await conn.execute(
         text(
             """
-            SELECT anno, id::text AS id
+            SELECT code, id::text AS id
             FROM forms.forms
-            ORDER BY anno;
+            ORDER BY code;
             """
         )
     )
@@ -545,7 +545,7 @@ async def get_forms_lookup(
     grouped: dict[int, list[str]] = {}
 
     for row in result.mappings().all():
-        year = int(row["anno"])
+        year = int(row["code"])
 
         if year in active_years:
             grouped.setdefault(year, []).append(row["id"])
@@ -621,14 +621,14 @@ async def get_existing_sections(conn, active_years: tuple[int, ...]) -> list[dic
                 s.description,
                 s.helper,
                 s.display_order,
-                f.anno,
+                f.code,
                 UPPER(TRIM(st.label)) AS section_type
             FROM forms.sections s
             JOIN forms.forms f
               ON f.id = s.form_id
             LEFT JOIN forms.section_types st
               ON st.id = s.section_type_id
-            ORDER BY f.anno, s.id;
+            ORDER BY f.code, s.id;
             """
         )
     )
@@ -636,7 +636,7 @@ async def get_existing_sections(conn, active_years: tuple[int, ...]) -> list[dic
     rows = []
 
     for row in result.mappings().all():
-        if int(row["anno"]) in active_years:
+        if row["code"] in active_years:
             rows.append(dict(row))
 
     return rows

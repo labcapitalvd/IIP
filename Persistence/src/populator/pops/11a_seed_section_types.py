@@ -29,6 +29,7 @@ logger = get_logger(__name__)
 
 SECTION_TYPES = [
     {
+        "code": "comp",
         "label": "COMPONENTE",
         "description": (
             "Nivel principal de organización del formulario. Agrupa un conjunto "
@@ -37,6 +38,7 @@ SECTION_TYPES = [
         ),
     },
     {
+        "code": "var",
         "label": "VARIABLE",
         "description": (
             "Nivel intermedio de organización del formulario. Representa una "
@@ -45,6 +47,7 @@ SECTION_TYPES = [
         ),
     },
     {
+        "code": "ind",
         "label": "INDICADOR",
         "description": (
             "Nivel específico de medición dentro del formulario. Representa el "
@@ -78,6 +81,7 @@ async def get_existing_section_type(conn, label: str):
         """
         SELECT
             id::text AS id,
+            code,
             label,
             description
         FROM forms.section_types
@@ -96,11 +100,13 @@ async def insert_section_type(conn, record: dict) -> None:
         """
         INSERT INTO forms.section_types (
             id,
+            code,
             label,
             description
         )
         VALUES (
             CAST(:id AS uuid),
+            :code,
             :label,
             :description
         );
@@ -181,6 +187,7 @@ async def upgrade() -> None:
             updated = 0
 
             for item in SECTION_TYPES:
+                code = item["code"]
                 label = item["label"]
                 description = item["description"]
 
@@ -201,6 +208,7 @@ async def upgrade() -> None:
                     await update_section_type_description(
                         conn,
                         {
+                            "code": code,
                             "label": label,
                             "description": description,
                         },
@@ -218,6 +226,7 @@ async def upgrade() -> None:
                         conn,
                         {
                             "id": new_id,
+                            "code": code,
                             "label": label,
                             "description": description,
                         },
