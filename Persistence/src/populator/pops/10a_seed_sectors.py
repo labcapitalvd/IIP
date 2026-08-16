@@ -356,7 +356,7 @@ async def persist_segments(
         record_id = previous["id"] if previous else new_uuidv7()
 
         # Usar source_key o una clave normalizada para el campo code
-        code_value = source["source_key"]
+        code_value = str(source["source_key"]).replace(" ","_").lower()
 
         if not is_uuidv7(record_id):
             raise ValueError(f"ID no UUIDv7 preparado para sector: {record_id}")
