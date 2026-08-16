@@ -2,6 +2,7 @@
 import os
 import valkey.asyncio as aiovalkey
 from shared.utils.logger import get_logger
+from shared.utils import format_banner, format_list
 
 logger = get_logger(__name__)
 
@@ -40,12 +41,17 @@ else:
 VALKEY_PASSWORD = vk_pass
 
 
-logger.debug(f"""
-user:{VALKEY_USER}
-pass:{"*" * len(str(VALKEY_PASSWORD))}
-host:{VALKEY_HOST}
-port:{VALKEY_PORT}
-db:  {VALKEY_DB}""")
+
+valkey_info = f"""
+user: {VALKEY_USER}
+pass: {"*" * len(str(VALKEY_PASSWORD))}
+host: {VALKEY_HOST}
+port: {VALKEY_PORT}
+db:   {VALKEY_DB}
+"""
+
+logger.debug("\n" + format_banner(valkey_info, align="left"))
+
 
 # Build the connection string URL using standard wire protocol compatible with Valkey
 if VALKEY_PASSWORD:

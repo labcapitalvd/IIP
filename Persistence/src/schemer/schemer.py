@@ -1,12 +1,11 @@
 import inspect
 
-from shared.models.targets import TargetTable
 from shared.db import SessionSync, TableInfo
-from shared.utils.logger import get_logger, configure_logging
+from shared.models.targets import TargetTable
+from shared.utils import format_banner, format_list
+from shared.utils.logger import configure_logging, get_logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
-
-from shared.utils import print_banner, print_list
 
 logger = get_logger(__name__)
 
@@ -25,48 +24,34 @@ def get_all_schemas():
 def main():
     configure_logging()
 
-    created = []
-    failed = []
+    successful_schema = []
+    failed_schema = []
 
-    print_banner(
-        "DATABASE SCHEMA CREATION",
-        border_char="=",
-        padding_x=6,
-        padding_y=1,
-        align="center",
-    )
+    logger.info(format_banner("DB SCHEME CREATION STARTING"))
 
     schemas = get_all_schemas()
 
     with SessionSync() as session:
         for schema in schemas:
             try:
-                logger.info(f"Ensuring schema '{schema}' exists…")
+                logger.debug(f"Ensuring schema '{schema}' exists…")
                 # if_not_exists=True prevents Postgres from raising 42P06
                 session.execute(CreateSchema(schema, if_not_exists=True))
                 session.commit()
-                created.append(schema)
+                successful_schema.append(schema)
             except SQLAlchemyError as e:
                 session.rollback()
                 logger.error(f"Failed to ensure schema '{schema}': {e}")
-                failed.append(schema)
+                failed_schema.append(schema)
 
-    # Summary
-    logger.info("---- Schema Creation Summary ----")
-    logger.info(f"Created ({len(created)}): {created}")
-    logger.info(f"Failed  ({len(failed)}): {failed}")
+    if successful_schema:
+        logger.info(format_list("Created", successful_schema))
+    if failed_schema:
+        logger.info(format_list("Failed", failed_schema))
 
-    print_list("Created Schemas", created)
-    print_list("Failed Schemas", failed)
+    logger.info(format_banner("DB SCHEME CREATION PROCESS COMPLETE"))
 
-    print_banner(
-        "SCHEMING PROCESS COMPLETE",
-        border_char="─",
-        padding_x=6,
-        padding_y=0,
-    )
-
-    return created, failed
+    return successful_schema, failed_schema
 
 
 if __name__ == "__main__":

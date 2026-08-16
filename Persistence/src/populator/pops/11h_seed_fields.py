@@ -1100,8 +1100,7 @@ async def get_field_map_for_specs(
 # -----------------------------------------------------------------------------
 
 
-async def upgrade(gh=None, api=None) -> None:
-    del gh, api
+async def upgrade() -> None:
 
     path = Path(FILE_PATH)
     if not path.is_file():

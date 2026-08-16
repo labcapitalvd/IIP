@@ -1104,9 +1104,8 @@ async def validate_loaded_dependencies(
 # -----------------------------------------------------------------------------
 
 
-async def upgrade(gh=None, api=None) -> None:
+async def upgrade() -> None:
     """Puebla rules.field_dependencies."""
-    del gh, api
 
     excel_path = Path(H.FILE_PATH)
     if not excel_path.is_file():

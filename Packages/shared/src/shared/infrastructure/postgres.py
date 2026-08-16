@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from shared.utils.logger import get_logger
+from shared.utils import format_banner, format_list
 
 logger = get_logger(__name__)
 
@@ -41,12 +42,16 @@ else:
 
 POSTGRES_PASSWORD = pg_pass
 
-logger.debug(f"""
+postgres_info = f"""
 user:{POSTGRES_USER}
 pass:{"*" * len(str(POSTGRES_PASSWORD))}
 host:{POSTGRES_HOST}
 port:{POSTGRES_PORT}
-db:  {POSTGRES_DB}""")
+db:  {POSTGRES_DB}
+"""
+
+
+logger.debug("\n" + format_banner(postgres_info, align="left"))
 
 SYNC_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 ASYNC_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"

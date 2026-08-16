@@ -73,9 +73,7 @@ def normalize_key(value: object) -> str | None:
         return None
 
     normalized = unicodedata.normalize("NFKD", cleaned)
-    normalized = "".join(
-        char for char in normalized if not unicodedata.combining(char)
-    )
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
     normalized = normalized.casefold()
     normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
     normalized = re.sub(r"\s+", " ", normalized).strip()
@@ -112,9 +110,7 @@ def new_uuidv7() -> str:
 def normalize_column_name(value: object) -> str:
     cleaned = clean_text(value) or ""
     normalized = unicodedata.normalize("NFKD", cleaned)
-    normalized = "".join(
-        char for char in normalized if not unicodedata.combining(char)
-    )
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
     normalized = normalized.casefold().replace("-", " ")
     normalized = re.sub(r"\s+", "_", normalized).strip("_")
 
@@ -286,7 +282,7 @@ async def get_table_columns(conn) -> dict[str, dict[str, object]]:
 
 
 def validate_target_columns(columns: dict[str, dict[str, object]]) -> None:
-    required = {"id", "label", "description"}
+    required = {"id", "label", "description", "code"}
     missing = required - set(columns)
     if missing:
         raise ValueError(
@@ -305,9 +301,7 @@ def validate_lengths(
             continue
 
         too_long = [
-            record[field]
-            for record in records
-            if len(record[field]) > int(max_length)
+            record[field] for record in records if len(record[field]) > int(max_length)
         ]
         if too_long:
             raise ValueError(
@@ -332,9 +326,7 @@ async def get_existing_segments(conn) -> dict[str, dict[str, str]]:
         row = dict(raw_row)
         key = normalize_key(row["label"])
         if key is None:
-            raise ValueError(
-                f"Existe un actor_segment con label inválido: {row['id']}"
-            )
+            raise ValueError(f"Existe un actor_segment con label inválido: {row['id']}")
         if key in lookup:
             raise ValueError(
                 "Existen sectores duplicados por label normalizado en PostgreSQL: "
@@ -365,6 +357,9 @@ async def persist_segments(
         previous = existing.get(source["source_key"])
         record_id = previous["id"] if previous else new_uuidv7()
 
+        # Usar source_key o una clave normalizada para el campo code
+        code_value = source["source_key"]
+
         if not is_uuidv7(record_id):
             raise ValueError(f"ID no UUIDv7 preparado para sector: {record_id}")
 
@@ -375,7 +370,8 @@ async def persist_segments(
                     f"""
                     UPDATE actors.actor_segments
                     SET label = :label,
-                        description = :description
+                        description = :description,
+                        code = :code
                         {updated_at_sql}
                     WHERE id = CAST(:id AS uuid);
                     """
@@ -384,12 +380,13 @@ async def persist_segments(
                     "id": record_id,
                     "label": source["label"],
                     "description": source["description"],
+                    "code": code_value,
                 },
             )
             updated += 1
         else:
-            columns_sql = "id, label, description"
-            values_sql = "CAST(:id AS uuid), :label, :description"
+            columns_sql = "id, label, description, code"
+            values_sql = "CAST(:id AS uuid), :label, :description, :code"
             if has_updated_at:
                 columns_sql += ", updated_at"
                 values_sql += ", NOW()"
@@ -405,6 +402,7 @@ async def persist_segments(
                     "id": record_id,
                     "label": source["label"],
                     "description": source["description"],
+                    "code": code_value,
                 },
             )
             inserted += 1
@@ -454,9 +452,7 @@ async def validate_loaded_segments(conn, expected: list[dict[str, str]]) -> None
                 f"El UUID cambió inesperadamente para {record['label']!r}."
             )
         if not is_uuidv7(row["id"]):
-            raise ValueError(
-                f"El sector {record['label']!r} no quedó con UUIDv7."
-            )
+            raise ValueError(f"El sector {record['label']!r} no quedó con UUIDv7.")
         if clean_text(row["label"]) != record["label"]:
             raise ValueError(f"Label incorrecto para {record['label']!r}.")
         if clean_text(row["description"]) != record["description"]:
@@ -466,9 +462,8 @@ async def validate_loaded_segments(conn, expected: list[dict[str, str]]) -> None
         raise ValueError(f"No se cargaron los sectores: {missing}")
 
 
-async def upgrade(gh=None, api=None) -> None:
+async def upgrade() -> None:
     """Carga los sectores derivados de ``Entidades.csv``."""
-    del gh, api
 
     logger.info(f"Starting actor_segments population from {ENTITIES_FILE}")
     source_rows = load_source_rows(ENTITIES_FILE)

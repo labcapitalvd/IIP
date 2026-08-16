@@ -16,42 +16,35 @@ CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 MULTISPACE_RE = re.compile(r"[ ]{2,}")
 
 
-def print_banner(
+def format_banner(
     text: str,
-    border_char: str = "*",
+    border_h: str = "─",
+    border_v: str | None = "|",
+    corner: str | None = "*",
     padding_x: int = 4,
     padding_y: int = 1,
     align: str = "center",
     width: int | None = None,
-) -> None:
-    """
-    Prints a text block enclosed in a custom ASCII/Unicode border banner.
+) -> str:
+    """Formats a text block inside a custom ASCII/Unicode border banner."""
+    border_v = border_v if border_v is not None else border_h
+    corner = corner if corner is not None else border_v
 
-    :param text: The text string to print (can include newlines).
-    :param border_char: Character used for the border (e.g., '*', '=', '─').
-    :param padding_x: Horizontal spacing inside the box.
-    :param padding_y: Vertical spacing (empty lines) inside the box.
-    :param align: Text alignment ('left', 'center', 'right').
-    :param width: Forced box width. If None, it auto-sizes to the longest line.
-    """
-    # Handle multi-line text by splitting into individual lines
-    lines = text.splitlines() or [""]
+    lines = text.strip().splitlines() or [""]
     max_line_len = max(len(line) for line in lines)
 
-    # Determine inner content width
     content_width = (
         max(max_line_len, width - (padding_x * 2)) if width else max_line_len
     )
     box_width = content_width + (padding_x * 2)
 
-    border_line = border_char * (box_width + 2)  # +2 for the immediate side borders
+    border_line = f"{corner}{border_h * box_width}{corner}"
+    padding_row = f"{border_v}{' ' * box_width}{border_v}"
 
-    print()
-    print(border_line)
+    output = [border_line]
 
-    # Top vertical padding
-    for _ in range(padding_y):
-        print(f"{border_char}{' ' * box_width}{border_char}")
+    # Top padding
+    output.extend([padding_row] * padding_y)
 
     # Content lines
     for line in lines:
@@ -59,68 +52,90 @@ def print_banner(
             formatted_line = line.center(content_width)
         elif align == "right":
             formatted_line = line.rjust(content_width)
-        else:  # left
+        else:
             formatted_line = line.ljust(content_width)
 
-        print(
-            f"{border_char}{' ' * padding_x}{formatted_line}{' ' * padding_x}{border_char}"
+        output.append(
+            f"{border_v}{' ' * padding_x}{formatted_line}{' ' * padding_x}{border_v}"
         )
 
-    # Bottom vertical padding
-    for _ in range(padding_y):
-        print(f"{border_char}{' ' * box_width}{border_char}")
+    # Bottom padding
+    output.extend([padding_row] * padding_y)
+    output.append(border_line)
 
-    print(border_line)
-    print()
+    return f"\n{'\n'.join(output)}\n"
 
 
-def print_list(
+def format_list(
     title: str,
     items: list[str],
     cols: int = 3,
     sort: bool = True,
-    border_char: str = "─",
-) -> None:
-    """
-    Prints a list of items formatted neatly into columns with borders.
-    """
-    if not items:
-        print(f"\n{title}: (Empty)")
-        return
+    border_h: str = "─",
+    border_v: str | None = "|",
+    corner: str | None = "*",
+    padding_x: int = 2,
+    border_char: str | None = None,
+) -> str:
+    """Formats a list of items into an aligned grid enclosed in a boxed border."""
+    # Maintain backwards-compatibility if border_char is passed
+    if border_char is not None:
+        border_h = border_char
 
-    # Safely sort without risking mutation issues if a tuple/iterable is passed
+    border_v = border_v if border_v is not None else border_h
+    corner = corner if corner is not None else border_v
+
+    if not items:
+        return f"\n{title}: (Empty)\n"
+
     formatted_items = sorted(items) if sort else list(items)
     num_items = len(formatted_items)
 
-    # Ensure columns don't exceed the number of items
     cols = max(1, min(cols, num_items))
     rows = math.ceil(num_items / cols)
 
-    # Calculate required cell width
     item_width = max(len(str(item)) for item in formatted_items) + 4
-    total_width = item_width * cols
+    grid_width = item_width * cols
+    header_text = f"{title} ({num_items}):"
 
-    # Auto-adjust column count if it overflows the terminal width
+    # Auto-adjust column count for terminal width
     term_width = shutil.get_terminal_size((80, 24)).columns
-    if total_width > term_width and cols > 1:
-        # Fallback: recalculate cols based on available terminal width
-        cols = max(1, term_width // item_width)
+    max_content_width = max(10, term_width - (padding_x * 2) - 2)
+
+    if grid_width > max_content_width and cols > 1:
+        cols = max(1, max_content_width // item_width)
         rows = math.ceil(num_items / cols)
-        total_width = item_width * cols
+        grid_width = item_width * cols
 
-    print(f"\n{title} ({num_items}):")
-    print(border_char * total_width)  # Top border
+    content_width = max(grid_width, len(header_text))
+    box_width = content_width + (padding_x * 2)
 
+    border_line = f"{corner}{border_h * box_width}{corner}"
+    divider_line = f"{border_v}{border_h * box_width}{border_v}"
+
+    lines = [border_line]
+
+    # Title Header Row (fixed format specifier)
+    lines.append(
+        f"{border_v}{' ' * padding_x}{header_text:<{content_width}}{' ' * padding_x}{border_v}"
+    )
+    lines.append(divider_line)
+
+    # Grid Content Rows (fixed format specifier)
     for row in range(rows):
         line = ""
         for col in range(cols):
-            # Column-first layout index calculation
             index = row + (col * rows)
             if index < num_items:
                 line += f"{str(formatted_items[index]):<{item_width}}"
-        print(line)
 
-    print(border_char * total_width)  # Bottom border
+        lines.append(
+            f"{border_v}{' ' * padding_x}{line:<{content_width}}{' ' * padding_x}{border_v}"
+        )
+
+    lines.append(border_line)
+
+    return f"\n{'\n'.join(lines)}\n"
 
 
 def _remove_emojis(text: str) -> str:

@@ -5,7 +5,7 @@ from alembic import context
 from shared.infrastructure import sync_engine, SYNC_URL
 from shared.db import Base
 from shared.models import __all__ as model_names
-from shared.utils import print_banner, print_list
+from shared.utils import format_banner, format_list
 from shared.utils.logger import get_logger, configure_logging
 
 import math
@@ -14,13 +14,9 @@ import math
 configure_logging()
 logger = get_logger(__name__)
 
-print_banner(
-    "ALEMBIC MIGRATIONS", border_char="=", padding_x=6, padding_y=1, align="center"
-)
-
-logger.info("Inspecting metadata and loaded models...")
-print_list("Loaded Models", model_names)
-print_list("Tables Found in Metadata", list(Base.metadata.tables.keys()))
+logger.info(format_banner("ALEMBIC MIGRATIONS"))
+logger.info(format_list("Loaded Models", model_names))
+logger.info(format_list("Tables Found in Metadata", list(Base.metadata.tables.keys())))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -43,16 +39,10 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-print_banner(
-    "ALEMBIC PROCESS COMPLETE",
-    border_char="─",
-    padding_x=6,
-    padding_y=0,
-)
+logger.info(format_banner("ALEMBIC PROCESS COMPLETE"))
 
 
 def run_migrations_offline() -> None:
-    logger.info("Running migrations in offline mode...")
     context.configure(
         url=SYNC_URL,
         target_metadata=target_metadata,
@@ -66,7 +56,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    logger.info("Running migrations in online mode...")
     connectable = sync_engine
 
     with connectable.connect() as connection:
