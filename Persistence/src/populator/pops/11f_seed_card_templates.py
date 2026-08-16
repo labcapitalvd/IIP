@@ -407,7 +407,7 @@ async def upgrade() -> None:
                 "id": card_template_id,
                 "question_id": question["question_id"],
                 "code": truncate(
-                    f"CT_{str(source['loop_question']).replace(' ', '_').lower().replace('pregunta', 'P')}",
+                    f"CT_{str(source['loop_question']).replace(' ', '_').lower().replace('pregunta', 'P').replace('.', '_')}",
                     columns["code"]["max_length"],
                 ),
                 "label": truncate(
