@@ -11,7 +11,7 @@ from shared.db import (
     column_short_text,
     column_updated_at,
 )
-from sqlalchemy import Index
+from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable
@@ -30,13 +30,18 @@ class CardTemplate(Base):
     """
 
     __tablename__ = TargetTable.CARD_TEMPLATES.table
-    __table_args__ = {"schema": TargetTable.CARD_TEMPLATES.schema}
+    __table_args__ = (
+        UniqueConstraint(
+            "question_id", "code", name="uq_card_templates_question_id_code"
+        ),
+        {"schema": TargetTable.CARD_TEMPLATES.schema},
+    )
 
     question_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE", unique=True
     )
 
-    code: Mapped[str] = column_short_text(length=50, unique=True)
+    code: Mapped[str] = column_short_text(length=50)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     helper: Mapped[str] = column_long_text(nullable=True)
@@ -65,7 +70,12 @@ class Field(Base):
     """
 
     __tablename__ = TargetTable.FIELDS.table
-    __table_args__ = {"schema": TargetTable.FIELDS.schema}
+    __table_args__ = (
+        UniqueConstraint(
+            "field_group_id", "code", name="uq_fields_field_group_id_code"
+        ),
+        {"schema": TargetTable.FIELDS.schema},
+    )
 
     field_group_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.FIELD_GROUPS.fq_name}.id", ondelete="CASCADE"
@@ -74,7 +84,7 @@ class Field(Base):
         target=f"{TargetTable.FIELD_TYPES.fq_name}.id", ondelete="CASCADE"
     )
 
-    code: Mapped[str] = column_short_text(length=50, unique=True)
+    code: Mapped[str] = column_short_text(length=50)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     required: Mapped[bool] = column_bool()
@@ -112,13 +122,16 @@ class FieldChoice(Base):
     """
 
     __tablename__ = TargetTable.FIELD_CHOICES.table
-    __table_args__ = {"schema": TargetTable.FIELD_CHOICES.schema}
+    __table_args__ = (
+        UniqueConstraint("field_id", "code", name="uq_field_choices_field_id_code"),
+        {"schema": TargetTable.FIELD_CHOICES.schema},
+    )
 
     field_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.FIELDS.fq_name}.id", ondelete="CASCADE"
     )
 
-    code: Mapped[str] = column_short_text(length=50, unique=True)
+    code: Mapped[str] = column_short_text(length=50)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
@@ -140,7 +153,12 @@ class FieldGroup(Base):
     """
 
     __tablename__ = TargetTable.FIELD_GROUPS.table
-    __table_args__ = {"schema": TargetTable.FIELD_GROUPS.schema}
+    __table_args__ = (
+        UniqueConstraint(
+            "card_template_id", "code", name="uq_field_groups_card_template_id_code"
+        ),
+        {"schema": TargetTable.FIELD_GROUPS.schema},
+    )
 
     card_template_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.CARD_TEMPLATES.fq_name}.id",
@@ -148,7 +166,7 @@ class FieldGroup(Base):
         nullable=False,
     )
 
-    code: Mapped[str] = column_short_text(length=50, unique=True)
+    code: Mapped[str] = column_short_text(length=50)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
@@ -181,7 +199,10 @@ class Question(Base):
     """
 
     __tablename__ = TargetTable.QUESTIONS.table
-    __table_args__ = {"schema": TargetTable.QUESTIONS.schema}
+    __table_args__ = (
+        UniqueConstraint("section_id", "code", name="uq_questions_section_id_code"),
+        {"schema": TargetTable.QUESTIONS.schema},
+    )
 
     section_id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.SECTIONS.fq_name}.id", ondelete="SET NULL"
@@ -190,7 +211,7 @@ class Question(Base):
         target=f"{TargetTable.FILES.fq_name}.id", ondelete="CASCADE", nullable=True
     )
 
-    code: Mapped[str] = column_short_text(length=50, unique=True)
+    code: Mapped[str] = column_short_text(length=50)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     helper: Mapped[str] = column_long_text(nullable=True)
@@ -225,6 +246,7 @@ class Section(Base):
         Index("idx_sections_parent_id", "parent_id"),
         Index("idx_sections_section_type_id", "section_type_id"),
         Index("idx_sections_parent_display_order", "parent_id", "display_order"),
+        UniqueConstraint("form_id", "code", name="uq_sections_form_id_code"),
         {"schema": TargetTable.SECTIONS.schema},
     )
 
@@ -242,7 +264,7 @@ class Section(Base):
         ondelete="SET NULL",
         nullable=True,
     )
-    code: Mapped[str] = column_short_text(length=50, unique=True)
+    code: Mapped[str] = column_short_text(length=50)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     helper: Mapped[str] = column_long_text(nullable=True)

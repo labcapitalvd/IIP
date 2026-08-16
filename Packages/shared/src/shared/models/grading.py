@@ -12,6 +12,7 @@ from shared.db import (
     column_updated_at,
     column_long_text,
 )
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable
@@ -28,7 +29,10 @@ class Criterion(Base):
     """
 
     __tablename__ = TargetTable.CRITERIA.table
-    __table_args__ = {"schema": TargetTable.CRITERIA.schema}
+    __table_args__ = (
+        UniqueConstraint("question_id", "code", name="uq_criteria_question_id_code"),
+        {"schema": TargetTable.CRITERIA.schema},
+    )
 
     # assignment_id: Mapped[UUID] = column_fk(
     #     target=f"{TargetTable.ASSIGNMENTS.fq_name}.id",
@@ -40,7 +44,7 @@ class Criterion(Base):
         ondelete="CASCADE",
         nullable=False,
     )
-    code: Mapped[str] = column_short_text(length=50, unique=True)
+    code: Mapped[str] = column_short_text(length=50)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     weight: Mapped[Decimal] = column_decimal(precision=5, scale=2)

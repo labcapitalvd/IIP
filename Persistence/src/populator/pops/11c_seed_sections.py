@@ -337,21 +337,17 @@ def normalize_annual_structure(df: pd.DataFrame, year: int) -> pd.DataFrame:
         raise ValueError(f"La hoja {year} no produjo una jerarquía válida.")
 
     normalized["component_code"] = normalized["component_raw_code"].apply(
-        lambda value: make_code(f"{year}_C", value)
+        lambda value: make_code("C", value)
     )
     normalized["variable_local_code"] = normalized["variable_raw_code"].apply(
-        lambda value: make_code(f"{year}_V", value)
+        lambda value: make_code("V", value)
     )
     normalized["indicator_local_code"] = normalized["indicator_raw_code"].apply(
-        lambda value: make_code(f"{year}_I", value)
+        lambda value: make_code("I", value)
     )
 
-    normalized["variable_code"] = (
-        normalized["component_code"] + "_" + normalized["variable_local_code"]
-    )
-    normalized["indicator_code"] = (
-        normalized["variable_code"] + "_" + normalized["indicator_local_code"]
-    )
+    normalized["variable_code"] = normalized["variable_local_code"]
+    normalized["indicator_code"] = normalized["indicator_local_code"]
 
     return normalized
 

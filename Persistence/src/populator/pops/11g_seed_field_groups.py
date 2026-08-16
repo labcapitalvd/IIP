@@ -1,4 +1,4 @@
-"""Puebla forms.field_groups para los IIP 2019, 2021 y 2023.
+"""Puebla forms.field_groups para los IIP 2023.
 
 Dependencias previas:
     11d_seed_questions.py
@@ -6,19 +6,12 @@ Dependencias previas:
     11f_seed_card_templates.py
 
 Convención de almacenamiento:
-- Grupo directo:
-    label = código de la pregunta principal.
-    description = enunciado completo de la pregunta principal.
-    card_template_id = NULL.
-    display_order = 1.
-- Grupo repetible:
+- Grupo repetible (Card Template):
+    code = código único del grupo (ej. "FG_2023_Pregunta 1.1").
     label = código de la pregunta de bucle.
     description = enunciado completo del bucle.
-    card_template_id = plantilla correspondiente.
-    display_order = 2 cuando la pregunta también tiene grupo directo; 1 en
-    los demás casos.
-
-La tabla no tiene helper. No se almacenan ponderaciones ni textos técnicos.
+    card_template_id = plantilla correspondiente (NOT NULL).
+    display_order = 2 cuando la pregunta es mixta; 1 en los demás casos.
 """
 
 from __future__ import annotations
@@ -45,7 +38,6 @@ FILE_PATH = os.getenv(
 )
 DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023)
 YEAR_WITH_LOOPS = 2023
-EXPECTED_DIRECT_COUNTS = {2019: 43, 2021: 52, 2023: 39}
 EXPECTED_CARD_COUNT = 27
 
 
@@ -134,35 +126,7 @@ def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 
 
-def load_structure(
-    excel: pd.ExcelFile,
-    years: tuple[int, ...],
-) -> tuple[dict[int, OrderedDict[str, str]], OrderedDict[str, dict]]:
-    main_questions: dict[int, OrderedDict[str, str]] = {}
-
-    for year in years:
-        frame = read_sheet(excel, str(year))
-        required = {"Pregunta", f"Pregunta {year}"}
-        missing = required - set(frame.columns)
-        if missing:
-            raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
-
-        registry: OrderedDict[str, str] = OrderedDict()
-        for _, row in frame.iterrows():
-            question = clean(row["Pregunta"])
-            description = clean(row[f"Pregunta {year}"])
-            if question is None or description is None:
-                continue
-
-            old = registry.get(question)
-            if old is not None and normalize(old) != normalize(description):
-                raise ValueError(f"Textos contradictorios para {question} en {year}.")
-            registry.setdefault(question, description)
-
-        if not registry:
-            raise ValueError(f"La hoja {year} no produjo preguntas.")
-        main_questions[year] = registry
-
+def load_loops(excel: pd.ExcelFile) -> OrderedDict[str, dict]:
     frame_2023 = read_sheet(excel, str(YEAR_WITH_LOOPS))
     required_loops = {"Pregunta", "Bucle", "Bucle 2023"}
     missing = required_loops - set(frame_2023.columns)
@@ -198,7 +162,7 @@ def load_structure(
             f"Se esperaban {EXPECTED_CARD_COUNT} bucles y se encontraron {len(loops)}."
         )
 
-    return main_questions, loops
+    return loops
 
 
 # -----------------------------------------------------------------------------
@@ -266,7 +230,7 @@ async def get_questions(
             """
             SELECT
                 question.id::text AS question_id,
-                question.form_id::text AS form_id,
+                section.form_id::text AS form_id,
                 question.label,
                 question.description,
                 question.display_order,
@@ -307,6 +271,7 @@ async def get_card_templates(conn) -> dict[str, dict]:
             SELECT
                 id::text AS card_template_id,
                 question_id::text AS question_id,
+                code,
                 label,
                 description
             FROM forms.card_templates
@@ -333,20 +298,20 @@ async def get_card_templates(conn) -> dict[str, dict]:
     return lookup
 
 
-async def get_existing_groups(conn) -> dict[tuple[str, str | None], dict]:
+async def get_existing_groups(conn) -> dict[tuple[str, str], dict]:
     result = await conn.execute(
         text(
             """
             SELECT
                 fg.id::text AS field_group_id,
-                s.form_id::text AS form_id,         -- Resolving dynamically
-                ct.question_id::text AS question_id, -- Resolving dynamically
+                s.form_id::text AS form_id,
+                ct.question_id::text AS question_id,
                 fg.card_template_id::text AS card_template_id,
+                fg.code,
                 fg.label,
                 fg.description,
                 fg.display_order
             FROM forms.field_groups fg
-            -- CHANGE HERE: Walk the relational tree up to questions and sections
             JOIN forms.card_templates ct ON fg.card_template_id = ct.id
             JOIN forms.questions q ON ct.question_id = q.id
             JOIN forms.sections s ON q.section_id = s.id
@@ -355,12 +320,12 @@ async def get_existing_groups(conn) -> dict[tuple[str, str | None], dict]:
         )
     )
 
-    grouped: dict[tuple[str, str | None], list[dict]] = defaultdict(list)
+    grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
         key = (row["question_id"], row["card_template_id"])
         grouped[key].append(dict(row))
 
-    lookup: dict[tuple[str, str | None], dict] = {}
+    lookup: dict[tuple[str, str], dict] = {}
     for key, rows in grouped.items():
         if len(rows) > 1:
             raise ValueError(
@@ -381,6 +346,7 @@ async def save_group(conn, record: dict, update: bool) -> None:
             UPDATE forms.field_groups
             SET
                 card_template_id = CAST(:card_template_id AS uuid),
+                code = :code,
                 label = :label,
                 description = :description,
                 display_order = :display_order,
@@ -394,6 +360,7 @@ async def save_group(conn, record: dict, update: bool) -> None:
             INSERT INTO forms.field_groups (
                 id,
                 card_template_id,
+                code,
                 label,
                 description,
                 display_order,
@@ -402,6 +369,7 @@ async def save_group(conn, record: dict, update: bool) -> None:
             VALUES (
                 CAST(:id AS uuid),
                 CAST(:card_template_id AS uuid),
+                :code,
                 :label,
                 :description,
                 :display_order,
@@ -418,35 +386,12 @@ async def save_group(conn, record: dict, update: bool) -> None:
 
 
 def build_expected_groups(
-    main_questions: dict[int, OrderedDict[str, str]],
     loops: OrderedDict[str, dict],
     forms: dict[int, str],
     questions: dict[tuple[int, str], dict],
     templates: dict[str, dict],
 ) -> list[dict]:
     records: list[dict] = []
-
-    for year, year_questions in main_questions.items():
-        for question_code, question_text in year_questions.items():
-            question = questions.get((year, normalize(question_code)))
-            if question is None:
-                raise ValueError(
-                    f"No existe {year} / {question_code} en forms.questions."
-                )
-
-            records.append(
-                {
-                    "natural_key": (question["question_id"], None),
-                    "kind": "DIRECT",
-                    "year": year,
-                    "form_id": forms[year],
-                    "question_id": question["question_id"],
-                    "card_template_id": None,
-                    "label": question_code,
-                    "description": question_text,
-                    "display_order": 1,
-                }
-            )
 
     for loop_code, loop in loops.items():
         question = questions.get((YEAR_WITH_LOOPS, normalize(loop_code)))
@@ -483,24 +428,10 @@ def build_expected_groups(
     if len(keys) != len(set(keys)):
         raise ValueError("La construcción de field_groups produjo duplicados.")
 
-    direct_counts = defaultdict(int)
-    card_count = 0
-    for record in records:
-        if record["kind"] == "DIRECT":
-            direct_counts[record["year"]] += 1
-        else:
-            card_count += 1
-
-    expected_direct = {year: EXPECTED_DIRECT_COUNTS[year] for year in main_questions}
-    if dict(direct_counts) != expected_direct:
-        raise ValueError(
-            f"Conteos directos inesperados: {dict(direct_counts)}; "
-            f"esperado: {expected_direct}."
-        )
-    if card_count != EXPECTED_CARD_COUNT:
+    if len(records) != EXPECTED_CARD_COUNT:
         raise ValueError(
             f"Se esperaban {EXPECTED_CARD_COUNT} grupos CARD y se "
-            f"construyeron {card_count}."
+            f"construyeron {len(records)}."
         )
 
     return records
@@ -545,13 +476,15 @@ async def upgrade() -> None:
     logger.info(f"Starting forms.field_groups population from {path}")
 
     excel = pd.ExcelFile(path)
-    main_questions, loops = load_structure(excel, years)
+    loops = load_loops(excel)
 
     async with async_engine.begin() as conn:
         columns = await table_columns(conn, "forms", "field_groups")
+        # FIX: Include required 'code' column in column check
         required = {
             "id",
             "card_template_id",
+            "code",
             "label",
             "description",
             "display_order",
@@ -562,8 +495,6 @@ async def upgrade() -> None:
             raise ValueError(
                 f"Faltan columnas en forms.field_groups: {sorted(missing)}"
             )
-        if not columns["card_template_id"]["nullable"]:
-            raise ValueError("forms.field_groups.card_template_id debe permitir NULL.")
 
         forms = await get_forms(conn, years)
         questions = await get_questions(conn, years)
@@ -571,7 +502,6 @@ async def upgrade() -> None:
         existing = await get_existing_groups(conn)
 
         expected = build_expected_groups(
-            main_questions,
             loops,
             forms,
             questions,
@@ -587,11 +517,14 @@ async def upgrade() -> None:
             if not is_uuidv7(field_group_id):
                 raise ValueError(f"ID no UUIDv7: {field_group_id}")
 
+            # FIX: Supply required unique truncated code
             db_record = {
                 "id": field_group_id,
-                "form_id": source["form_id"],
-                "question_id": source["question_id"],
                 "card_template_id": source["card_template_id"],
+                "code": truncate(
+                    f"FG_{source['year']}_{source['label']}",
+                    columns["code"]["max_length"],
+                ),
                 "label": truncate(source["label"], columns["label"]["max_length"]),
                 "description": truncate(
                     source["description"],

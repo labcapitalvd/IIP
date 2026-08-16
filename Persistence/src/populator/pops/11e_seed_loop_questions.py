@@ -667,7 +667,7 @@ async def upgrade() -> None:
 
             raw_num = re.sub(r"[^\d.]", "", loop["loop_question"]).replace(".", "_")
             code = (
-                f"{YEAR}_Q{raw_num}" if raw_num else f"{YEAR}_{loop['loop_question']}"
+                f"Q{raw_num}" if raw_num else f"{loop['loop_question']}"
             )
 
             db_record = {
