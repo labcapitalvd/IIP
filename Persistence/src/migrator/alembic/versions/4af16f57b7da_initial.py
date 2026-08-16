@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: cfe467bf6fca
+Revision ID: 4af16f57b7da
 Revises: 
-Create Date: 2026-08-16 06:09:03.208749
+Create Date: 2026-08-16 22:23:49.108498
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'cfe467bf6fca'
+revision: str = '4af16f57b7da'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -377,7 +377,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['parent_id'], ['forms.sections.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['section_type_id'], ['forms.section_types.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
+    sa.UniqueConstraint('form_id', 'code', name='uq_sections_form_id_code'),
     schema='forms'
     )
     op.create_index('idx_sections_form_id', 'sections', ['form_id'], unique=False, schema='forms')
@@ -421,7 +421,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['file_id'], ['files.files.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['section_id'], ['forms.sections.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
+    sa.UniqueConstraint('section_id', 'code', name='uq_questions_section_id_code'),
     schema='forms'
     )
     op.create_table('section_dependencies',
@@ -446,8 +446,8 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
     sa.UniqueConstraint('question_id'),
+    sa.UniqueConstraint('question_id', 'code', name='uq_card_templates_question_id_code'),
     schema='forms'
     )
     op.create_table('criteria',
@@ -461,7 +461,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['forms.questions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
+    sa.UniqueConstraint('question_id', 'code', name='uq_criteria_question_id_code'),
     schema='grading'
     )
     op.create_table('field_groups',
@@ -474,7 +474,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['card_template_id'], ['forms.card_templates.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
+    sa.UniqueConstraint('card_template_id', 'code', name='uq_field_groups_card_template_id_code'),
     schema='forms'
     )
     op.create_table('fields',
@@ -490,7 +490,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['field_group_id'], ['forms.field_groups.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['field_type_id'], ['reference.field_types.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
+    sa.UniqueConstraint('field_group_id', 'code', name='uq_fields_field_group_id_code'),
     schema='forms'
     )
     op.create_table('field_choices',
@@ -503,7 +503,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.ForeignKeyConstraint(['field_id'], ['forms.fields.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
+    sa.UniqueConstraint('field_id', 'code', name='uq_field_choices_field_id_code'),
     schema='forms'
     )
     op.create_table('field_dependencies',
