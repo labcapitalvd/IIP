@@ -16,26 +16,39 @@ fi
 USER_VAR="${POSTGRES_USER:-postgres_user}"
 DB_VAR="${POSTGRES_DB:-app_db}"
 
+# ===========================================
+#  Helper Functions
+# ===========================================
+wait_for_db() {
+  echo "🐘 Starting database container..."
+  docker compose up -d db
+  echo "⏳ Waiting for database readiness (max 60s)..."
+  
+  local TIMEOUT=60
+  local SECONDS=0
+
+  until docker compose exec -T db pg_isready -U "$USER_VAR" -d "$DB_VAR" >/dev/null 2>&1; do
+    sleep 1
+    if [ $SECONDS -ge $TIMEOUT ]; then
+      echo "❌ Database did not become ready after $TIMEOUT seconds."
+      exit 1
+    fi
+    echo "   ...still waiting ($SECONDS s)"
+  done
+  echo "✅ Database is ready!"
+}
+
+# ===========================================
+#  Command Handler
+# ===========================================
 case "$MODE" in
   # ===========================================
-  #    Populate system with default values
+  #  Populate system with default values
   # ===========================================
   --extract | -e)
     MSG="${1:-default}"
     echo "Extrae exceles de db segun modelos"
-    docker compose up -d db
-    echo "⏳ Waiting for database readiness (max 60s)..."
-    TIMEOUT=60
-    SECONDS=0
-    until docker compose exec -T db pg_isready -U "$USER_VAR" -d "$DB_VAR" >/dev/null 2>&1; do
-      sleep 1
-      if [ $SECONDS -ge $TIMEOUT ]; then
-        echo "❌ Database did not become ready after $TIMEOUT seconds."
-        exit 1
-      fi
-      echo "   ...still waiting ($SECONDS s)"
-    done
-    echo "✅ Database is ready!"
+    wait_for_db
 
     # Execute everything inside a SINGLE container lifecycle
     docker compose run --rm persister sh -c "
@@ -46,37 +59,42 @@ case "$MODE" in
     echo "Terminado!"
     docker compose up -d
     ;;
+
   # ===========================================
-  #   Populate system with default values
+  #  Atomic Setup Commands
   # ===========================================
+  --schemer)
+    wait_for_db
+    docker compose run --rm persister sh -c "cd /api/schemer && python schemer.py"
+    ;;
+
+  --migrator)
+    wait_for_db
+    docker compose run --rm persister sh -c "cd /api/migrator && alembic upgrade head"
+    ;;
+
+  --seeder)
+    wait_for_db
+    docker compose run --rm persister sh -c "cd /api/seeder && python seeder.py"
+    ;;
+
+  --populator)
+    wait_for_db
+    docker compose run --rm persister sh -c "cd /api/populator && python populator.py"
+    ;;
+
   --setup | -s)
     MSG="${1:-default}"
-    echo "🐘 Starting database container..."
-    docker compose up -d db
-    echo "⏳ Waiting for database readiness (max 60s)..."
-    TIMEOUT=60
-    SECONDS=0
-    until docker compose exec -T db pg_isready -U "$USER_VAR" -d "$DB_VAR" >/dev/null 2>&1; do
-      sleep 1
-      if [ $SECONDS -ge $TIMEOUT ]; then
-        echo "❌ Database did not become ready after $TIMEOUT seconds."
-        exit 1
-      fi
-      echo "   ...still waiting ($SECONDS s)"
-    done
-    echo "✅ Database is ready!"
-    echo "1️⃣  Creating schemas..."
-    docker compose run --rm persister sh -c "cd /api/schemer  && python schemer.py"
-    echo "2️⃣  Applying migrations (upgrade head)..."
-    docker compose run --rm persister sh -c "cd /api/migrator  && alembic upgrade head"
-    echo "3️⃣  Seeding tables..."
+    wait_for_db
+    docker compose run --rm persister sh -c "cd /api/schemer && python schemer.py"
+    docker compose run --rm persister sh -c "cd /api/migrator && alembic upgrade head"
     docker compose run --rm persister sh -c "cd /api/seeder && python seeder.py"
     docker compose run --rm persister sh -c "cd /api/populator && python populator.py"
-    echo "✅ Starting services..."
     docker compose up -d
     ;;
+
   # ===========================================
-  #   Create alembic revision
+  #  Create alembic revision
   # ===========================================
   --revision | -r)
     DESC="${1:-}"
@@ -87,7 +105,6 @@ case "$MODE" in
     fi
 
     echo "🔍 Comparing Models vs Database..."
-    # We run this through the 'persister' service which has access to shared.models
     docker compose run --rm persister sh -c \
       "cd /api/migrator && alembic revision --autogenerate -m \"$DESC\""
 
@@ -95,7 +112,7 @@ case "$MODE" in
     ;;
 
   # ===========================================
-  #   Database backup and restore
+  #  Database backup and restore
   # ===========================================
   --backup | -b)
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -124,7 +141,6 @@ case "$MODE" in
 
     echo "Restoring database from $FILE_NAME..."
 
-    # Inject PGPASSWORD so Postgres authenticates automatically without prompting
     if docker compose exec -T db sh -c "PGPASSWORD=\"\${POSTGRES_PASSWORD}\" psql -h db -U \"${USER_VAR}\" -d \"${DB_VAR}\" < /backups/$FILE_NAME"; then
       echo "✅ Restore completed successfully."
     else
@@ -142,19 +158,26 @@ Usage: $(basename "$0") [option] [args]
 IIP-Visualizador Launcher — manages containers and database migrations
 
 System & Data Operations:
-    --extract,  -e             Extract Excel files from database according to models.
-    --setup,    -s             Initialize database, run migrations, and seed default data.
+    --extract,   -e            Extract Excel files from database according to models.
+    --setup,     -s            Initialize database, run migrations, and seed default data.
+
+Atomic Setup Operations:
+    --schemer                  Run schema creation script only.
+    --migrator                 Run Alembic database migrations only.
+    --seeder                   Run table seeder script only.
+    --populator                Run data populator script only.
 
 Database Maintenance:
-    --revision, -r [name]      Create an autogenerated Alembic migration revision.
-    --backup,   -b             Create a timestamped SQL database backup.
-    --restore,  -R [file]      Restore database from a .sql backup file.
+    --revision,  -r [name]     Create an autogenerated Alembic migration revision.
+    --backup,    -b            Create a timestamped SQL database backup.
+    --restore,   -R [file]     Restore database from a .sql backup file.
 
 Other Options:
-    --help,     -h             Show this help message.
+    --help,      -h            Show this help message.
 
 Examples:
     ./launcher.sh -s
+    ./launcher.sh --schemer
     ./launcher.sh -r "add_user_table"
     ./launcher.sh -R db_backup_20260618_232418.sql
 EOF
