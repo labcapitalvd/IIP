@@ -6,13 +6,10 @@ Dependencias previas:
 
 Convención de almacenamiento:
 - question_id: pregunta tipo bucle correspondiente.
+- code: código único de la plantilla (ej. "CT_2023_Pregunta 1.1").
 - label: código visible del bucle, por ejemplo "Pregunta 1.1".
 - description: enunciado completo del bucle.
 - helper: NULL (o cadena vacía si la columna no permite NULL).
-- No se almacenan ponderaciones ni metadatos técnicos en description/helper.
-
-Se crea exactamente una plantilla por cada pregunta tipo bucle. La pregunta
-mixta Pregunta 28.1 utiliza su mismo question_id.
 """
 
 from __future__ import annotations
@@ -180,9 +177,10 @@ async def table_columns(conn, schema: str, table: str) -> dict:
 
 
 async def get_form(conn) -> str:
+    # FIX: Cast YEAR to string to prevent asyncpg integer query parameter error
     result = await conn.execute(
         text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
-        {"year": YEAR},
+        {"year": str(YEAR)},
     )
     rows = result.mappings().all()
     if len(rows) != 1:
@@ -205,7 +203,6 @@ async def get_questions(conn, form_id: str) -> dict[str, dict]:
                 q.description,
                 q.is_loop
             FROM forms.questions q
-            -- FIX: Join on sections table to safely access the missing form_id link
             JOIN forms.sections s ON q.section_id = s.id
             WHERE s.form_id = CAST(:form_id AS uuid)
             ORDER BY q.label, q.id;
@@ -239,6 +236,7 @@ async def get_existing_templates(conn) -> dict[str, dict]:
             SELECT
                 id::text AS card_template_id,
                 question_id::text AS question_id,
+                code,
                 label,
                 description,
                 helper
@@ -273,6 +271,7 @@ async def save_template(conn, record: dict, update: bool) -> None:
             UPDATE forms.card_templates
             SET
                 question_id = CAST(:question_id AS uuid),
+                code = :code,
                 label = :label,
                 description = :description,
                 helper = :helper,
@@ -286,6 +285,7 @@ async def save_template(conn, record: dict, update: bool) -> None:
             INSERT INTO forms.card_templates (
                 id,
                 question_id,
+                code,
                 label,
                 description,
                 helper,
@@ -294,6 +294,7 @@ async def save_template(conn, record: dict, update: bool) -> None:
             VALUES (
                 CAST(:id AS uuid),
                 CAST(:question_id AS uuid),
+                :code,
                 :label,
                 :description,
                 :helper,
@@ -360,9 +361,11 @@ async def upgrade() -> None:
 
     async with async_engine.begin() as conn:
         columns = await table_columns(conn, "forms", "card_templates")
+        # FIX: Include required 'code' column in column check
         required = {
             "id",
             "question_id",
+            "code",
             "label",
             "description",
             "helper",
@@ -399,9 +402,14 @@ async def upgrade() -> None:
             if not is_uuidv7(card_template_id):
                 raise ValueError(f"ID no UUIDv7: {card_template_id}")
 
+            # FIX: Supply unique truncated code for CardTemplate
             db_record = {
                 "id": card_template_id,
                 "question_id": question["question_id"],
+                "code": truncate(
+                    f"CT_{YEAR}_{source['loop_question']}",
+                    columns["code"]["max_length"],
+                ),
                 "label": truncate(
                     source["loop_question"], columns["label"]["max_length"]
                 ),
