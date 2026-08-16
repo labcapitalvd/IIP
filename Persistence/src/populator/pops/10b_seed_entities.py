@@ -1,47 +1,3 @@
-"""Puebla ``actors.actors`` desde la fuente única ``Entidades.csv``.
-
-Fuente local predeterminada:
-    /api/populator/pops/jhonatan/Entidades.csv
-
-Asignación de columnas:
-    sector              -> se usa para resolver actors.actors.actor_segment_id
-    label               -> actors.actors.label
-    description         -> actors.actors.description
-    mission             -> actors.actors.mission
-    vision              -> actors.actors.vision
-    sigep_code          -> actors.actors.sigep_code, si la columna existe
-    treasury_code       -> actors.actors.treasury_code, si la columna existe
-    initials            -> actors.actors.initials, si la columna existe
-
-Columnas de control de calidad, no insertadas directamente:
-    id                  -> UUID legado de la entidad en la fuente
-    actor_segment_id    -> UUID legado del sector en la fuente
-    descripcion_sector  -> se carga mediante 10a_seed_sectors.py
-
-Criterios de población:
-    - La FK actor_segment_id se resuelve con el UUIDv7 real del sector en
-      PostgreSQL, usando el label de ``sector``.
-    - Los UUIDv4 de la fuente no se copian. Los registros nuevos reciben UUIDv7.
-    - Si una entidad ya existe, conserva su UUIDv7 y se actualiza desde la
-      fuente oficial.
-    - La idempotencia se basa en el label normalizado de la entidad.
-    - Los códigos SIGEP y de Tesorería se tratan como identificadores, no como
-      medidas. Se preservan como texto cuando la columna destino es textual.
-    - Los valores ausentes de sigep_code, treasury_code e initials quedan NULL;
-      no se inventan códigos ni siglas.
-    - contact_person_id no proviene de la fuente y no se modifica.
-    - No se eliminan entidades adicionales existentes en PostgreSQL.
-    - No se utiliza helper ni se depende de la API HTTP.
-
-Importante:
-    La versión base del modelo del proyecto solo contiene actor_segment_id,
-    contact_person_id, label, description, mission, vision e id. Para conservar
-    toda la fuente, la tabla debe incluir sigep_code, treasury_code e initials.
-    Por defecto este script exige esas columnas. Para permitir una carga parcial
-    en un esquema antiguo puede definirse:
-        REQUIRE_EXTENDED_ACTOR_COLUMNS=false
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -96,6 +52,7 @@ TARGET_CORE_COLUMNS = {
     "description",
     "mission",
     "vision",
+    "code",
 }
 
 TARGET_EXTENDED_COLUMNS = {
@@ -119,9 +76,7 @@ def normalize_key(value: object) -> str | None:
         return None
 
     normalized = unicodedata.normalize("NFKD", cleaned)
-    normalized = "".join(
-        char for char in normalized if not unicodedata.combining(char)
-    )
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
     normalized = normalized.casefold()
     normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
     normalized = re.sub(r"\s+", " ", normalized).strip()
@@ -131,9 +86,7 @@ def normalize_key(value: object) -> str | None:
 def normalize_column_name(value: object) -> str:
     cleaned = clean_text(value) or ""
     normalized = unicodedata.normalize("NFKD", cleaned)
-    normalized = "".join(
-        char for char in normalized if not unicodedata.combining(char)
-    )
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
     normalized = normalized.casefold().replace("-", " ")
     normalized = re.sub(r"\s+", "_", normalized).strip("_")
 
@@ -196,9 +149,7 @@ def decode_csv(path: Path) -> str:
 
 def detect_delimiter(csv_text: str) -> str:
     try:
-        return csv.Sniffer().sniff(
-            csv_text[:20000], delimiters=";,|\t"
-        ).delimiter
+        return csv.Sniffer().sniff(csv_text[:20000], delimiters=";,|\t").delimiter
     except csv.Error:
         return ";"
 
@@ -351,10 +302,12 @@ def validate_and_prepare_source(
                     f"Fila {line_number}: {column} debe contener solo dígitos; "
                     f"valor={value!r}."
                 )
+        code_value = entity_key.replace(" ", "_") if entity_key else None
 
         prepared.append(
             {
                 "source_key": entity_key,
+                "code": code_value,
                 "legacy_id": required_values["id"],
                 "legacy_actor_segment_id": legacy_segment_id,
                 "sector_key": sector_key,
@@ -429,8 +382,7 @@ def validate_target_columns(columns: dict[str, dict[str, object]]) -> set[str]:
         )
         if REQUIRE_EXTENDED_ACTOR_COLUMNS:
             raise ValueError(
-                message
-                + " Agrega las columnas mediante el modelo/migración o define "
+                message + " Agrega las columnas mediante el modelo/migración o define "
                 "REQUIRE_EXTENDED_ACTOR_COLUMNS=false para una carga parcial."
             )
         logger.warning(message + " Se omitirán únicamente esas columnas.")
@@ -444,7 +396,6 @@ def coerce_identifier_for_column(
     column_metadata: dict[str, object],
     column_name: str,
 ) -> str | int | Decimal | None:
-    """Adapta un código al tipo real de PostgreSQL sin inventar valores."""
     if value is None:
         return None
 
@@ -478,6 +429,7 @@ def validate_lengths(
         "description",
         "mission",
         "vision",
+        "code",
         *extended_columns,
     }
 
@@ -513,8 +465,7 @@ async def get_segments_by_key(conn) -> dict[str, dict[str, str]]:
     rows = result.mappings().all()
     if not rows:
         raise ValueError(
-            "actors.actor_segments está vacía. Ejecuta primero "
-            "10a_seed_sectors.py."
+            "actors.actor_segments está vacía. Ejecuta primero 10a_seed_sectors.py."
         )
 
     lookup: dict[str, dict[str, str]] = {}
@@ -524,13 +475,9 @@ async def get_segments_by_key(conn) -> dict[str, dict[str, str]]:
         if key is None:
             raise ValueError(f"Sector con label inválido en DB: {row['id']}")
         if key in lookup:
-            raise ValueError(
-                f"Sectores duplicados por label normalizado en DB: {key}"
-            )
+            raise ValueError(f"Sectores duplicados por label normalizado en DB: {key}")
         if not is_uuidv7(row["id"]):
-            raise ValueError(
-                f"El sector {row['label']!r} no tiene UUIDv7: {row['id']}"
-            )
+            raise ValueError(f"El sector {row['label']!r} no tiene UUIDv7: {row['id']}")
         lookup[key] = row
 
     return lookup
@@ -540,13 +487,6 @@ async def get_existing_actors(
     conn,
     extended_columns: set[str],
 ) -> dict[str, dict[str, dict[str, object]]]:
-    """Construye índices de entidades existentes por códigos oficiales y label.
-
-    Prioridad de cruce posterior:
-        1. sigep_code, cuando existe y no es NULL;
-        2. treasury_code, cuando existe y no es NULL;
-        3. label normalizado.
-    """
     selected = ["id::text AS id", "label"]
     if "sigep_code" in extended_columns:
         selected.append("sigep_code")
@@ -556,7 +496,7 @@ async def get_existing_actors(
     result = await conn.execute(
         text(
             f"""
-            SELECT {', '.join(selected)}
+            SELECT {", ".join(selected)}
             FROM actors.actors
             ORDER BY label, id;
             """
@@ -593,9 +533,7 @@ async def get_existing_actors(
             if value is None:
                 continue
             if value in indexes[column]:
-                raise ValueError(
-                    f"Entidades duplicadas por {column} en DB: {value}"
-                )
+                raise ValueError(f"Entidades duplicadas por {column} en DB: {value}")
             indexes[column][value] = row
 
     return indexes
@@ -606,7 +544,6 @@ def match_existing_actor(
     indexes: dict[str, dict[str, dict[str, object]]],
     extended_columns: set[str],
 ) -> dict[str, object] | None:
-    """Localiza una entidad existente sin depender solo de su nombre."""
     candidates: list[tuple[str, dict[str, object]]] = []
 
     if "sigep_code" in extended_columns:
@@ -617,9 +554,7 @@ def match_existing_actor(
     if "treasury_code" in extended_columns:
         treasury_key = clean_text(source.get("treasury_code"))
         if treasury_key is not None and treasury_key in indexes["treasury_code"]:
-            candidates.append(
-                ("treasury_code", indexes["treasury_code"][treasury_key])
-            )
+            candidates.append(("treasury_code", indexes["treasury_code"][treasury_key]))
 
     label_key = str(source["source_key"])
     if label_key in indexes["label"]:
@@ -630,7 +565,9 @@ def match_existing_actor(
 
     ids = {str(candidate[1]["id"]) for candidate in candidates}
     if len(ids) > 1:
-        details = [(criterion, row["id"], row["label"]) for criterion, row in candidates]
+        details = [
+            (criterion, row["id"], row["label"]) for criterion, row in candidates
+        ]
         raise ValueError(
             "Los criterios de identificación de una entidad apuntan a registros "
             f"distintos. Fuente={source['label']!r}; coincidencias={details}"
@@ -679,6 +616,7 @@ def build_source_values(
         "description": source["description"],
         "mission": source["mission"],
         "vision": source["vision"],
+        "code": source.get("code") or (str(source["source_key"]).replace(" ", "_")),
     }
 
     for column in sorted(extended_columns):
@@ -713,6 +651,7 @@ async def persist_actors(
         "description",
         "mission",
         "vision",
+        "code",
         *sorted(extended_columns),
     ]
 
@@ -745,7 +684,7 @@ async def persist_actors(
                 text(
                     f"""
                     UPDATE actors.actors
-                    SET {', '.join(assignments)}
+                    SET {", ".join(assignments)}
                     WHERE id = CAST(:id AS uuid);
                     """
                 ),
@@ -767,8 +706,8 @@ async def persist_actors(
             await conn.execute(
                 text(
                     f"""
-                    INSERT INTO actors.actors ({', '.join(insert_columns)})
-                    VALUES ({', '.join(insert_values)});
+                    INSERT INTO actors.actors ({", ".join(insert_columns)})
+                    VALUES ({", ".join(insert_values)});
                     """
                 ),
                 params,
@@ -798,13 +737,14 @@ async def validate_loaded_actors(
         "actor.description",
         "actor.mission",
         "actor.vision",
+        "actor.code",
         *[f"actor.{column}" for column in sorted(extended_columns)],
     ]
 
     result = await conn.execute(
         text(
             f"""
-            SELECT {', '.join(selected_columns)}
+            SELECT {", ".join(selected_columns)}
             FROM actors.actors AS actor;
             """
         )
@@ -829,6 +769,7 @@ async def validate_loaded_actors(
         "description",
         "mission",
         "vision",
+        "code",
         *extended_columns,
     }
 
@@ -844,9 +785,7 @@ async def validate_loaded_actors(
                 f"El UUID cambió inesperadamente para {record['label']!r}."
             )
         if not is_uuidv7(row["id"]):
-            raise ValueError(
-                f"La entidad {record['label']!r} no quedó con UUIDv7."
-            )
+            raise ValueError(f"La entidad {record['label']!r} no quedó con UUIDv7.")
 
         for field in comparable_fields:
             loaded_value = row.get(field)
@@ -882,8 +821,6 @@ async def validate_loaded_actors(
 
 
 async def upgrade() -> None:
-    """Carga entidades y resuelve sus sectores mediante UUIDv7 reales."""
-
     logger.info(f"Starting actors population from {ENTITIES_FILE}")
     source_rows = load_source_rows(ENTITIES_FILE)
     prepared = validate_and_prepare_source(source_rows)
