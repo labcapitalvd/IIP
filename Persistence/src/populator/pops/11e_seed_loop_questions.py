@@ -217,7 +217,6 @@ def load_loops(excel: pd.ExcelFile) -> list[LoopRecord]:
         & data["subquestion_text"].notna()
     ].copy()
 
-    # Registry now explicitly stores LoopRecord values
     registry: OrderedDict[str, LoopRecord] = OrderedDict()
 
     for _, row in data.iterrows():
@@ -271,7 +270,6 @@ def load_loops(excel: pd.ExcelFile) -> list[LoopRecord]:
         )
         text_value = row["subquestion_text"]
 
-        # Safely capture reference as an OrderedDict prior to transformation
         subquestions_dict = current["subquestions"]
         if isinstance(subquestions_dict, OrderedDict):
             previous = subquestions_dict.get(order)
@@ -286,7 +284,6 @@ def load_loops(excel: pd.ExcelFile) -> list[LoopRecord]:
 
     total_subquestions = 0
     for record in records:
-        # Cast/Verify the internal dictionary for the sequential check
         subq_map = record["subquestions"]
         if isinstance(subq_map, OrderedDict):
             orders = sorted(subq_map.keys())
@@ -356,7 +353,7 @@ async def table_columns(conn, schema: str, table: str) -> dict:
 async def get_form(conn) -> str:
     result = await conn.execute(
         text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
-        {"year": YEAR},
+        {"year": str(YEAR)},  # <--- Casteado a string
     )
     rows = result.mappings().all()
     if len(rows) != 1:
@@ -397,7 +394,7 @@ async def get_indicator_map(conn) -> dict[tuple[str, str, str], str]:
             WHERE form.code = :year;
             """
         ),
-        {"year": YEAR},
+        {"year": str(YEAR)},  # <--- Casteado a string
     )
 
     lookup: dict[tuple[str, str, str], str] = {}
@@ -424,6 +421,7 @@ async def get_question_map(conn, form_id: str) -> dict[str, dict]:
             SELECT
                 q.id::text AS question_id,
                 q.section_id::text AS section_id,
+                q.code,
                 q.label,
                 q.description,
                 q.display_order,
@@ -462,6 +460,7 @@ async def save_independent_loop(conn, record: dict, update: bool) -> None:
             """
             UPDATE forms.questions
             SET
+                code = :code,
                 section_id = CAST(:section_id AS uuid),
                 file_id = NULL,
                 label = :label,
@@ -479,6 +478,7 @@ async def save_independent_loop(conn, record: dict, update: bool) -> None:
             """
             INSERT INTO forms.questions (
                 id,
+                code,
                 section_id,
                 file_id,
                 label,
@@ -491,6 +491,7 @@ async def save_independent_loop(conn, record: dict, update: bool) -> None:
             )
             VALUES (
                 CAST(:id AS uuid),
+                :code,
                 CAST(:section_id AS uuid),
                 NULL,
                 :label,
@@ -593,6 +594,7 @@ async def upgrade() -> None:
         columns = await table_columns(conn, "forms", "questions")
         required_columns = {
             "id",
+            "code",
             "section_id",
             "file_id",
             "label",
@@ -663,9 +665,14 @@ async def upgrade() -> None:
             if not is_uuidv7(question_id):
                 raise ValueError(f"ID no UUIDv7: {question_id}")
 
+            raw_num = re.sub(r"[^\d.]", "", loop["loop_question"]).replace(".", "_")
+            code = (
+                f"{YEAR}_Q{raw_num}" if raw_num else f"{YEAR}_{loop['loop_question']}"
+            )
+
             db_record = {
                 "id": question_id,
-                "form_id": form_id,
+                "code": code,
                 "section_id": section_id,
                 "label": truncate(
                     loop["loop_question"], columns["label"]["max_length"]
@@ -691,6 +698,7 @@ async def upgrade() -> None:
             questions[normalize(loop["loop_question"])] = {
                 "question_id": question_id,
                 "section_id": section_id,
+                "code": code,
                 "label": loop["loop_question"],
                 "description": loop["loop_text"],
                 "display_order": db_record["display_order"],
