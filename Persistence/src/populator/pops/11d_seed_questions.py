@@ -622,9 +622,9 @@ async def upgrade() -> None:
             # Extracción limpia del número de la pregunta
             raw_num = re.sub(r"[^\d.]", "", source["question"]).replace(".", "_")
             code = (
-                f"{source['year']}_Q{raw_num}"
+                f"Q{raw_num}"
                 if raw_num
-                else f"{source['year']}_{source['question']}"
+                else f"{source['question']}"
             )
 
             db_record = {
