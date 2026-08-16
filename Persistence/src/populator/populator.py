@@ -1,15 +1,14 @@
+import asyncio
 import importlib.util
 import os
-import traceback
-import asyncio
-import httpx
 import tomllib
+import traceback
+from typing import Any, List, Type, TypeVar
 
-from typing import Type, TypeVar, List, Any
+import httpx
 from pydantic import BaseModel
-
-from shared.utils.logger import get_logger, configure_logging
-from shared.utils import print_banner, print_list
+from shared.utils import format_banner, format_list
+from shared.utils.logger import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
@@ -227,9 +226,7 @@ async def run_populators():
         logger.error(f"pops directory not found: {pops_dir}")
         return
 
-    print_banner(
-        "DATABASE POPULATION", border_char="=", padding_x=6, padding_y=1, align="center"
-    )
+    logger.info(format_banner("DATABASE POPULATION"))
 
     # 1. Initialize and Auth Connectors once
     gh = GitHubConnector()
@@ -252,7 +249,8 @@ async def run_populators():
         for f in sorted(os.listdir(pops_dir))
         if f.endswith(".py") and f != "__init__.py"
     ]
-    print_list("Files to populate", pop_files)
+
+    logger.info(format_list("Files to populate", pop_files))
 
     # 2. Iterate through files
     for filename in pop_files:
@@ -283,16 +281,9 @@ async def run_populators():
 
         except Exception as e:
             logger.error(f"Error in {module_name}: {type(e).__name__} - {e}")
-            traceback.print_exc()
+            traceback.format_exc()
 
-    logger.info("Popping process finished successfully.")
-
-    print_banner(
-        "POPULATING PROCESS COMPLETE",
-        border_char="─",
-        padding_x=6,
-        padding_y=0,
-    )
+    logger.info(format_banner("POPULATING PROCESS COMPLETE"))
 
 
 if __name__ == "__main__":
