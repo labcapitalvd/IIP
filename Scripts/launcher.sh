@@ -23,17 +23,19 @@ wait_for_db() {
   echo "🐘 Starting database container..."
   docker compose up -d db
   echo "⏳ Waiting for database readiness (max 60s)..."
-  
+
   local TIMEOUT=60
-  local SECONDS=0
+  local elapsed=0
 
   until docker compose exec -T db pg_isready -U "$USER_VAR" -d "$DB_VAR" >/dev/null 2>&1; do
     sleep 1
-    if [ $SECONDS -ge $TIMEOUT ]; then
+    ((++elapsed)) # Pre-increment ensures an exit status of 0, keeping 'set -e' from killing the script
+
+    if [ $elapsed -ge $TIMEOUT ]; then
       echo "❌ Database did not become ready after $TIMEOUT seconds."
       exit 1
     fi
-    echo "   ...still waiting ($SECONDS s)"
+    echo "   ...still waiting ($elapsed s)"
   done
   echo "✅ Database is ready!"
 }
