@@ -712,7 +712,7 @@ async def ensure_field_types(conn) -> dict[str, str]:
             },
         )
         grouped[label] = [field_type_id]
-        logger.info(f"Created reference.field_types: {label}")
+        logger.debug(f"Created reference.field_types: {label}")
 
     return {label: grouped[label][0] for label in FIELD_TYPE_DESCRIPTIONS}
 
@@ -1036,7 +1036,7 @@ async def upgrade() -> None:
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.info(f"Starting forms.fields population from {path}")
+    logger.debug(f"Starting forms.fields population from {path}")
 
     main_questions, loops, responses, specs = load_instrument(path)
 
@@ -1129,7 +1129,7 @@ async def upgrade() -> None:
             if not is_uuidv7(row["field_id"]):
                 raise ValueError(f"UUID no es versión 7 para field {key}.")
 
-    logger.info(
+    logger.debug(
         "forms.fields population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}. "
         f"Expected: {len(specs)}."

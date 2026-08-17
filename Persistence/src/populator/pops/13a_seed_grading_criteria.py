@@ -354,7 +354,7 @@ def load_weight_records(
             record["weight"]
             for record in year_records
         )
-        logger.info(
+        logger.debug(
             f"Year {year}: criteria={len(year_records)}, "
             f"source_weight_sum={total_weight}."
         )
@@ -718,7 +718,7 @@ async def validate_loaded_criteria(
             f"Esperado={expected_counts}; obtenido={actual_counts}."
         )
 
-    logger.info(
+    logger.debug(
         "grading.criteria validation passed successfully. "
         f"Validated criteria: {len(expected_by_question)}."
     )
@@ -731,7 +731,7 @@ async def upgrade() -> None:
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
     active_years = get_active_years()
-    logger.info(
+    logger.debug(
         f"Starting grading.criteria population from {path}. "
         f"Active years: {active_years}."
     )
@@ -766,7 +766,7 @@ async def upgrade() -> None:
         )
 
     total = len(expected_records)
-    logger.info(
+    logger.debug(
         "grading.criteria population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}. Total: {total}."
     )

@@ -40,6 +40,6 @@ def upgrade() -> None:
             session.add_all(new_records)
             session.commit()
 
-    logger.info(
+    logger.debug(
         f"NotificationType seed complete: {added_count} added, {skipped_count} skipped."
     )

@@ -463,7 +463,7 @@ async def validate_loaded_segments(conn, expected: list[dict[str, str]]) -> None
 async def upgrade() -> None:
     """Carga los sectores derivados de ``Entidades.csv``."""
 
-    logger.info(f"Starting actor_segments population from {ENTITIES_FILE}")
+    logger.debug(f"Starting actor_segments population from {ENTITIES_FILE}")
     source_rows = load_source_rows(ENTITIES_FILE)
     sector_records = build_sector_records(source_rows)
 
@@ -486,7 +486,7 @@ async def upgrade() -> None:
         )
         await validate_loaded_segments(conn, expected)
 
-    logger.info(
+    logger.debug(
         "actor_segments population finished successfully. "
         f"Inserted={inserted}; updated={updated}; total_source={len(expected)}."
     )

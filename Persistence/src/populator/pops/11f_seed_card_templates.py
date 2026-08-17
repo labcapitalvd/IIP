@@ -340,7 +340,7 @@ async def validate_loaded(
         if not is_uuidv7(template["card_template_id"]):
             raise ValueError(f"UUID no es versión 7 para {source['loop_question']}.")
 
-    logger.info(f"forms.card_templates validation passed. Validated: {len(expected)}.")
+    logger.debug(f"forms.card_templates validation passed. Validated: {len(expected)}.")
 
 
 # -----------------------------------------------------------------------------
@@ -354,7 +354,7 @@ async def upgrade() -> None:
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.info(f"Starting forms.card_templates population from {path}")
+    logger.debug(f"Starting forms.card_templates population from {path}")
 
     excel = pd.ExcelFile(path)
     loops = load_loops(excel)
@@ -407,7 +407,7 @@ async def upgrade() -> None:
                 "id": card_template_id,
                 "question_id": question["question_id"],
                 "code": truncate(
-                    f"CT_{YEAR}_{source['loop_question']}",
+                    f"CT_{str(source['loop_question']).replace(' ', '_').lower().replace('pregunta', 'P').replace('.', '_')}",
                     columns["code"]["max_length"],
                 ),
                 "label": truncate(
@@ -428,7 +428,7 @@ async def upgrade() -> None:
 
         await validate_loaded(conn, loops, questions)
 
-    logger.info(
+    logger.debug(
         "forms.card_templates population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}."
     )

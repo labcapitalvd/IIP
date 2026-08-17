@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 logger.info(format_banner("ALEMBIC MIGRATIONS"))
 logger.info(format_list("Loaded Models", model_names))
-logger.info(format_list("Tables Found in Metadata", list(Base.metadata.tables.keys())))
+logger.debug(format_list("Tables Found in Metadata", list(Base.metadata.tables.keys())))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

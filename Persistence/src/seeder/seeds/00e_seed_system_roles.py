@@ -65,4 +65,4 @@ def upgrade() -> None:
             session.add_all(all_new_records)
             session.commit()
 
-    logger.info(f"Roles seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"Roles seed complete: {added_count} added, {skipped_count} skipped.")

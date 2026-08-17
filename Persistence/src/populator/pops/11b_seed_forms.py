@@ -358,12 +358,12 @@ async def validate_forms(conn) -> None:
             f"Registros problemáticos: {list(duplicated_rows)}"
         )
 
-    logger.info("forms.forms validation passed successfully.")
+    logger.debug("forms.forms validation passed successfully.")
 
 
 async def upgrade() -> None:
     """Carga forms.forms."""
-    logger.info("Starting forms.forms population...")
+    logger.debug("Starting forms.forms population...")
 
     try:
         async with async_engine.begin() as conn:
@@ -393,7 +393,7 @@ async def upgrade() -> None:
                     await update_form(conn, existing_id, record)
                     updated += 1
 
-                    logger.info(
+                    logger.debug(
                         f"Updated form code={code} with existing UUIDv7: {existing_id}"
                     )
 
@@ -401,13 +401,13 @@ async def upgrade() -> None:
                     new_id = await insert_form(conn, record)
                     inserted += 1
 
-                    logger.info(
+                    logger.debug(
                         f"Inserted form code={code} with UUIDv7: {new_id}"
                     )
 
             await validate_forms(conn)
 
-        logger.info(
+        logger.debug(
             f"forms.forms population finished. "
             f"Inserted: {inserted}. Updated: {updated}."
         )
