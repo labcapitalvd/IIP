@@ -74,7 +74,7 @@ async def run_populators():
 
             # 3. Check for the upgrade function
             if hasattr(mod, "upgrade") and callable(mod.upgrade):
-                logger.info(format_banner(f"Executing: {module_name}.upgrade()"))
+                logger.debug(format_banner(f"Executing: {module_name}.upgrade()"))
 
                 # Check if the module is async
                 if asyncio.iscoroutinefunction(mod.upgrade):

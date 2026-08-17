@@ -31,7 +31,7 @@ def main():
 
     for module_name in seed_files:
         file_path = os.path.join(seeds_dir, f"{module_name}.py")
-        logger.info(format_banner(f"Running {module_name}.upgrade()"))
+        logger.debug(format_banner(f"Running {module_name}.upgrade()"))
 
         try:
             spec = importlib.util.spec_from_file_location(module_name, file_path)
