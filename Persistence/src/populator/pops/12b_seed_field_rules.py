@@ -357,7 +357,7 @@ async def ensure_rule_types(conn) -> dict[str, str]:
             },
         )
         grouped[label] = [rule_type_id]
-        logger.info(f"Created reference.rule_types: {label}")
+        logger.debug(f"Created reference.rule_types: {label}")
 
     return {
         label: grouped[label][0]
@@ -685,7 +685,7 @@ async def validate_loaded_rules(
             f"obtenido={dict(counts_by_year)}."
         )
 
-    logger.info(
+    logger.debug(
         "rules.field_rules validation passed successfully. "
         f"Validated rules: {len(expected_by_key)}."
     )
@@ -703,7 +703,7 @@ async def upgrade() -> None:
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.info(f"Starting rules.field_rules population from {path}")
+    logger.debug(f"Starting rules.field_rules population from {path}")
     print(f"[12b] Archivo Excel: {path}", flush=True)
 
     main_questions, loops, _responses, field_specs = H.load_instrument(path)
@@ -745,7 +745,7 @@ async def upgrade() -> None:
             expected_records=expected_records,
         )
 
-    logger.info(
+    logger.debug(
         "rules.field_rules population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}. Total: {EXPECTED_TOTAL}."
     )

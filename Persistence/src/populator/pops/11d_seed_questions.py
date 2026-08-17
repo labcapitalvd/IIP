@@ -247,7 +247,7 @@ def load_questions(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
             raise ValueError(f"La hoja {year} no produjo preguntas válidas.")
 
         records.extend(year_records)
-        logger.info(f"Year {year}: {len(year_records)} preguntas principales.")
+        logger.debug(f"Year {year}: {len(year_records)} preguntas principales.")
 
     return records
 
@@ -542,7 +542,7 @@ async def validate_loaded(
         if not is_uuidv7(row["question_id"]):
             raise ValueError(f"UUID no es versión 7 para {key}.")
 
-    logger.info(
+    logger.debug(
         f"forms.questions validation passed. "
         f"Validated: {len(source_records)} preguntas principales."
     )
@@ -558,7 +558,7 @@ async def upgrade() -> None:
     path = Path(FILE_PATH)
     years = active_years()
 
-    logger.info(f"Starting forms.questions population from {path}")
+    logger.debug(f"Starting forms.questions population from {path}")
 
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
@@ -650,7 +650,7 @@ async def upgrade() -> None:
 
         await validate_loaded(conn, source_records, forms, indicators)
 
-    logger.info(
+    logger.debug(
         "forms.questions population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}."
     )

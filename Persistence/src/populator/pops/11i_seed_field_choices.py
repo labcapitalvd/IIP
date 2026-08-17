@@ -283,7 +283,7 @@ async def upgrade() -> None:
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.info(f"Starting forms.field_choices population from {path}")
+    logger.debug(f"Starting forms.field_choices population from {path}")
 
     main_questions, loops, responses, field_specs = H.load_instrument(path)
     choice_specs = build_choice_specs(field_specs)
@@ -418,7 +418,7 @@ async def upgrade() -> None:
                 "Hay field_choices asociados a fields que no son de selección."
             )
 
-    logger.info(
+    logger.debug(
         "forms.field_choices population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}. "
         f"Expected: {len(choice_specs)}."

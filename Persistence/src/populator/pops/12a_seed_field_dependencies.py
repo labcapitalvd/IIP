@@ -573,7 +573,7 @@ async def ensure_relational_operators(conn) -> dict[str, str]:
             },
         )
         lookup[label] = operator_id
-        logger.info(f"Creado relational_operator {label}: {operator_id}")
+        logger.debug(f"Creado relational_operator {label}: {operator_id}")
 
     return lookup
 
@@ -1091,7 +1091,7 @@ async def validate_loaded_dependencies(
             f"Esperado={EXPECTED_COUNTS_BY_YEAR}; obtenido={dict(counts)}"
         )
 
-    logger.info(
+    logger.debug(
         "rules.field_dependencies validation passed. "
         f"Validated dependencies: {len(expected_by_target)}."
     )
@@ -1111,7 +1111,7 @@ async def upgrade() -> None:
             f"No existe el archivo de estructura IIP: {excel_path}"
         )
 
-    logger.info(
+    logger.debug(
         "Starting rules.field_dependencies population from "
         f"{excel_path}."
     )
@@ -1139,7 +1139,7 @@ async def upgrade() -> None:
         inserted, updated = await save_dependencies(conn, dependencies)
         await validate_loaded_dependencies(conn, dependencies)
 
-    logger.info(
+    logger.debug(
         "rules.field_dependencies population completed successfully. "
         f"Inserted={inserted}; updated={updated}; total={len(dependencies)}."
     )

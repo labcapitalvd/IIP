@@ -571,7 +571,7 @@ async def validate_loaded(
                     f"description incorrecta para {loop['loop_question']}."
                 )
 
-    logger.info(f"Loop questions validation passed. Validated: {len(loops)}.")
+    logger.debug(f"Loop questions validation passed. Validated: {len(loops)}.")
 
 
 # -----------------------------------------------------------------------------
@@ -585,7 +585,7 @@ async def upgrade() -> None:
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.info(f"Starting loop questions population from {path}")
+    logger.debug(f"Starting loop questions population from {path}")
 
     excel = pd.ExcelFile(path)
     loops = load_loops(excel)
@@ -708,7 +708,7 @@ async def upgrade() -> None:
 
         await validate_loaded(conn, loops, form_id, indicators)
 
-    logger.info(
+    logger.debug(
         "Loop questions population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}. "
         f"Mixed updated: {mixed_updated}."

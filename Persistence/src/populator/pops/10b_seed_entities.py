@@ -819,7 +819,7 @@ async def validate_loaded_actors(
 
 
 async def upgrade() -> None:
-    logger.info(f"Starting actors population from {ENTITIES_FILE}")
+    logger.debug(f"Starting actors population from {ENTITIES_FILE}")
     source_rows = load_source_rows(ENTITIES_FILE)
     prepared = validate_and_prepare_source(source_rows)
 
@@ -855,7 +855,7 @@ async def upgrade() -> None:
             extended_columns=extended_columns,
         )
 
-    logger.info(
+    logger.debug(
         "actors population finished successfully. "
         f"Inserted={inserted}; updated={updated}; total_source={len(expected)}."
     )

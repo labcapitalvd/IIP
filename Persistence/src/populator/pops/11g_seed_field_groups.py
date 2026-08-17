@@ -458,7 +458,7 @@ async def validate_loaded(
         if not is_uuidv7(row["field_group_id"]):
             raise ValueError(f"UUID no es versión 7 para {source['natural_key']}.")
 
-    logger.info(f"forms.field_groups validation passed. Validated: {len(expected)}.")
+    logger.debug(f"forms.field_groups validation passed. Validated: {len(expected)}.")
 
 
 # -----------------------------------------------------------------------------
@@ -473,7 +473,7 @@ async def upgrade() -> None:
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.info(f"Starting forms.field_groups population from {path}")
+    logger.debug(f"Starting forms.field_groups population from {path}")
 
     excel = pd.ExcelFile(path)
     loops = load_loops(excel)
@@ -541,7 +541,7 @@ async def upgrade() -> None:
 
         await validate_loaded(conn, expected)
 
-    logger.info(
+    logger.debug(
         "forms.field_groups population finished successfully. "
         f"Inserted: {inserted}. Updated: {updated}. "
         f"Expected: {len(expected)}."

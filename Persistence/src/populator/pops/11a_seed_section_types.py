@@ -172,12 +172,12 @@ async def validate_section_types(conn) -> None:
             f"Registros problemáticos: {non_v7}"
         )
 
-    logger.info("section_types validation passed successfully.")
+    logger.debug("section_types validation passed successfully.")
 
 
 async def upgrade() -> None:
     """Carga forms.section_types."""
-    logger.info("Starting forms.section_types population...")
+    logger.debug("Starting forms.section_types population...")
 
     try:
         async with async_engine.begin() as conn:
@@ -213,7 +213,7 @@ async def upgrade() -> None:
                     )
 
                     updated += 1
-                    logger.info(
+                    logger.debug(
                         f"Updated section_type '{label}' with existing UUIDv7: {existing_id}"
                     )
 
@@ -231,11 +231,11 @@ async def upgrade() -> None:
                     )
 
                     inserted += 1
-                    logger.info(f"Inserted section_type '{label}' with UUIDv7: {new_id}")
+                    logger.debug(f"Inserted section_type '{label}' with UUIDv7: {new_id}")
 
             await validate_section_types(conn)
 
-        logger.info(
+        logger.debug(
             f"forms.section_types population finished. "
             f"Inserted: {inserted}. Updated: {updated}."
         )

@@ -980,7 +980,7 @@ async def validate_loaded_sections(
         if int(row["display_order"]) != int(expected["display_order"]):
             raise ValueError(f"display_order incorrecto para {key}")
 
-    logger.info(
+    logger.debug(
         "forms.sections validation passed successfully. "
         f"Validated sections: {len(expected_id_by_key)}."
     )
@@ -996,9 +996,9 @@ async def upgrade() -> None:
     path = Path(LOCAL_IIP_STRUCTURE_FILE)
     active_years = get_active_years()
 
-    logger.info("Starting forms.sections population...")
-    logger.info(f"IIP structure file: {path}")
-    logger.info(f"Active years: {active_years}")
+    logger.debug("Starting forms.sections population...")
+    logger.debug(f"IIP structure file: {path}")
+    logger.debug(f"Active years: {active_years}")
 
     if not path.exists():
         raise FileNotFoundError(f"No existe el archivo local: {path}")
@@ -1022,7 +1022,7 @@ async def upgrade() -> None:
                 for level in SECTION_LEVELS
             }
 
-            logger.info(
+            logger.debug(
                 f"Year {year}: "
                 f"{counts['COMPONENTE']} componentes, "
                 f"{counts['VARIABLE']} variables, "
@@ -1118,7 +1118,7 @@ async def upgrade() -> None:
                 parent_id_by_key=parent_id_by_key,
             )
 
-        logger.info(
+        logger.debug(
             "forms.sections population finished successfully. "
             f"Inserted: {inserted}. Updated: {updated}."
         )
