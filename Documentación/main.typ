@@ -260,13 +260,71 @@ Para un desglose detallado de las dependencias en materia de librerías del proy
 ) <tab-comps>
 
 
-
 == Arquitectura Docker
+
+La plataforma implementa una arquitectura basada en microservicios orquestada mediante Docker Compose, diseñada para aislar responsabilidades, aislar el tráfico de red y gestionar de manera segura los datos sensibles.
+
+=== Servicios de la Plataforma
+
+- *`nginx`*: Basado en `nginx:stable-alpine` sobre la red `app_nginx`, opera como proxy inverso y terminal TLS enrutando el tráfico HTTP/HTTPS externo hacia los contenedores de aplicación.
+- *`db`*: Motor relacional `postgres:18` sobre `app_db_net`. Garantiza la persistencia del estado mediante el volumen nombrado `postgresql` e integra verificación de salud activa vía `pg_isready`.
+- *`cache`*: Instancia de `valkey:alpine` asignada a `app_cache_net` que provee almacenamiento volátil en memoria con monitoreo de disponibilidad vía `valkey-cli ping`.
+- *`base`*: Construcción local (`./Dockerfile`) que genera la imagen compartida `app-base` para consolidar y precompilar dependencias comunes del monorepo.
+- *`auth`*: Microservicio de autenticación vinculado a `app_db_net`, `app_nginx` y `app_cache_net`. Su inicio condicional requiere que `db` y `cache` reporten estado saludable (*service_healthy*).
+- *`core`*: Microservicio con la lógica principal de negocio expuesto en las tres redes. Mantiene una dependencia de arranque explícita respecto al servicio `auth`.
+- *`persister`*: Contenedor de administración acoplado a `app_db_net` y `app_nginx`. Ejecuta migraciones de Alembic, pobladores y respaldos mediante el montaje directo de volúmenes del anfitrión.
+
+=== Volúmenes y Gestión de Secretos
+
+La base de datos preserva su estado utilizando un volumen nombrado denominado `postgresql` (mapeado como `pg`), mientras que las copias de seguridad se sincronizan mediante un bind-mount de `./Persistence/src/backups` en `/backups`. La gestión de credenciales sensibles (`postgres_password`, `valkey_password`, llaves JWT `ED25519`, tokens de GitHub y certificados SSL) utiliza el mecanismo nativo de `secrets` de Compose desde `./Secrets`, evitando la exposición de claves en variables de entorno de texto plano.
+
+=== Estrategia de Construcción de Imágenes
+
+La compilación se estructura en dos niveles para maximizar el reúso de capas: una imagen base compartida (`app-base`) y tres imágenes derivadas para los servicios finales (`Auth`, `Core` y `Persistence`).
+
+*Imagen Base Compartida (`app-base`)* \
+El `Dockerfile` raíz aplica una construcción multietapa que primero aísla los archivos `pyproject.toml` e `__init__.py` de `Packages/shared` (`structural-setup`). En la siguiente etapa (`base-env`), instala librerías nativas como `libpq-dev` sobre Python 3.12 slim. Finalmente (`final-app`), transfiere la implementación del paquete compartido e instala las dependencias de forma local sin conexión a red (`--no-deps`).
+
+*Optimización de Caché (Mock Layout)* \
+Para evitar la re-descarga constante de paquetes pesados (FastAPI, Argon2), las imágenes derivadas de `app-base` aplican un patrón en cuatro fases:
+
+- *1. Aislamiento*: Copia únicamente `pyproject.toml` del servicio para separar las dependencias del código fuente.
+- *2. Estructura Ficticia*: Genera carpetas vacías (`mkdir -p application ...`) y un archivo `main.py` temporal para que el empaquetador Hatchling pre-instale dependencias mediante `pip install .`.
+- *3. Límite de Caché*: Transfiere el código fuente real, invalidando la caché del motor Docker únicamente al modificar archivos de la aplicación.
+- *4. Sincronización Local*: Ejecuta `pip install --no-deps .` para vincular los puntos de entrada locales en menos de un segundo sin consultar índices remotos.
+
+*Configuración de Contenedores Específicos* \
+Los contenedores `app_auth` y `app_core` exponen los puertos `8000` y `8001` respectivamente, ejecutando `uvicorn main:api` para atender peticiones. En contraste, `app_persister` inyecta `PORT_AUTH` y `PORT_CORE` para interactuar internamente con los endpoints durante la carga de datos, operando sin puertos expuestos al exterior vía `/entrypoint.sh`.
+
 == Proxy inverso (Nginx)
+
+El servidor Nginx actúa como API Gateway y punto de terminación TLS de la plataforma, aislando la red pública de los contenedores de aplicación.
+
+- *Paridad de Puertos con Compose*: Mantiene estricta correspondencia con las variables definidas en `compose.yaml` y los Dockerfiles (`PORT_AUTH=8000` y `PORT_CORE=8001`). Los puertos de escucha SSL del proxy reflejan exactamente los puertos internos expuestos por cada microservicio.
+- *Gestión de Certificados TLS*: Carga los pares de claves (`https_public` y `https_private`) inyectados en `/run/secrets/`. Estos certificados son autogenerados de forma local mediante el script automatizado de gestión de secretos de la plataforma para entornos de desarrollo/pruebas, o bien provistos por el administrador mediante certificados de producción emitidos por autoridades como Let's Encrypt.
+- *Enrutamiento por DNS Interno*: Utiliza la resolución de nombres nativa de Docker mediante `proxy_pass` para redirigir peticiones desde el puerto `8000` hacia `http://auth:8000` y desde el puerto `8001` hacia `http://core:8001`.
+- *Preservación del Contexto de Red*: Transfiere los encabezados `Host`, `X-Real-IP`, `X-Forwarded-For` y `X-Forwarded-Proto` (`https`), permitiendo a los microservicios validar la IP real del cliente y reconocer el esquema HTTPS original para la emisión de tokens y directivas de seguridad.
 == Comunicación entre servicios
-== Gestión de configuración
+
+El aislamiento y la interconexión entre los contenedores de la plataforma se rigen por tres principios de red:
+
+- *Aislamiento y Exposición Pública*: La red *`app_nginx_network`* es el único vector expuesto hacia el exterior a través del mapeo de puertos en el anfitrión (`8000` y `8001`). Por el contrario, *`app_db_network`* y *`app_cache_network`* son redes internas tipo `bridge` estrictamente aisladas; ni PostgreSQL ni Valkey exponen puertos hacia el host, impidiendo cualquier intento de conexión directa desde fuera de la red virtual de Docker.
+- *Pila de Protocolos y Transporte*: La comunicación entre los componentes opera sobre la pila TCP/IP interna gestionada por el daemon de Docker, utilizando el protocolo HTTP/1.1 para la transferencia de peticiones entre el proxy Nginx y los microservicios `Auth` y `Core`.
+- *Naturaleza del Tráfico (Stateless TCP)*: Todas las interacciones de la API siguen un esquema transaccional solicitud-respuesta. La arquitectura omite intencionalmente protocolos de transmisión en tiempo real o persistentes (como WebSockets o gRPC), garantizando un modelo puramente *stateless* sobre conexiones TCP de corta duración que facilita la escalabilidad y reduce el consumo de memoria en los sockets.
+
 == Variables de entorno
-== Gestión de secretos
+
+La plataforma implementa un esquema de configuración centralizado que desacopla el comportamiento del entorno mediante variables de entorno, aplicando valores por defecto (*sane defaults*) para permitir el arranque inmediato en entornos locales.
+
+- *Inyección de Variables y Requisitos Mínimos*: Únicamente las variables `PUBLIC_ORIGINS` y `PRIVATE_ORIGINS` son estrictamente requeridas en despliegues reales. Parámetros operativos como puertos (`PORT_AUTH=8000`, `PORT_CORE=8001`), credenciales de base de datos, tiempo de vida de tokens JWT (15 minutos para acceso y 7 días para refresco) y niveles de log (`LOGLEVEL=error`) cuentan con valores preconfigurados en la aplicación.
+
+- *Políticas Dinámicas de CORS y Seguridad*: El parámetro `PRODUCTION_MODE` altera automáticamente las directivas de seguridad web en tiempo de ejecución:
+  - *Modo Desarrollo (`PRODUCTION_MODE=false`)*: Habilita comodines (`*`) para orígenes, métodos, cabeceras y hosts permitidos, simplificando la integración local.
+  - *Modo Producción (`PRODUCTION_MODE=true`)*: Convierte las cadenas separadas por comas de `PUBLIC_ORIGINS` y `PRIVATE_ORIGINS` en listas explícitas de orígenes permitidos. Restringe los métodos HTTP a `GET`, `POST`, `PUT`, `DELETE` y `OPTIONS`, y valida un conjunto estricto de cabeceras autorizadas (`Authorization`, `Content-Type`, `Cookie`, `X-Platform`, entre otras).
+
+- *Gestión de Secretos y Cifrado con SOPS*: Aunque la plataforma puede leer parámetros directamente del entorno, se recomienda inyectar credenciales sensibles mediante el sistema nativo de secretos de Docker Compose. Para el control de versiones seguro, la arquitectura integra *Mozilla SOPS* (Secrets OPerationS), permitiendo mantener los archivos de secretos cifrados en el repositorio y desencriptarlos dinámicamente solo para el servicio que los solicita. La modificación del archivo base `users.toml` es un requisito indispensable en producción para revocar las contraseñas predeterminadas de los usuarios administradores.
+
+- *Experiencia de Desarrollo Local (DX)*: Para evitar la sobrecarga de gestionar secretos en ejecuciones locales sin contenedores, el proyecto provee un archivo de configuración `.envrc` compatible con `direnv`. Este mecanismo detecta el directorio de trabajo y exporta automáticamente los secretos e indicadores de entorno como variables locales, acelerando la iteración de desarrollo sin comprometer las políticas de producción.
 
 = Arquitectura de dominio
 
