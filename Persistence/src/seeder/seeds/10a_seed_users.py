@@ -89,4 +89,4 @@ def upgrade() -> None:
             session.add_all(new_users)
             session.commit()
 
-    logger.info(f"User seed complete: {added_count} added, {skipped_count} skipped.")
+    logger.debug(f"User seed complete: {added_count} added, {skipped_count} skipped.")

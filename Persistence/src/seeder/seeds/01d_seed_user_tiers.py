@@ -55,6 +55,6 @@ def upgrade() -> None:
 
         session.commit()
 
-    logger.info(
+    logger.debug(
         f"UserTier seed complete: {added_count} added, {updated_count} updated."
     )
