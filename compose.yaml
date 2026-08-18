@@ -27,7 +27,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
       POSTGRES_DB: ${POSTGRES_DB:-app_db}
     ports:
-      - "5432:5432"
+      - "5432:5432" # Eliminar luego para no exponer a host.
     networks:
       - app_db_net
     volumes:
@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
     command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}"] # or mount secret
     ports:
-      - "6379:6379"
+      - "6379:6379" # Eliminar luego para no exponer a host.
     networks:
       - app_cache_net
     healthcheck:
@@ -91,7 +91,6 @@ services:
       - users_file
     networks:
       - app_db_net
-      - app_nginx
 
   auth:
     container_name: app_auth
