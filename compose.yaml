@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
     command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}"] # or mount secret
     ports:
-      - "6379:6379"
+      - "6379:6379" # Eliminar luego para no exponer a host.
     networks:
       - app_cache_net
     healthcheck:
