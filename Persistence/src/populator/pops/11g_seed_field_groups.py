@@ -1,4 +1,4 @@
-"""Puebla forms.field_groups para los IIP 2023.
+"""Puebla forms.field_groups para los IIP.
 
 Dependencias previas:
     11d_seed_questions.py
@@ -7,9 +7,9 @@ Dependencias previas:
 
 Convención de almacenamiento:
 - Grupo repetible (Card Template):
-    code = código único del grupo (ej. "FG_2023_Pregunta 1.1").
+    code = extraído de code_field_groups o generado (ej. "FG_2023_Pregunta 1.1").
     label = código de la pregunta de bucle.
-    description = enunciado completo del bucle.
+    description = extraído de field_groups o enunciado del bucle.
     card_template_id = plantilla correspondiente (NOT NULL).
     display_order = 2 cuando la pregunta es mixta; 1 en los demás casos.
 """
@@ -36,9 +36,7 @@ FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
-DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023)
-YEAR_WITH_LOOPS = 2023
-EXPECTED_CARD_COUNT = 27
+DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023, 2025)
 
 
 # -----------------------------------------------------------------------------
@@ -126,43 +124,70 @@ def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 
 
-def load_loops(excel: pd.ExcelFile) -> OrderedDict[str, dict]:
-    frame_2023 = read_sheet(excel, str(YEAR_WITH_LOOPS))
-    required_loops = {"Pregunta", "Bucle", "Bucle 2023"}
-    missing = required_loops - set(frame_2023.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas de bucle en 2023: {sorted(missing)}")
+def load_loops_for_years(
+    excel: pd.ExcelFile, years: tuple[int, ...]
+) -> list[dict]:
+    all_loops: list[dict] = []
 
-    loops: OrderedDict[str, dict] = OrderedDict()
-    for _, row in frame_2023.iterrows():
-        loop_question = clean(row["Bucle"])
-        loop_text = clean(row["Bucle 2023"])
-        parent_question = clean(row["Pregunta"])
-        if loop_question is None:
+    for year in years:
+        sheet_name = str(year)
+        if sheet_name not in excel.sheet_names:
+            logger.debug(f"Hoja {sheet_name!r} no encontrada. Omitiendo.")
             continue
-        if loop_text is None or parent_question is None:
-            raise ValueError(f"Bucle incompleto: {loop_question}")
 
-        old = loops.get(loop_question)
-        candidate = {
-            "loop_question": loop_question,
-            "loop_text": loop_text,
-            "parent_question": parent_question,
-            "is_mixed": loop_question == parent_question,
-        }
-        if old is None:
-            loops[loop_question] = candidate
-        elif normalize(old["loop_text"]) != normalize(loop_text) or normalize(
-            old["parent_question"]
-        ) != normalize(parent_question):
-            raise ValueError(f"Información contradictoria para {loop_question}.")
+        frame = read_sheet(excel, sheet_name)
+        if "Bucle" not in frame.columns:
+            logger.debug(f"Hoja {sheet_name!r} no contiene columna 'Bucle'. Omitiendo.")
+            continue
 
-    if len(loops) != EXPECTED_CARD_COUNT:
-        raise ValueError(
-            f"Se esperaban {EXPECTED_CARD_COUNT} bucles y se encontraron {len(loops)}."
-        )
+        sheet_loops: OrderedDict[str, dict] = OrderedDict()
 
-    return loops
+        for _, row in frame.iterrows():
+            loop_question = clean(row.get("Bucle"))
+            if loop_question is None:
+                continue
+
+            parent_question = clean(row.get("Pregunta"))
+            
+            # Buscar texto de bucle específico del año o fallback
+            bucle_col = f"Bucle {year}" if f"Bucle {year}" in frame.columns else "Bucle 2023"
+            loop_text = clean(row.get(bucle_col)) or clean(row.get("Bucle"))
+
+            if loop_text is None or parent_question is None:
+                raise ValueError(f"Bucle incompleto en año {year}: {loop_question}")
+
+            # Extraer columnas explícitas de field_groups si existen en el Excel
+            excel_code = clean(row.get("code_field_groups"))
+            excel_label = clean(row.get("field_groups"))
+
+            code = f"{year}_FG_{str(loop_question).replace("Pregunta","Q").replace(".","_").replace(" ","")}_{excel_code}"
+            description = excel_label or loop_text
+
+            candidate = {
+                "year": year,
+                "loop_question": loop_question,
+                "loop_text": loop_text,
+                "parent_question": parent_question,
+                "is_mixed": loop_question == parent_question,
+                "code": code,
+                "label": loop_question,
+                "description": description,
+            }
+
+            old = sheet_loops.get(loop_question)
+            if old is None:
+                sheet_loops[loop_question] = candidate
+            elif (
+                normalize(old["loop_text"]) != normalize(loop_text)
+                or normalize(old["parent_question"]) != normalize(parent_question)
+            ):
+                raise ValueError(
+                    f"Información contradictoria para {loop_question} en año {year}."
+                )
+
+        all_loops.extend(sheet_loops.values())
+
+    return all_loops
 
 
 # -----------------------------------------------------------------------------
@@ -386,24 +411,27 @@ async def save_group(conn, record: dict, update: bool) -> None:
 
 
 def build_expected_groups(
-    loops: OrderedDict[str, dict],
+    loops: list[dict],
     forms: dict[int, str],
     questions: dict[tuple[int, str], dict],
     templates: dict[str, dict],
 ) -> list[dict]:
     records: list[dict] = []
 
-    for loop_code, loop in loops.items():
-        question = questions.get((YEAR_WITH_LOOPS, normalize(loop_code)))
+    for loop in loops:
+        year = loop["year"]
+        loop_code = loop["loop_question"]
+
+        question = questions.get((year, normalize(loop_code)))
         if question is None:
-            raise ValueError(f"No existe {loop_code} en forms.questions.")
+            raise ValueError(f"No existe {loop_code} ({year}) en forms.questions.")
         if question["is_loop"] is not True:
-            raise ValueError(f"{loop_code} tiene is_loop distinto de TRUE.")
+            raise ValueError(f"{loop_code} ({year}) tiene is_loop distinto de TRUE.")
 
         template = templates.get(question["question_id"])
         if template is None:
             raise ValueError(
-                f"No existe card_template para {loop_code}. "
+                f"No existe card_template para {loop_code} ({year}). "
                 "Ejecuta antes 11f_seed_card_templates.py."
             )
 
@@ -414,12 +442,13 @@ def build_expected_groups(
                     template["card_template_id"],
                 ),
                 "kind": "CARD",
-                "year": YEAR_WITH_LOOPS,
-                "form_id": forms[YEAR_WITH_LOOPS],
+                "year": year,
+                "form_id": forms[year],
                 "question_id": question["question_id"],
                 "card_template_id": template["card_template_id"],
-                "label": loop_code,
-                "description": loop["loop_text"],
+                "code": loop["code"],
+                "label": loop["label"],
+                "description": loop["description"],
                 "display_order": 2 if loop["is_mixed"] else 1,
             }
         )
@@ -427,12 +456,6 @@ def build_expected_groups(
     keys = [record["natural_key"] for record in records]
     if len(keys) != len(set(keys)):
         raise ValueError("La construcción de field_groups produjo duplicados.")
-
-    if len(records) != EXPECTED_CARD_COUNT:
-        raise ValueError(
-            f"Se esperaban {EXPECTED_CARD_COUNT} grupos CARD y se "
-            f"construyeron {len(records)}."
-        )
 
     return records
 
@@ -449,6 +472,8 @@ async def validate_loaded(
             raise ValueError(f"No se cargó field_group para {source['natural_key']}.")
         if row["form_id"] != source["form_id"]:
             raise ValueError(f"form_id incorrecto para {source['natural_key']}.")
+        if normalize(row["code"]) != normalize(source["code"]):
+            raise ValueError(f"code incorrecto para {source['natural_key']}.")
         if normalize(row["label"]) != normalize(source["label"]):
             raise ValueError(f"label incorrecto para {source['natural_key']}.")
         if normalize(row["description"]) != normalize(source["description"]):
@@ -476,11 +501,10 @@ async def upgrade() -> None:
     logger.debug(f"Starting forms.field_groups population from {path}")
 
     excel = pd.ExcelFile(path)
-    loops = load_loops(excel)
+    loops = load_loops_for_years(excel, years)
 
     async with async_engine.begin() as conn:
         columns = await table_columns(conn, "forms", "field_groups")
-        # FIX: Include required 'code' column in column check
         required = {
             "id",
             "card_template_id",
@@ -517,14 +541,10 @@ async def upgrade() -> None:
             if not is_uuidv7(field_group_id):
                 raise ValueError(f"ID no UUIDv7: {field_group_id}")
 
-            # FIX: Supply required unique truncated code
             db_record = {
                 "id": field_group_id,
                 "card_template_id": source["card_template_id"],
-                "code": truncate(
-                    f"FG_{source['year']}_{source['label']}",
-                    columns["code"]["max_length"],
-                ),
+                "code": truncate(source["code"], columns["code"]["max_length"]),
                 "label": truncate(source["label"], columns["label"]["max_length"]),
                 "description": truncate(
                     source["description"],
