@@ -50,7 +50,7 @@ LOCAL_IIP_STRUCTURE_FILE = os.getenv(
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
 
-DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023)
+DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023, 2025)
 SECTION_LEVELS = ("COMPONENTE", "VARIABLE", "INDICADOR")
 
 LEVEL_ORDER = {
@@ -337,13 +337,13 @@ def normalize_annual_structure(df: pd.DataFrame, year: int) -> pd.DataFrame:
         raise ValueError(f"La hoja {year} no produjo una jerarquía válida.")
 
     normalized["component_code"] = normalized["component_raw_code"].apply(
-        lambda value: make_code("C", value)
+        lambda value: make_code(f"{year}_C", value)
     )
     normalized["variable_local_code"] = normalized["variable_raw_code"].apply(
-        lambda value: make_code("V", value)
+        lambda value: make_code(f"{year}_V", value)
     )
     normalized["indicator_local_code"] = normalized["indicator_raw_code"].apply(
-        lambda value: make_code("I", value)
+        lambda value: make_code(f"{year}_I", value)
     )
 
     normalized["variable_code"] = normalized["variable_local_code"]

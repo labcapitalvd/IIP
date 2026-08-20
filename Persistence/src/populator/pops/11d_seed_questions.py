@@ -45,7 +45,7 @@ FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
-DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023)
+DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023, 2025)
 
 
 # -----------------------------------------------------------------------------
@@ -622,9 +622,9 @@ async def upgrade() -> None:
             # Extracción limpia del número de la pregunta
             raw_num = re.sub(r"[^\d.]", "", source["question"]).replace(".", "_")
             code = (
-                f"Q{raw_num}"
+                f"{source['year']}_Q{raw_num}"
                 if raw_num
-                else f"{source['question']}"
+                else f"{source['year']}_{source['question']}"
             )
 
             db_record = {
