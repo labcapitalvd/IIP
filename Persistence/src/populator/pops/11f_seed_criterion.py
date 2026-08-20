@@ -23,7 +23,7 @@ import re
 import unicodedata
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from uuid import UUID
 
 import pandas as pd
@@ -164,7 +164,7 @@ def build_criteria_records(df: pd.DataFrame, year: int) -> list[dict]:
     registry = OrderedDict()
 
     for idx, row in df.iterrows():
-        source_row = idx + 2
+        source_row = cast(int, idx) + 2
         q_raw = clean_text(row.get("Pregunta"))
         if not q_raw:
             continue
