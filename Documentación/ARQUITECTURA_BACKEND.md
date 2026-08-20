@@ -165,8 +165,7 @@ Al emitir tokens, `PermissionCompiler.compile()` (`Auth/src/domain/services/toke
 | `POST` | `/actor_segments/new` | Crea un segmento | Sí |
 | `DELETE` | `/actor_segments/delete/{id}` | Elimina un segmento | Sí |
 | `POST` | `/submissions/forms/{form_id}` | Crea un envío de respuestas para un formulario | Sí |
-| `POST` | `/forms` | Crea un formulario completo (form→sections→questions→field_groups→fields→choices) | **No** (`routers/alejo.py`, ver §6) |
-| `GET` | `/forms/{form_id}` | Obtener formulario | **No** (mismo archivo, además marcado `501 Not Implemented`) |
+| `POST` | `/forms` | Crea un formulario completo (form→sections→questions→card_template→field_groups→fields→choices) | Sí (corregido el 2026-08-20, ver §6 y §8.3) |
 | `GET` | `/results/get/one` | Obtener una edición de índice/resultado | **No** (`routers/results.py`, cuerpo vacío) |
 
 Todas las rutas de `Core` requieren `AccessContext` (Bearer JWT), pero **ningún endpoint valida permisos RBAC/ReBAC todavía** — solo se decodifica el token para obtener `user_id`; la autorización granular (¿puede este usuario crear un `Actor`? ¿pertenece a este `Actor`?) no está implementada en la capa de routers/aplicación.
@@ -177,8 +176,7 @@ Esta sección documenta honestamente lo que el código refleja hoy, para evitar 
 
 | Área | Estado | Detalle |
 |---|---|---|
-| `Core/src/routers/alejo.py` (`POST /forms`) | **Roto si se monta** | Importa `from application.forms import FormAppService`, pero el módulo real es `application/alejo.py` y `application/__init__.py` no exporta `FormAppService`. Además usa `form_data.anno` (año), campo que no existe en el modelo `Form` actual (`code`, `label`, `description`). No está incluido en `main.py`, así que hoy no rompe el arranque. |
-| `Core/src/routers/forms.py` | **Duplicado/obsoleto** | Define otro router `/forms` que reutiliza esquemas de `Actor` (`ActorSchema`) en vez de esquemas de formulario — parece un remanente de copiar/pegar. Tampoco está montado. |
+| `POST /forms` (`Core/src/routers/forms.py`) | **Corregido y montado** (2026-08-20) | Los archivos `routers/alejo.py`/`application/alejo.py`/`domain/services/alejo.py` (nombrados así por el autor original) y el duplicado muerto `routers/forms.py`/`application/form_design.py` se consolidaron en un único flujo `routers/forms.py → application/forms.py → domain/services/forms.py`, ya montado en `main.py`. El esquema de request (`schemas/forms.py`) ahora usa `code`/`label`/`description` (igual que las columnas reales) en vez de los inventados `anno`/`title`, y anida `field_groups` dentro de `card_template` (antes colgaban directo de `question`, que no es como está la FK real). Ver §8.3 para la forma exacta del JSON. |
 | `Core/src/routers/results.py` | **Stub vacío** | El endpoint no tiene cuerpo (`pass` implícito), no está montado. |
 | `Auth/src/routers/files.py` | **Sin implementar** | Todo el CRUD de archivos está comentado. |
 | `grading.Assignment` | **Declarado, no modelado** | `TargetTable.ASSIGNMENTS` existe como referencia de tabla y hay un campo `assignment_id` comentado en `Criterion`, pero no existe una clase `Assignment` ni migración para ella. |
@@ -689,7 +687,7 @@ erDiagram
 
 ## 10. Resumen de recomendaciones
 
-1. **Cerrar el endpoint de creación de formularios** (`Core/src/routers/alejo.py`): corregir el import (`application.alejo` en vez de `application.forms`), alinear `CreateFormRequest`/`Form` (el campo `anno` no existe en el modelo), y decidir si reemplaza o retira `routers/forms.py` (duplicado).
+1. ~~Cerrar el endpoint de creación de formularios~~ — hecho el 2026-08-20 (`routers/forms.py` + `application/forms.py` + `domain/services/forms.py`).
 2. **Implementar la verificación de autorización** en los routers de `Core` (RBAC/ReBAC contra el hash de Valkey) — hoy solo se valida que el JWT sea válido, no qué puede hacer ese usuario.
 3. **Definir el servicio de agregación de resultados** (`Result.final_score` a partir de `Grade`/`Criterion.weight`) — no se encontró lógica de cálculo implementada.
 4. **Formalizar el arranque de `persister`** en el pipeline de despliegue (documentar o automatizar que `--setup` debe correr antes de exponer el servicio a tráfico), ya que hoy depende de que un operador humano ejecute `launcher.sh` en el orden correcto.

@@ -33,3 +33,35 @@ class ActorNotFoundError(ActorError):
 class ActorSegmentNotFoundError(ActorSegmentError):
     status_code = 404  # Not Found
     message = "The specified segment could not be found."
+
+
+class FormError(BaseDomainError):
+    """Base error for Form design domain logic."""
+
+    status_code = 400
+    message = "An error occurred in the Form design service."
+
+
+class FormAlreadyExistsError(FormError):
+    status_code = 409  # Conflict
+    message = "A form with this code is already registered in the system."
+
+
+class FormNotFoundError(FormError):
+    status_code = 404  # Not Found
+    message = "The specified form could not be found."
+
+
+class FieldTypeNotFoundError(FormError):
+    status_code = 404  # Not Found
+    message = "The specified field type could not be found."
+
+
+class SectionTypeNotFoundError(FormError):
+    status_code = 404  # Not Found
+    message = "The specified section type could not be found."
+
+
+class FormStructureConflictError(FormError):
+    status_code = 409  # Conflict
+    message = "Duplicate codes were found within the submitted form structure."

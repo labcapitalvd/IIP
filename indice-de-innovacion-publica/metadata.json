@@ -1,0 +1,6 @@
+{
+  "name": "Índice de Innovación Pública",
+  "description": "Plataforma para la recolección, administración y diagnóstico de datos del Índice de Innovación Pública para entidades y administradores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

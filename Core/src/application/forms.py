@@ -15,31 +15,24 @@ class FormAppService:
     async def create_form(self, form_data: CreateFormRequest) -> ResponseFormCreate:
         """
         Crea un nuevo formulario completo con su estructura jerárquica.
-        Maneja la transacción y validaciones.
+        La transacción se confirma automáticamente al salir del bloque
+        `async with` (ver `UnitOfWork.__aexit__`).
 
         Args:
             form_data: Datos del formulario a crear
 
         Returns:
             ResponseFormCreate: Respuesta con los datos del formulario creado
-
-        Raises:
-            ValueError: Si hay errores en la validación o el año ya existe
         """
         async with FormDesignUoW() as uow:
-            # Delegar la lógica de dominio al servicio
             form = await self.form_service.create_form(
-                form_data=form_data,
                 uow=uow,
+                form_data=form_data,
             )
 
-            # Commit de la transacción
-            await uow.commit()
-
-            # Retornar la respuesta
             return ResponseFormCreate(
                 id=form.id,
-                anno=form.anno,
-                name=form.name,
+                code=form.code,
+                label=form.label,
                 description=form.description,
             )

@@ -1,6 +1,6 @@
 from typing import Annotated, Optional, List
 from annotated_types import Len
-from pydantic import Field, validator
+from pydantic import Field
 
 from shared.schemas import BaseSchema, UuidSchema
 
@@ -19,42 +19,57 @@ class RequestForm(UuidSchema):
 
 
 class CreateFieldChoiceRequest(BaseSchema):
-    """Modelo para crear opciones de campo."""
+    """Modelo para crear opciones de campo (tabla `forms.field_choices`)."""
 
-    title: str = Field(
-        ..., min_length=1, max_length=255, description="Título de la opción"
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="Código único dentro del campo"
     )
-    description: str = Field(
-        ..., min_length=1, max_length=255, description="Descripción de la opción"
+    label: str = Field(
+        ..., min_length=1, max_length=255, description="Etiqueta visible de la opción"
+    )
+    description: str | None = Field(
+        default=None, max_length=4096, description="Descripción de la opción"
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
 
 
 class CreateFieldRequest(BaseSchema):
-    """Modelo para crear campos dentro de grupos."""
+    """Modelo para crear campos dentro de un grupo (tabla `forms.fields`)."""
 
-    title: str = Field(
-        ..., min_length=1, max_length=255, description="Título del campo"
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="Código único dentro del grupo"
     )
-    description: str = Field(
-        ..., min_length=1, max_length=4096, description="Descripción del campo"
+    label: str = Field(
+        ..., min_length=1, max_length=255, description="Etiqueta visible del campo"
+    )
+    description: str | None = Field(
+        default=None, max_length=4096, description="Descripción del campo"
     )
     required: bool = Field(default=True, description="Si el campo es requerido")
-    field_type_id: str = Field(..., description="ID del tipo de campo (UUID)")
+    field_type_id: str = Field(
+        ..., description="UUID del tipo de campo (tabla reference.field_types)"
+    )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
     field_choices: list["CreateFieldChoiceRequest"] = Field(
-        default_factory=list, description="Opciones del campo si aplica"
+        default_factory=list,
+        description="Opciones del campo (solo aplica a tipos de selección)",
     )
 
 
 class CreateFieldGroupRequest(BaseSchema):
-    """Modelo para crear grupos de campos."""
+    """Modelo para crear grupos de campos (tabla `forms.field_groups`)."""
 
-    title: str = Field(
-        ..., min_length=1, max_length=255, description="Título del grupo"
+    code: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Código único dentro del card template",
     )
-    description: str = Field(
-        ..., min_length=1, max_length=4096, description="Descripción del grupo"
+    label: str = Field(
+        ..., min_length=1, max_length=255, description="Etiqueta visible del grupo"
+    )
+    description: str | None = Field(
+        default=None, max_length=4096, description="Descripción del grupo"
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
     fields: list["CreateFieldRequest"] = Field(
@@ -62,39 +77,69 @@ class CreateFieldGroupRequest(BaseSchema):
     )
 
 
-class CreateQuestionRequest(BaseSchema):
-    """Modelo para crear preguntas dentro de secciones."""
+class CreateCardTemplateRequest(BaseSchema):
+    """
+    Modelo para la plantilla de tarjeta de una pregunta (tabla `forms.card_templates`).
+    Toda pregunta tiene exactamente una, se use o no `is_loop`.
+    """
 
-    title: str = Field(
-        ..., min_length=1, max_length=255, description="Título de la pregunta"
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="Código único dentro de la pregunta"
     )
-    description: str = Field(
-        ..., min_length=1, max_length=4096, description="Descripción de la pregunta"
+    label: str = Field(
+        ..., min_length=1, max_length=255, description="Etiqueta visible de la tarjeta"
+    )
+    description: str | None = Field(
+        default=None, max_length=4096, description="Descripción de la tarjeta"
+    )
+    helper: str | None = Field(
+        default=None, description="Texto de ayuda para la tarjeta"
+    )
+    field_groups: list["CreateFieldGroupRequest"] = Field(
+        default_factory=list, description="Grupos de campos de la tarjeta"
+    )
+
+
+class CreateQuestionRequest(BaseSchema):
+    """Modelo para crear preguntas dentro de secciones (tabla `forms.questions`)."""
+
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="Código único dentro de la sección"
+    )
+    label: str = Field(
+        ..., min_length=1, max_length=255, description="Etiqueta visible de la pregunta"
+    )
+    description: str | None = Field(
+        default=None, max_length=4096, description="Descripción de la pregunta"
     )
     helper: str | None = Field(None, description="Texto de ayuda para la pregunta")
     required: bool = Field(default=True, description="Si la pregunta es requerida")
     is_loop: bool = Field(
-        default=False, description="Si la pregunta permite múltiples respuestas"
+        default=False,
+        description="Si la pregunta captura tarjetas repetibles (usa card_template.field_groups en bucle)",
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
-    field_groups: list["CreateFieldGroupRequest"] = Field(
-        default_factory=list, description="Grupos de campos de la pregunta"
+    card_template: "CreateCardTemplateRequest" = Field(
+        ..., description="Plantilla de tarjeta de la pregunta (obligatoria)"
     )
 
 
 class CreateSectionRequest(BaseSchema):
-    """Modelo para crear secciones del formulario."""
+    """Modelo para crear secciones del formulario (tabla `forms.sections`)."""
 
-    title: str = Field(
-        ..., min_length=1, max_length=255, description="Título de la sección"
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="Código único dentro del formulario"
     )
-    description: str = Field(
-        ..., min_length=1, max_length=4096, description="Descripción de la sección"
+    label: str = Field(
+        ..., min_length=1, max_length=255, description="Etiqueta visible de la sección"
+    )
+    description: str | None = Field(
+        default=None, max_length=4096, description="Descripción de la sección"
     )
     helper: str | None = Field(None, description="Texto de ayuda para la sección")
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
     section_type_id: str | None = Field(
-        None, description="ID del tipo de sección (UUID)"
+        None, description="UUID del tipo de sección (tabla reference.section_types)"
     )
     questions: list["CreateQuestionRequest"] = Field(
         default_factory=list, description="Preguntas de la sección"
@@ -108,26 +153,20 @@ CreateSectionRequest.model_rebuild()
 
 
 class CreateFormRequest(BaseSchema):
-    """Modelo para crear un formulario completo con su estructura."""
+    """Modelo para crear un formulario completo con su estructura (tabla `forms.forms`)."""
 
-    anno: int = Field(
-        ..., ge=1900, le=2100, description="Año del formulario (debe ser único)"
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="Código único del formulario"
     )
-    name: str = Field(
-        ..., min_length=1, max_length=512, description="Nombre del formulario"
+    label: str = Field(
+        ..., min_length=1, max_length=255, description="Nombre del formulario"
     )
-    description: str = Field(
-        ..., min_length=1, max_length=4096, description="Descripción del formulario"
+    description: str | None = Field(
+        default=None, max_length=4096, description="Descripción del formulario"
     )
     sections: list["CreateSectionRequest"] = Field(
         ..., min_length=1, description="Secciones del formulario"
     )
-
-    @validator("sections")
-    def validate_sections(cls, v):
-        if not v:
-            raise ValueError("Al menos una sección es requerida")
-        return v
 
 
 ##############################################################################################
@@ -138,29 +177,26 @@ class CreateFormRequest(BaseSchema):
 class ResponseFormCreate(UuidSchema):
     """Modelo de respuesta para la creación exitosa de un formulario."""
 
-    anno: int = Field(..., description="Año del formulario")
-    name: str = Field(..., description="Nombre del formulario")
-    description: str = Field(..., description="Descripción del formulario")
+    code: str = Field(..., description="Código del formulario")
+    label: str = Field(..., description="Nombre del formulario")
+    description: str | None = Field(default=None, description="Descripción del formulario")
 
 
 class ResponseForm(UuidSchema):
-    """Modelo para representar una edición de índice de forma resumida."""
+    """Modelo para representar un formulario de forma resumida."""
 
-    anno: int = Field(..., ge=1900, le=2100, description="Año del índice")
-    name: str | None = Field(
-        None, min_length=1, max_length=512, description="Nombre del índice"
+    code: str = Field(..., min_length=1, max_length=50, description="Código del formulario")
+    label: str | None = Field(
+        None, min_length=1, max_length=512, description="Nombre del formulario"
     )
     description: str | None = Field(
-        None, min_length=1, max_length=4096, description="Descripción del índice"
-    )
-    data: str | None = Field(
-        None, min_length=1, max_length=4096, description="Datos del índice"
+        None, min_length=1, max_length=4096, description="Descripción del formulario"
     )
 
 
 class ResponseForms(BaseSchema):
-    """Modelo para representar una lista de índices de forma resumida."""
+    """Modelo para representar una lista de formularios de forma resumida."""
 
-    form_editions: Annotated[list[ResponseForm], Len(min_length=1, max_length=512)] = (
-        Field(..., description="Lista de índices")
+    forms: Annotated[list[ResponseForm], Len(min_length=0, max_length=512)] = Field(
+        ..., description="Lista de formularios"
     )

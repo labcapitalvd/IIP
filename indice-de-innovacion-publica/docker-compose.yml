@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # ==========================================================
+  # Índice de Innovación Pública (IIP) - Frontend Web App
+  # ==========================================================
+  iip-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iip-veeduria-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - VITE_AUTH_API_URL=http://localhost:4293
+      - VITE_CORE_API_URL=http://localhost:4294
+    networks:
+      - iip-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================================
+  # Microservicios FastAPI Opcionales (Referencia de Red)
+  # ==========================================================
+  # auth-service:
+  #   image: python:3.11-slim
+  #   container_name: iip-auth-service
+  #   ports:
+  #     - "4293:4293"
+  #   networks:
+  #     - iip-network
+  #
+  # core-service:
+  #   image: python:3.11-slim
+  #   container_name: iip-core-service
+  #   ports:
+  #     - "4294:4294"
+  #   networks:
+  #     - iip-network
+
+networks:
+  iip-network:
+    name: iip-veeduria-net
+    driver: bridge

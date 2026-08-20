@@ -141,6 +141,21 @@ services:
       - app_nginx
       - app_cache_net
 
+  frontend:
+    container_name: app_frontend
+    build:
+      context: ./indice-de-innovacion-publica
+      dockerfile: Dockerfile
+    image: docker.io/labcapital/apps:app-frontend
+    restart: unless-stopped
+    depends_on:
+      - auth
+      - core
+    ports:
+      - "3000:3000"
+    networks:
+      - app_nginx
+
 networks:
   app_db_net:
     driver: bridge
