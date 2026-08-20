@@ -283,8 +283,8 @@ def load_loops(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[LoopRecord]:
                 )
                 conflicts = []
                 for field in fields:
-                    left = current[field]  # type: ignore
-                    right = candidate[field]  # type: ignore
+                    left = current[field]
+                    right = candidate[field]
                     equal = (
                         left == right
                         if field == "is_mixed"
@@ -672,7 +672,7 @@ async def upgrade() -> None:
         if missing:
             raise ValueError(f"Faltan columnas en forms.questions: {sorted(missing)}")
 
-        forms = await get_forms(conn, years)
+        # forms = await get_forms(conn, years)
         indicators = await get_indicator_map(conn, years)
         questions = await get_question_map(conn, years)
         helper_value = None if columns["helper"]["nullable"] else ""
