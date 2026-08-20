@@ -23,7 +23,7 @@ import re
 import unicodedata
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 from uuid import UUID
 
 import pandas as pd
@@ -171,7 +171,7 @@ def build_criteria_records(df: pd.DataFrame, year: int) -> list[dict]:
 
         q_code = make_code("Q", q_raw)
         is_loop = clean_text(row.get("Bucle")) is not None
-        group_code = sanitize_code_part(row.get("code_field_groups"))
+        # group_code = sanitize_code_part(row.get("code_field_groups"))
         field_code = sanitize_code_part(row.get("code_field"))
 
         if is_loop and field_code:
