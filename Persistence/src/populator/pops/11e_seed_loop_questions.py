@@ -1,4 +1,4 @@
-"""Puebla las preguntas tipo bucle de 2023 en forms.questions.
+"""Puebla las preguntas tipo bucle para cualquier año configurado en DEFAULT_ACTIVE_YEARS o IIP_ACTIVE_YEARS.
 
 Dependencias previas:
     11c_seed_sections.py
@@ -14,12 +14,12 @@ Convención de almacenamiento:
 - Las ponderaciones Maxb y Max_subpregunta_bucle NO se guardan aquí.
 
 Caso especial:
-- Pregunta 28.1 es pregunta principal y bucle al mismo tiempo.
-- Se conserva una sola fila en forms.questions.
-- El enunciado principal permanece en description.
-- El enunciado del bucle se almacenará en forms.card_templates.description.
+- Si una pregunta es principal y bucle al mismo tiempo (ej. Pregunta 28.1 de 2023):
+  - Se conserva una sola fila en forms.questions.
+  - El enunciado principal permanece en description.
+  - El enunciado del bucle se almacenará en forms.card_templates.description.
 
-El script no depende de helper en questions ni en sections y conserva UUIDv7.
+El script es idempotente y conserva UUIDv7.
 """
 
 from __future__ import annotations
@@ -45,16 +45,34 @@ FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
-YEAR = 2023
-EXPECTED_LOOP_COUNT = int(os.getenv("IIP_EXPECTED_2023_LOOP_COUNT", "27"))
-EXPECTED_SUBQUESTION_COUNT = int(
-    os.getenv("IIP_EXPECTED_2023_SUBQUESTION_COUNT", "101")
-)
-
+DEFAULT_ACTIVE_YEARS = (2023, 2025)
 
 # -----------------------------------------------------------------------------
 # UTILIDADES
 # -----------------------------------------------------------------------------
+
+
+def active_years() -> tuple[int, ...]:
+    raw = os.getenv("IIP_ACTIVE_YEARS")
+    if not raw:
+        return DEFAULT_ACTIVE_YEARS
+
+    years: list[int] = []
+    for value in raw.split(","):
+        value = value.strip()
+        if not value:
+            continue
+        try:
+            years.append(int(value))
+        except ValueError as exc:
+            raise ValueError(f"Año inválido en IIP_ACTIVE_YEARS: {value!r}") from exc
+
+    if not years or len(years) != len(set(years)):
+        raise ValueError(
+            f"IIP_ACTIVE_YEARS debe contener años únicos y válidos: {years}"
+        )
+
+    return tuple(years)
 
 
 def clean(value):
@@ -150,6 +168,7 @@ class SubquestionDict(TypedDict):
 
 
 class LoopRecord(TypedDict):
+    year: int
     source_row: int
     component: Any
     variable: Any
@@ -162,162 +181,165 @@ class LoopRecord(TypedDict):
     subquestions: OrderedDict[int, Any] | list[SubquestionDict]
 
 
-def load_loops(excel: pd.ExcelFile) -> list[LoopRecord]:
-    frame = read_sheet(excel, str(YEAR))
-    required = {
-        "Componente",
-        "Variable",
-        "Indicador",
-        "Pregunta",
-        f"Pregunta {YEAR}",
-        "Bucle",
-        f"Bucle {YEAR}",
-        "Orden_subpregunta_bucle",
-        "Subpregunta_bucle",
-    }
-    missing = required - set(frame.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas en la hoja {YEAR}: {sorted(missing)}")
+def load_loops(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[LoopRecord]:
+    all_records: list[LoopRecord] = []
 
-    data = pd.DataFrame(
-        {
-            "source_row": frame.index + 2,
-            "component": frame["Componente"],
-            "variable": frame["Variable"],
-            "indicator": frame["Indicador"],
-            "parent_question": frame["Pregunta"],
-            "parent_text": frame[f"Pregunta {YEAR}"],
-            "loop_question": frame["Bucle"],
-            "loop_text": frame[f"Bucle {YEAR}"],
-            "subquestion_order": frame["Orden_subpregunta_bucle"],
-            "subquestion_text": frame["Subpregunta_bucle"],
+    for year in years:
+        sheet_name = str(year)
+        if sheet_name not in excel.sheet_names:
+            logger.warning(f"La hoja {year} no existe en el archivo Excel. Se omite.")
+            continue
+
+        frame = read_sheet(excel, sheet_name)
+        required = {
+            "Componente",
+            "Variable",
+            "Indicador",
+            "Pregunta",
+            f"Pregunta {year}",
+            "Bucle",
+            f"Bucle {year}",
+            "Orden_subpregunta_bucle",
+            "Subpregunta_bucle",
         }
-    )
-
-    for column in data.columns:
-        if column != "source_row":
-            data[column] = data[column].apply(clean)
-
-    fill_columns = [
-        "component",
-        "variable",
-        "indicator",
-        "parent_question",
-        "parent_text",
-    ]
-    data[fill_columns] = data[fill_columns].ffill()
-
-    data = data[
-        data["component"].notna()
-        & data["variable"].notna()
-        & data["indicator"].notna()
-        & data["parent_question"].notna()
-        & data["loop_question"].notna()
-        & data["loop_text"].notna()
-        & data["subquestion_text"].notna()
-    ].copy()
-
-    registry: OrderedDict[str, LoopRecord] = OrderedDict()
-
-    for _, row in data.iterrows():
-        loop_question = str(row["loop_question"])
-        candidate: LoopRecord = {
-            "source_row": int(row["source_row"]),
-            "component": row["component"],
-            "variable": row["variable"],
-            "indicator": row["indicator"],
-            "parent_question": row["parent_question"],
-            "parent_text": row["parent_text"],
-            "loop_question": loop_question,
-            "loop_text": row["loop_text"],
-            "is_mixed": loop_question == row["parent_question"],
-            "subquestions": OrderedDict(),
-        }
-
-        current = registry.get(loop_question)
-        if current is None:
-            registry[loop_question] = candidate
-            current = candidate
-        else:
-            fields = (
-                "component",
-                "variable",
-                "indicator",
-                "parent_question",
-                "loop_text",
-                "is_mixed",
+        missing = required - set(frame.columns)
+        if missing:
+            logger.debug(
+                f"Omitiendo año {year}: no contiene columnas de bucle ({sorted(missing)})."
             )
-            conflicts = []
-            for field in fields:
-                left = current[field]  # type: ignore
-                right = candidate[field]  # type: ignore
-                equal = (
-                    left == right
-                    if field == "is_mixed"
-                    else normalize(left) == normalize(right)
-                )
-                if not equal:
-                    conflicts.append(field)
-            if conflicts:
-                raise ValueError(
-                    f"Información contradictoria para {loop_question}. "
-                    f"Campos: {conflicts}. Fila: {candidate['source_row']}."
-                )
+            continue
 
-        order = parse_positive_integer(
-            row["subquestion_order"],
-            f"Orden_subpregunta_bucle, fila {int(row['source_row'])}",
-        )
-        text_value = row["subquestion_text"]
-
-        subquestions_dict = current["subquestions"]
-        if isinstance(subquestions_dict, OrderedDict):
-            previous = subquestions_dict.get(order)
-            if previous is not None and normalize(previous) != normalize(text_value):
-                raise ValueError(
-                    f"Subpregunta contradictoria en {loop_question}, orden {order}."
-                )
-            subquestions_dict[order] = text_value
-
-    records = list(registry.values())
-    records.sort(key=lambda item: question_order(item["loop_question"]))
-
-    total_subquestions = 0
-    for record in records:
-        subq_map = record["subquestions"]
-        if isinstance(subq_map, OrderedDict):
-            orders = sorted(subq_map.keys())
-            if orders != list(range(1, len(orders) + 1)):
-                raise ValueError(
-                    f"Órdenes no consecutivos en {record['loop_question']}: {orders}"
-                )
-            record["subquestions"] = [
-                {
-                    "order": int(order),
-                    "text": subq_map[order],
-                }
-                for order in orders
-            ]
-            total_subquestions += len(orders)
-
-    if len(records) != EXPECTED_LOOP_COUNT:
-        raise ValueError(
-            f"Se esperaban {EXPECTED_LOOP_COUNT} bucles y se encontraron "
-            f"{len(records)}."
-        )
-    if total_subquestions != EXPECTED_SUBQUESTION_COUNT:
-        raise ValueError(
-            f"Se esperaban {EXPECTED_SUBQUESTION_COUNT} subpreguntas de bucle "
-            f"y se encontraron {total_subquestions}."
+        data = pd.DataFrame(
+            {
+                "source_row": frame.index + 2,
+                "component": frame["Componente"],
+                "variable": frame["Variable"],
+                "indicator": frame["Indicador"],
+                "parent_question": frame["Pregunta"],
+                "parent_text": frame[f"Pregunta {year}"],
+                "loop_question": frame["Bucle"],
+                "loop_text": frame[f"Bucle {year}"],
+                "subquestion_order": frame["Orden_subpregunta_bucle"],
+                "subquestion_text": frame["Subpregunta_bucle"],
+            }
         )
 
-    mixed = [record for record in records if record["is_mixed"]]
-    if len(mixed) != 1:
-        raise ValueError(
-            f"Se esperaba un único bucle mixto y se encontraron {len(mixed)}."
+        for column in data.columns:
+            if column != "source_row":
+                data[column] = data[column].apply(clean)
+
+        fill_columns = [
+            "component",
+            "variable",
+            "indicator",
+            "parent_question",
+            "parent_text",
+        ]
+        data[fill_columns] = data[fill_columns].ffill()
+
+        data = data[
+            data["component"].notna()
+            & data["variable"].notna()
+            & data["indicator"].notna()
+            & data["parent_question"].notna()
+            & data["loop_question"].notna()
+            & data["loop_text"].notna()
+            & data["subquestion_text"].notna()
+        ].copy()
+
+        if data.empty:
+            continue
+
+        registry: OrderedDict[str, LoopRecord] = OrderedDict()
+
+        for _, row in data.iterrows():
+            loop_question = str(row["loop_question"])
+            candidate: LoopRecord = {
+                "year": year,
+                "source_row": int(row["source_row"]),
+                "component": row["component"],
+                "variable": row["variable"],
+                "indicator": row["indicator"],
+                "parent_question": row["parent_question"],
+                "parent_text": row["parent_text"],
+                "loop_question": loop_question,
+                "loop_text": row["loop_text"],
+                "is_mixed": loop_question == row["parent_question"],
+                "subquestions": OrderedDict(),
+            }
+
+            current = registry.get(loop_question)
+            if current is None:
+                registry[loop_question] = candidate
+                current = candidate
+            else:
+                fields = (
+                    "component",
+                    "variable",
+                    "indicator",
+                    "parent_question",
+                    "loop_text",
+                    "is_mixed",
+                )
+                conflicts = []
+                for field in fields:
+                    left = current[field]  # type: ignore
+                    right = candidate[field]  # type: ignore
+                    equal = (
+                        left == right
+                        if field == "is_mixed"
+                        else normalize(left) == normalize(right)
+                    )
+                    if not equal:
+                        conflicts.append(field)
+                if conflicts:
+                    raise ValueError(
+                        f"Información contradictoria para {loop_question} en {year}. "
+                        f"Campos: {conflicts}. Fila: {candidate['source_row']}."
+                    )
+
+            order = parse_positive_integer(
+                row["subquestion_order"],
+                f"Orden_subpregunta_bucle ({year}), fila {int(row['source_row'])}",
+            )
+            text_value = row["subquestion_text"]
+
+            subquestions_dict = current["subquestions"]
+            if isinstance(subquestions_dict, OrderedDict):
+                previous = subquestions_dict.get(order)
+                if previous is not None and normalize(previous) != normalize(
+                    text_value
+                ):
+                    raise ValueError(
+                        f"Subpregunta contradictoria en {loop_question} ({year}), orden {order}."
+                    )
+                subquestions_dict[order] = text_value
+
+        year_records = list(registry.values())
+        year_records.sort(key=lambda item: question_order(item["loop_question"]))
+
+        for record in year_records:
+            subq_map = record["subquestions"]
+            if isinstance(subq_map, OrderedDict):
+                orders = sorted(subq_map.keys())
+                if orders != list(range(1, len(orders) + 1)):
+                    raise ValueError(
+                        f"Órdenes no consecutivos en {record['loop_question']} ({year}): {orders}"
+                    )
+                record["subquestions"] = [
+                    {
+                        "order": int(order),
+                        "text": subq_map[order],
+                    }
+                    for order in orders
+                ]
+
+        all_records.extend(year_records)
+        logger.debug(
+            f"Año {year}: {len(year_records)} preguntas de bucle identificadas."
         )
 
-    return records
+    return all_records
 
 
 # -----------------------------------------------------------------------------
@@ -350,27 +372,42 @@ async def table_columns(conn, schema: str, table: str) -> dict:
     }
 
 
-async def get_form(conn) -> str:
+async def get_forms(conn, years: tuple[int, ...]) -> dict[int, str]:
     result = await conn.execute(
-        text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
-        {"year": str(YEAR)},  # <--- Casteado a string
+        text("SELECT code, id::text AS id FROM forms.forms ORDER BY code;")
     )
-    rows = result.mappings().all()
-    if len(rows) != 1:
-        raise ValueError(
-            f"Debe existir un único formulario {YEAR}; encontrados: {len(rows)}."
-        )
-    form_id = rows[0]["id"]
-    if not is_uuidv7(form_id):
-        raise ValueError(f"form_id de {YEAR} no es UUIDv7: {form_id}")
-    return form_id
+
+    grouped: dict[int, list[str]] = defaultdict(list)
+    for row in result.mappings().all():
+        year = int(row["code"])
+        if year in years:
+            grouped[year].append(row["id"])
+
+    lookup: dict[int, str] = {}
+    for year in years:
+        ids = grouped.get(year, [])
+        if len(ids) != 1:
+            raise ValueError(
+                f"Debe existir un único formulario para {year}; "
+                f"encontrados: {len(ids)}."
+            )
+        if not is_uuidv7(ids[0]):
+            raise ValueError(f"form_id de {year} no es UUIDv7: {ids[0]}")
+        lookup[year] = ids[0]
+
+    return lookup
 
 
-async def get_indicator_map(conn) -> dict[tuple[str, str, str], str]:
+async def get_indicator_map(
+    conn,
+    years: tuple[int, ...],
+) -> dict[tuple[int, str, str, str], str]:
+    """Relaciona año + jerarquía normalizada con el section_id del INDICADOR."""
     result = await conn.execute(
         text(
             """
             SELECT
+                form.code,
                 component.label AS component_label,
                 variable.label AS variable_label,
                 indicator.label AS indicator_label,
@@ -391,30 +428,41 @@ async def get_indicator_map(conn) -> dict[tuple[str, str, str], str]:
              AND UPPER(TRIM(component_type.label)) = 'COMPONENTE'
             JOIN forms.forms form
               ON form.id = indicator.form_id
-            WHERE form.code = :year;
+            ORDER BY form.code, component.label, variable.label, indicator.label;
             """
-        ),
-        {"year": str(YEAR)},  # <--- Casteado a string
+        )
     )
 
-    lookup: dict[tuple[str, str, str], str] = {}
+    lookup: dict[tuple[int, str, str, str], str] = {}
     for row in result.mappings().all():
+        year = int(row["code"])
+        if year not in years:
+            continue
+
         indicator_id = row["indicator_id"]
         if not is_uuidv7(indicator_id):
             raise ValueError(f"Indicador no UUIDv7: {indicator_id}")
+
         key = (
+            year,
             normalize(row["component_label"]),
             normalize(row["variable_label"]),
             normalize(row["indicator_label"]),
         )
+
         if key in lookup and lookup[key] != indicator_id:
-            raise ValueError(f"Indicador ambiguo para {key}.")
+            raise ValueError(f"Indicador ambiguo para la llave {key}.")
+
         lookup[key] = indicator_id
 
     return lookup
 
 
-async def get_question_map(conn, form_id: str) -> dict[str, dict]:
+async def get_question_map(
+    conn,
+    years: tuple[int, ...],
+) -> dict[tuple[int, str], dict]:
+    """Mapea (año, label_normalizado) -> registro de la pregunta en la BD."""
     result = await conn.execute(
         text(
             """
@@ -426,25 +474,27 @@ async def get_question_map(conn, form_id: str) -> dict[str, dict]:
                 q.description,
                 q.display_order,
                 q.required,
-                q.is_loop
+                q.is_loop,
+                f.code AS form_code
             FROM forms.questions q
             JOIN forms.sections s ON q.section_id = s.id
-            WHERE s.form_id = CAST(:form_id AS uuid)
-            ORDER BY q.label, q.id;
+            JOIN forms.forms f ON s.form_id = f.id
+            ORDER BY f.code, q.label, q.id;
             """
-        ),
-        {"form_id": form_id},
+        )
     )
 
-    grouped: dict[str, list[dict]] = defaultdict(list)
+    grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
     for row in result.mappings().all():
-        grouped[normalize(row["label"])].append(dict(row))
+        year = int(row["form_code"])
+        if year in years:
+            grouped[(year, normalize(row["label"]))].append(dict(row))
 
-    lookup: dict[str, dict] = {}
+    lookup: dict[tuple[int, str], dict] = {}
     for key, rows in grouped.items():
         if len(rows) > 1:
             raise ValueError(
-                f"Preguntas duplicadas para label {key}: "
+                f"Preguntas duplicadas para la llave {key}: "
                 f"{[row['question_id'] for row in rows]}"
             )
         if not is_uuidv7(rows[0]["question_id"]):
@@ -537,19 +587,22 @@ async def update_mixed_loop(
 async def validate_loaded(
     conn,
     loops: list[LoopRecord],
-    form_id: str,
-    indicators: dict[tuple[str, str, str], str],
+    years: tuple[int, ...],
+    indicators: dict[tuple[int, str, str, str], str],
 ) -> None:
-    questions = await get_question_map(conn, form_id)
+    questions = await get_question_map(conn, years)
 
     for loop in loops:
-        key = normalize(loop["loop_question"])
+        key = (loop["year"], normalize(loop["loop_question"]))
         question = questions.get(key)
         if question is None:
-            raise ValueError(f"No se cargó el bucle {loop['loop_question']}.")
+            raise ValueError(
+                f"No se cargó el bucle {loop['loop_question']} ({loop['year']})."
+            )
 
         expected_section = indicators[
             (
+                loop["year"],
                 normalize(loop["component"]),
                 normalize(loop["variable"]),
                 normalize(loop["indicator"]),
@@ -557,18 +610,26 @@ async def validate_loaded(
         ]
 
         if question["section_id"] != expected_section:
-            raise ValueError(f"section_id incorrecto para {loop['loop_question']}.")
+            raise ValueError(
+                f"section_id incorrecto para {loop['loop_question']} ({loop['year']})."
+            )
         if question["is_loop"] is not True:
-            raise ValueError(f"is_loop debe ser TRUE para {loop['loop_question']}.")
+            raise ValueError(
+                f"is_loop debe ser TRUE para {loop['loop_question']} ({loop['year']})."
+            )
         if question["required"] is not True:
-            raise ValueError(f"required debe ser TRUE para {loop['loop_question']}.")
+            raise ValueError(
+                f"required debe ser TRUE para {loop['loop_question']} ({loop['year']})."
+            )
         if not is_uuidv7(question["question_id"]):
-            raise ValueError(f"UUID no es versión 7 para {loop['loop_question']}.")
+            raise ValueError(
+                f"UUID no es versión 7 para {loop['loop_question']} ({loop['year']})."
+            )
 
         if not loop["is_mixed"]:
             if normalize(question["description"]) != normalize(loop["loop_text"]):
                 raise ValueError(
-                    f"description incorrecta para {loop['loop_question']}."
+                    f"description incorrecta para {loop['loop_question']} ({loop['year']})."
                 )
 
     logger.debug(f"Loop questions validation passed. Validated: {len(loops)}.")
@@ -582,13 +643,15 @@ async def validate_loaded(
 async def upgrade() -> None:
 
     path = Path(FILE_PATH)
+    years = active_years()
+
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.debug(f"Starting loop questions population from {path}")
+    logger.debug(f"Starting loop questions population for years {years} from {path}")
 
     excel = pd.ExcelFile(path)
-    loops = load_loops(excel)
+    loops = load_loops(excel, years)
 
     async with async_engine.begin() as conn:
         columns = await table_columns(conn, "forms", "questions")
@@ -609,9 +672,9 @@ async def upgrade() -> None:
         if missing:
             raise ValueError(f"Faltan columnas en forms.questions: {sorted(missing)}")
 
-        form_id = await get_form(conn)
-        indicators = await get_indicator_map(conn)
-        questions = await get_question_map(conn, form_id)
+        forms = await get_forms(conn, years)
+        indicators = await get_indicator_map(conn, years)
+        questions = await get_question_map(conn, years)
         helper_value = None if columns["helper"]["nullable"] else ""
 
         inserted = 0
@@ -619,7 +682,9 @@ async def upgrade() -> None:
         mixed_updated = 0
 
         for loop in loops:
+            year = loop["year"]
             hierarchy_key = (
+                year,
                 normalize(loop["component"]),
                 normalize(loop["variable"]),
                 normalize(loop["indicator"]),
@@ -627,29 +692,31 @@ async def upgrade() -> None:
             section_id = indicators.get(hierarchy_key)
             if section_id is None:
                 raise ValueError(
-                    f"No se encontró INDICADOR para {loop['loop_question']}. "
+                    f"No se encontró INDICADOR para {loop['loop_question']} ({year}). "
                     f"Jerarquía: {hierarchy_key}"
                 )
 
-            parent = questions.get(normalize(loop["parent_question"]))
+            parent_key = (year, normalize(loop["parent_question"]))
+            parent = questions.get(parent_key)
             if parent is None:
                 raise ValueError(
                     f"No existe la pregunta principal "
-                    f"{loop['parent_question']} para {loop['loop_question']}. "
+                    f"{loop['parent_question']} ({year}) requerida para el bucle {loop['loop_question']}. "
                     "Ejecuta antes 11d_seed_questions.py."
                 )
             if parent["section_id"] != section_id:
                 raise ValueError(
-                    f"{loop['parent_question']} y {loop['loop_question']} "
+                    f"{loop['parent_question']} y {loop['loop_question']} ({year}) "
                     "no pertenecen al mismo indicador."
                 )
 
-            existing = questions.get(normalize(loop["loop_question"]))
+            loop_key = (year, normalize(loop["loop_question"]))
+            existing = questions.get(loop_key)
 
             if loop["is_mixed"]:
                 if existing is None or existing["question_id"] != parent["question_id"]:
                     raise ValueError(
-                        f"El bucle mixto {loop['loop_question']} debe reutilizar "
+                        f"El bucle mixto {loop['loop_question']} ({year}) debe reutilizar "
                         "la pregunta principal existente."
                     )
                 await update_mixed_loop(
@@ -667,7 +734,7 @@ async def upgrade() -> None:
 
             raw_num = re.sub(r"[^\d.]", "", loop["loop_question"]).replace(".", "_")
             code = (
-                f"Q{raw_num}" if raw_num else f"{loop['loop_question']}"
+                f"{year}_Q{raw_num}" if raw_num else f"{year}_{loop['loop_question']}"
             )
 
             db_record = {
@@ -695,7 +762,7 @@ async def upgrade() -> None:
             else:
                 inserted += 1
 
-            questions[normalize(loop["loop_question"])] = {
+            questions[loop_key] = {
                 "question_id": question_id,
                 "section_id": section_id,
                 "code": code,
@@ -706,7 +773,7 @@ async def upgrade() -> None:
                 "is_loop": True,
             }
 
-        await validate_loaded(conn, loops, form_id, indicators)
+        await validate_loaded(conn, loops, years, indicators)
 
     logger.debug(
         "Loop questions population finished successfully. "

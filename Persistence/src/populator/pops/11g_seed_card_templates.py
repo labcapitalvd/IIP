@@ -1,4 +1,4 @@
-"""Puebla forms.card_templates para los bucles del IIP 2023.
+"""Puebla forms.card_templates para los bucles de los formularios IIP.
 
 Dependencias previas:
     11d_seed_questions.py
@@ -6,7 +6,7 @@ Dependencias previas:
 
 Convención de almacenamiento:
 - question_id: pregunta tipo bucle correspondiente.
-- code: código único de la plantilla (ej. "CT_2023_Pregunta 1.1").
+- code: código técnico del card_template (ej. "CT_2023_Q28_1").
 - label: código visible del bucle, por ejemplo "Pregunta 1.1".
 - description: enunciado completo del bucle.
 - helper: NULL (o cadena vacía si la columna no permite NULL).
@@ -34,13 +34,34 @@ FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
-YEAR = 2023
-EXPECTED_LOOP_COUNT = int(os.getenv("IIP_EXPECTED_2023_LOOP_COUNT", "27"))
+
+DEFAULT_ACTIVE_YEARS = (2023, 2025)
 
 
 # -----------------------------------------------------------------------------
 # UTILIDADES
 # -----------------------------------------------------------------------------
+
+
+def get_active_years() -> tuple[int, ...]:
+    raw_value = os.getenv("IIP_ACTIVE_YEARS")
+    if not raw_value:
+        return DEFAULT_ACTIVE_YEARS
+
+    years: list[int] = []
+    for value in raw_value.split(","):
+        value = value.strip()
+        if not value:
+            continue
+        try:
+            years.append(int(value))
+        except ValueError as exc:
+            raise ValueError(f"IIP_ACTIVE_YEARS inválido: {value!r}") from exc
+
+    if not years:
+        raise ValueError("IIP_ACTIVE_YEARS no contiene años válidos.")
+
+    return tuple(years)
 
 
 def clean(value):
@@ -96,31 +117,55 @@ def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
     return frame
 
 
+def make_template_code(year: int, loop_question_label: str) -> str:
+    """Genera un código técnico limpio y consistente para la plantilla.
+
+    Ejemplos:
+        Pregunta 1.1 -> CT_2023_Q1_1
+        Pregunta 28.1 -> CT_2023_Q28_1
+    """
+    raw_num = re.sub(r"[^\d.]", "", loop_question_label).replace(".", "_")
+    if raw_num:
+        return f"{year}_CT_Q{raw_num}"
+
+    clean_label = re.sub(r"[^A-Za-z0-9]+", "_", loop_question_label).strip("_")
+    return f"{year}_CT_{clean_label}"
+
+
 # -----------------------------------------------------------------------------
 # EXCEL
 # -----------------------------------------------------------------------------
 
 
-def load_loops(excel: pd.ExcelFile) -> list[dict]:
-    frame = read_sheet(excel, str(YEAR))
-    required = {"Pregunta", "Bucle", f"Bucle {YEAR}"}
+def load_loops(excel: pd.ExcelFile, year: int) -> list[dict]:
+    sheet_name = str(year)
+    if sheet_name not in excel.sheet_names:
+        logger.warning(f"Hoja para el año {year} no encontrada en el Excel. Omitiendo.")
+        return []
+
+    frame = read_sheet(excel, sheet_name)
+
+    # Evaluar columnas requeridas (soportando variantes con/sin año en la columna Bucle)
+    bucle_col = f"Bucle {year}" if f"Bucle {year}" in frame.columns else "Bucle"
+    required = {"Pregunta", "Bucle"}
     missing = required - set(frame.columns)
     if missing:
-        raise ValueError(f"Faltan columnas en la hoja {YEAR}: {sorted(missing)}")
+        raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
 
     registry: OrderedDict[str, dict] = OrderedDict()
 
-    for row_idx, (index, row) in enumerate(frame.iterrows(), start=2):
+    for row_idx, (_, row) in enumerate(frame.iterrows(), start=2):
         loop_question = clean(row["Bucle"])
-        loop_text = clean(row[f"Bucle {YEAR}"])
+        loop_text = clean(row.get(bucle_col)) or loop_question
         parent_question = clean(row["Pregunta"])
 
         if loop_question is None:
             continue
         if loop_text is None or parent_question is None:
-            raise ValueError(f"Bucle incompleto en fila {row_idx}.")
+            raise ValueError(f"Bucle incompleto en fila {row_idx} de la hoja {year}.")
 
         candidate = {
+            "year": year,
             "loop_question": loop_question,
             "loop_text": loop_text,
             "parent_question": parent_question,
@@ -135,15 +180,11 @@ def load_loops(excel: pd.ExcelFile) -> list[dict]:
         if normalize(existing["loop_text"]) != normalize(loop_text) or normalize(
             existing["parent_question"]
         ) != normalize(parent_question):
-            raise ValueError(f"Información contradictoria para {loop_question}.")
+            raise ValueError(
+                f"Información contradictoria para {loop_question} en año {year}."
+            )
 
-    records = list(registry.values())
-    if len(records) != EXPECTED_LOOP_COUNT:
-        raise ValueError(
-            f"Se esperaban {EXPECTED_LOOP_COUNT} bucles y se encontraron "
-            f"{len(records)}."
-        )
-    return records
+    return list(registry.values())
 
 
 # -----------------------------------------------------------------------------
@@ -176,20 +217,21 @@ async def table_columns(conn, schema: str, table: str) -> dict:
     }
 
 
-async def get_form(conn) -> str:
-    # FIX: Cast YEAR to string to prevent asyncpg integer query parameter error
+async def get_form(conn, year: int) -> str | None:
     result = await conn.execute(
         text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
-        {"year": str(YEAR)},
+        {"year": str(year)},
     )
     rows = result.mappings().all()
-    if len(rows) != 1:
+    if len(rows) == 0:
+        return None
+    if len(rows) > 1:
         raise ValueError(
-            f"Debe existir un único formulario {YEAR}; encontrados: {len(rows)}."
+            f"Existe más de un formulario con código {year}; encontrados: {len(rows)}."
         )
     form_id = rows[0]["id"]
     if not is_uuidv7(form_id):
-        raise ValueError(f"form_id de {YEAR} no es UUIDv7: {form_id}")
+        raise ValueError(f"form_id de {year} no es UUIDv7: {form_id}")
     return form_id
 
 
@@ -309,6 +351,7 @@ async def validate_loaded(
     conn,
     expected: list[dict],
     question_map: dict[str, dict],
+    year: int,
 ) -> None:
     existing = await get_existing_templates(conn)
 
@@ -323,6 +366,13 @@ async def validate_loaded(
         if template is None:
             raise ValueError(
                 f"No se cargó card_template para {source['loop_question']}."
+            )
+
+        expected_code = make_template_code(year, source["loop_question"])
+        if template["code"] != expected_code:
+            raise ValueError(
+                f"code incorrecto para card_template de {source['loop_question']}: "
+                f"{template['code']!r} != {expected_code!r}"
             )
         if normalize(template["label"]) != normalize(source["loop_question"]):
             raise ValueError(
@@ -340,7 +390,9 @@ async def validate_loaded(
         if not is_uuidv7(template["card_template_id"]):
             raise ValueError(f"UUID no es versión 7 para {source['loop_question']}.")
 
-    logger.debug(f"forms.card_templates validation passed. Validated: {len(expected)}.")
+    logger.debug(
+        f"forms.card_templates validation passed for year {year}. Validated: {len(expected)}."
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -349,19 +401,19 @@ async def validate_loaded(
 
 
 async def upgrade() -> None:
-
     path = Path(FILE_PATH)
     if not path.is_file():
         raise FileNotFoundError(f"No existe el archivo: {path}")
 
-    logger.debug(f"Starting forms.card_templates population from {path}")
+    active_years = get_active_years()
+    logger.debug(
+        f"Starting forms.card_templates population from {path} for years: {active_years}"
+    )
 
     excel = pd.ExcelFile(path)
-    loops = load_loops(excel)
 
     async with async_engine.begin() as conn:
         columns = await table_columns(conn, "forms", "card_templates")
-        # FIX: Include required 'code' column in column check
         required = {
             "id",
             "question_id",
@@ -377,60 +429,75 @@ async def upgrade() -> None:
                 f"Faltan columnas en forms.card_templates: {sorted(missing)}"
             )
 
-        form_id = await get_form(conn)
-        questions = await get_questions(conn, form_id)
-        existing = await get_existing_templates(conn)
         helper_value = None if columns["helper"]["nullable"] else ""
+        existing = await get_existing_templates(conn)
 
-        inserted = 0
-        updated = 0
+        total_inserted = 0
+        total_updated = 0
 
-        for source in loops:
-            question = questions.get(normalize(source["loop_question"]))
-            if question is None:
-                raise ValueError(
-                    f"No existe {source['loop_question']} en forms.questions. "
-                    "Ejecuta antes 11e_seed_loop_questions.py."
+        for year in active_years:
+            loops = load_loops(excel, year)
+            if not loops:
+                continue
+
+            form_id = await get_form(conn, year)
+            if not form_id:
+                logger.warning(
+                    f"No existe el formulario con código {year} en BD. Omitiendo año."
                 )
-            if question["is_loop"] is not True:
-                raise ValueError(
-                    f"{source['loop_question']} tiene is_loop distinto de TRUE."
-                )
+                continue
 
-            old = existing.get(question["question_id"])
-            card_template_id = old["card_template_id"] if old else new_uuidv7()
-            if not is_uuidv7(card_template_id):
-                raise ValueError(f"ID no UUIDv7: {card_template_id}")
+            questions = await get_questions(conn, form_id)
 
-            # FIX: Supply unique truncated code for CardTemplate
-            db_record = {
-                "id": card_template_id,
-                "question_id": question["question_id"],
-                "code": truncate(
-                    f"CT_{str(source['loop_question']).replace(' ', '_').lower().replace('pregunta', 'P').replace('.', '_')}",
-                    columns["code"]["max_length"],
-                ),
-                "label": truncate(
-                    source["loop_question"], columns["label"]["max_length"]
-                ),
-                "description": truncate(
-                    source["loop_text"],
-                    columns["description"]["max_length"],
-                ),
-                "helper": helper_value,
-            }
+            inserted = 0
+            updated = 0
 
-            await save_template(conn, db_record, update=old is not None)
-            if old:
-                updated += 1
-            else:
-                inserted += 1
+            for source in loops:
+                question = questions.get(normalize(source["loop_question"]))
+                if question is None:
+                    raise ValueError(
+                        f"No existe {source['loop_question']} en forms.questions para el año {year}. "
+                        "Ejecuta antes 11e_seed_loop_questions.py."
+                    )
+                if question["is_loop"] is not True:
+                    raise ValueError(
+                        f"{source['loop_question']} (Año {year}) tiene is_loop distinto de TRUE."
+                    )
 
-        await validate_loaded(conn, loops, questions)
+                old = existing.get(question["question_id"])
+                card_template_id = old["card_template_id"] if old else new_uuidv7()
+                if not is_uuidv7(card_template_id):
+                    raise ValueError(f"ID no UUIDv7: {card_template_id}")
+
+                template_code = make_template_code(year, source["loop_question"])
+
+                db_record = {
+                    "id": card_template_id,
+                    "question_id": question["question_id"],
+                    "code": truncate(template_code, columns["code"]["max_length"]),
+                    "label": truncate(
+                        source["loop_question"], columns["label"]["max_length"]
+                    ),
+                    "description": truncate(
+                        source["loop_text"],
+                        columns["description"]["max_length"],
+                    ),
+                    "helper": helper_value,
+                }
+
+                await save_template(conn, db_record, update=old is not None)
+                if old:
+                    updated += 1
+                else:
+                    inserted += 1
+
+            await validate_loaded(conn, loops, questions, year)
+            total_inserted += inserted
+            total_updated += updated
 
     logger.debug(
         "forms.card_templates population finished successfully. "
-        f"Inserted: {inserted}. Updated: {updated}."
+        f"Total Inserted: {total_inserted}. Total Updated: {total_updated}."
     )
 
 
