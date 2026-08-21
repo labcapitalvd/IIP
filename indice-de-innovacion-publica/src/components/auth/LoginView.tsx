@@ -18,7 +18,7 @@ import {
 
 export const LoginView: React.FC = () => {
   const { login, register, isLoading, error, clearError } = useAuth();
-  const { actors } = useApp();
+  const { actors, config } = useApp();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -69,8 +69,21 @@ export const LoginView: React.FC = () => {
       return;
     }
 
-    if (regPassword.length < 6) {
-      setFormError('La contraseña debe tener mínimo 6 caracteres.');
+    // Mirrors the backend's Pydantic constraints (UsernameSchema /
+    // UserPasswordSchema) so real registration doesn't fail with a 422
+    // that this form could have caught locally.
+    if (regUsername.trim().length < 4 || regUsername.trim().length > 128) {
+      setFormError('El usuario debe tener entre 4 y 128 caracteres.');
+      return;
+    }
+
+    if (regEmail.trim().length < 8 || regEmail.trim().length > 256) {
+      setFormError('Ingrese un correo electrónico institucional válido.');
+      return;
+    }
+
+    if (regPassword.length < 8 || regPassword.length > 128) {
+      setFormError('La contraseña debe tener entre 8 y 128 caracteres.');
       return;
     }
 
@@ -212,12 +225,21 @@ export const LoginView: React.FC = () => {
               <p className="text-emerald-200/90 leading-relaxed text-[11px]">
                 El usuario <strong className="text-white font-mono">{registrationSuccess.username}</strong> ha sido registrado para <strong>{registrationSuccess.actorLabel}</strong>.
               </p>
-              <div className="flex items-center gap-1.5 p-2 bg-amber-950/40 border border-amber-500/30 rounded-xl text-amber-300 text-[11px]">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span>
-                  <strong>Estado: Pendiente.</strong> Podrá ingresar una vez la entidad o el administrador le otorgue el permiso de acceso.
-                </span>
-              </div>
+              {config.useRealBackend ? (
+                <div className="flex items-center gap-1.5 p-2 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-300 text-[11px]">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    <strong>Cuenta activa.</strong> Ya puede iniciar sesión con su usuario y contraseña.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 p-2 bg-amber-950/40 border border-amber-500/30 rounded-xl text-amber-300 text-[11px]">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    <strong>Estado: Pendiente.</strong> Podrá ingresar una vez la entidad o el administrador le otorgue el permiso de acceso.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -280,7 +302,11 @@ export const LoginView: React.FC = () => {
                 )}
               </button>
 
-              {/* Quick Demo Access (For simple testing) */}
+              {/* Quick Demo Access — mock-mode only. Against the real backend
+                  these demo credentials don't correspond to real seeded
+                  users, so surfacing them here would just produce confusing
+                  InvalidCredentials errors. */}
+              {!config.useRealBackend && (
               <div className="pt-3 border-t border-slate-800/80 space-y-2">
                 <div className="text-[11px] font-semibold text-slate-400 text-center">
                   Acceso Rápido de Prueba (Demostración)
@@ -311,16 +337,26 @@ export const LoginView: React.FC = () => {
                   </button>
                 </div>
               </div>
+              )}
             </form>
           ) : (
             /* REGISTRATION FORM (Auto-registro de usuarios de entidades con aprobación requerida) */
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-300 flex items-start gap-2">
-                <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-                <div className="leading-relaxed">
-                  <strong>Política de Autorización:</strong> Al registrarse, su usuario quedará en estado <strong>Pendiente</strong>. No podrá ingresar hasta que la entidad seleccionada valide y apruebe su cuenta.
+              {config.useRealBackend ? (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-[11px] text-emerald-300 flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                  <div className="leading-relaxed">
+                    <strong>Registro directo:</strong> Su cuenta queda activa de inmediato, sin verificación por correo ni aprobación adicional.
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-300 flex items-start gap-2">
+                  <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <div className="leading-relaxed">
+                    <strong>Política de Autorización:</strong> Al registrarse, su usuario quedará en estado <strong>Pendiente</strong>. No podrá ingresar hasta que la entidad seleccionada valide y apruebe su cuenta.
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-300">
@@ -372,7 +408,7 @@ export const LoginView: React.FC = () => {
                       required
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Mínimo 6 carácteres"
+                      placeholder="Mínimo 8 carácteres"
                       className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
                     />
                   </div>
@@ -435,7 +471,7 @@ export const LoginView: React.FC = () => {
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
-                    <span>Registrar Cuenta (Pendiente de Aprobación)</span>
+                    <span>{config.useRealBackend ? 'Registrar Cuenta' : 'Registrar Cuenta (Pendiente de Aprobación)'}</span>
                   </>
                 )}
               </button>

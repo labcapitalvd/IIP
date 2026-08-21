@@ -3,6 +3,7 @@ import { AuthUser, LoginResponse, RegisterPayload, UserRole } from '../types';
 import { authService } from '../services/authService';
 import { apiClient } from '../services/apiClient';
 import { DEMO_USERS } from '../data/mockData';
+import { isJwtExpired } from '../utils/jwt';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -28,10 +29,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         return JSON.parse(saved);
       } catch {
-        return DEMO_USERS[0]; // Default to Admin
+        // fall through to the default below
       }
     }
-    return DEMO_USERS[0]; // Default logged-in as admin for seamless initial preview
+    // Only auto-login as the demo admin in mock mode. Against the real
+    // backend there is no session until a real JWT is issued by /auth/login.
+    return apiClient.getConfig().useRealBackend ? null : DEMO_USERS[0];
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +49,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  // On mount, if we restored a session against the real backend, make sure
+  // the stored access token is still valid. If it expired while the tab was
+  // closed, try one silent refresh before giving up and logging out — this
+  // is the only way "restore session on reload" can work with JWTs.
+  useEffect(() => {
+    if (!apiClient.getConfig().useRealBackend || !user) return;
+
+    const { accessToken, refreshToken } = apiClient.getTokens();
+
+    if (accessToken && !isJwtExpired(accessToken)) return;
+
+    if (!refreshToken) {
+      setUser(null);
+      apiClient.clearTokens();
+      return;
+    }
+
+    authService.reauth().catch(() => {
+      setUser(null);
+      apiClient.clearTokens();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const clearError = () => setError(null);
 
   const login = async (username: string, password: string) => {
@@ -55,7 +82,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const cleanUser = username.trim();
       const cleanPass = password.trim();
 
-      // Check in local users database (includes both DEMO_USERS and any self-registered users)
+      if (apiClient.getConfig().useRealBackend) {
+        // Real mode: the backend is the only source of truth. No local
+        // shortcuts — this must go through POST /public/auth/login and get
+        // back a real Ed25519 JWT, or fail with whatever the API says.
+        const { user: loggedUser } = await authService.login(cleanUser, cleanPass);
+        setUser(loggedUser);
+        return;
+      }
+
+      // Mock mode below: local users database (DEMO_USERS + anyone who
+      // "registered" in this browser), no network calls at all.
       const localUsers: AuthUser[] = JSON.parse(localStorage.getItem('iip_all_users') || '[]');
       const allKnownUsers = [...localUsers, ...DEMO_USERS];
 
@@ -65,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           u.email.toLowerCase() === cleanUser.toLowerCase()
       );
 
-      // If user is found and is explicitly marked pending or inactive
       if (matchedUser) {
         if (matchedUser.is_active === false || matchedUser.approval_status === 'pending') {
           throw new Error(
@@ -73,7 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           );
         }
 
-        // If user has a password set and it doesn't match
         if (
           matchedUser.password &&
           matchedUser.password !== cleanPass &&
@@ -88,14 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Try service login
-      const { user: loggedUser } = await authService.login(cleanUser, cleanPass);
-      if (loggedUser.is_active === false) {
-        throw new Error(
-          `Acceso denegado: Su cuenta se encuentra PENDIENTE DE APROBACIÓN por parte de "${loggedUser.actor_label || 'su entidad'}". No podrá ingresar hasta que su entidad autorice el acceso.`
-        );
-      }
-      setUser(loggedUser);
+      throw new Error('Usuario no encontrado en el modo local (mock). Verifique sus datos.');
     } catch (err: any) {
       const message = err?.message || 'Error al iniciar sesión. Verifique sus credenciales.';
       setError(message);
@@ -109,6 +137,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     setError(null);
     try {
+      if (apiClient.getConfig().useRealBackend) {
+        // Real mode: POST /public/auth/register. The backend activates the
+        // account immediately (is_active=True, no email verification, no
+        // approval workflow) — there is nothing else to do locally.
+        await authService.register(payload);
+        return;
+      }
+
+      // Mock mode below: keep the local "pending approval" simulation.
       const localUsers: AuthUser[] = JSON.parse(localStorage.getItem('iip_all_users') || '[]');
       const allKnownUsers = [...localUsers, ...DEMO_USERS];
 
@@ -134,20 +171,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         actor_label: payload.actor_label || 'Entidad Distrital',
         contact_person: payload.contact_person,
         phone: payload.phone,
-        is_active: false, // Inactive pending entity approval!
+        is_active: false, // Inactive pending entity approval! (mock-only concept)
         approval_status: 'pending',
         created_at: new Date().toISOString(),
       };
 
       const updatedUsers = [newUser, ...localUsers];
       localStorage.setItem('iip_all_users', JSON.stringify(updatedUsers));
-
-      // Attempt remote registration if configured
-      try {
-        await authService.register(payload);
-      } catch {
-        // Mock fallback
-      }
     } catch (err: any) {
       const message = err?.message || 'Error al registrar usuario.';
       setError(message);

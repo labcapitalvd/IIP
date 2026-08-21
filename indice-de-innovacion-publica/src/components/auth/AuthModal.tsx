@@ -140,7 +140,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, forceOpen
           </div>
         </div>
 
-        {/* Demo Quick Access */}
+        {/* Demo Quick Access — mock-mode only, these usernames aren't real
+            seeded backend accounts */}
+        {!config.useRealBackend && (
         <div className="p-5 bg-slate-50 border-b border-slate-200">
           <div className="flex items-center justify-between mb-2.5">
             <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -187,6 +189,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, forceOpen
             })}
           </div>
         </div>
+        )}
 
         {/* Tab Switcher */}
         <div className="flex border-b border-slate-200">

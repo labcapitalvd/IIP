@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 import { AuthUser, LoginResponse, RegisterPayload } from '../types';
 import { DEMO_USERS } from '../data/mockData';
+import { decodeJwt } from '../utils/jwt';
 
 export const authService = {
   /**
@@ -17,19 +18,38 @@ export const authService = {
       // Update tokens in client
       apiClient.setTokens(data.access_token, data.refresh_token);
 
-      // Determine role / user info
-      const foundDemo = DEMO_USERS.find(
-        (u) => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === username.toLowerCase()
+      // The access token is the only source of truth for "who logged in" —
+      // its claims are `sub` (user id) and `username` only. The backend has
+      // no /auth/me or role/actor endpoint yet, so role/actor_id can't come
+      // from the API. If a profile was previously seen locally (a demo user,
+      // or someone who registered from this browser) we enrich the display
+      // with it; otherwise we fall back to a generic entity profile.
+      const claims = decodeJwt(data.access_token);
+      const userId = claims?.sub || `usr-${Date.now()}`;
+      const resolvedUsername = claims?.username || username;
+
+      const localUsers: AuthUser[] = JSON.parse(localStorage.getItem('iip_all_users') || '[]');
+      const knownProfile = [...localUsers, ...DEMO_USERS].find(
+        (u) =>
+          u.username.toLowerCase() === resolvedUsername.toLowerCase() ||
+          u.email.toLowerCase() === resolvedUsername.toLowerCase()
       );
 
-      const user: AuthUser = foundDemo || {
-        id: `usr-${Date.now()}`,
-        username,
-        email: `${username}@entidad.gov.co`,
-        role: username.toLowerCase().includes('admin') ? 'admin' : 'entity',
-        actor_id: 'act-001',
-        actor_label: 'Secretaría Distrital de Planeación (SDP)',
-      };
+      const user: AuthUser = knownProfile
+        ? {
+            ...knownProfile,
+            id: userId,
+            username: resolvedUsername,
+            is_active: true,
+            approval_status: 'approved',
+          }
+        : {
+            id: userId,
+            username: resolvedUsername,
+            email: `${resolvedUsername}@entidad.gov.co`,
+            role: resolvedUsername.toLowerCase().includes('admin') ? 'admin' : 'entity',
+            is_active: true,
+          };
 
       return { user, tokens: data };
     } catch (err: any) {
