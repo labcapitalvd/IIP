@@ -36,12 +36,10 @@ from shared.utils.seeding import (
     truncate_text,
     validate_required_columns,
 )
-
-# ADDED: Added 'text' import here to support raw dynamic database timestamps safely
 from sqlalchemy import insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-logger = get_logger(__name__)
+logger = get_get_logger = get_logger(__name__)
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
@@ -67,17 +65,21 @@ def split_option_text(value: str, order: int) -> tuple[str, str]:
     return str(order), cleaned
 
 
-def get_alpha_numeric_signature(text_value: str) -> str:
-    """Extracts a clean question pointer code from raw sheet text.
-    Example: 'Pregunta 14.1' -> '14_1'
-             '14. ¿Su entidad...?' -> '14'
+def extract_clean_question_number(text_value: str) -> str:
+    """Extracts a normalized, standardized key representing only the digits.
+    Example: 'Pregunta 14.1'                        -> '14_1'
+             'Pregunta 14'                          -> '14'
+             '¿Existen dentro de la Pregunta 2...?' -> '2'
     """
     if not text_value:
         return ""
-    match = re.search(r"(?:Pregunta\s+)?(\d+(?:[\._]\d+)*)", text_value, re.IGNORECASE)
+    # Search for an isolated number token in the string context
+    match = re.search(
+        r"(?:Pregunta\s+)?(\d+(?:[\._\.]\d+)*)", text_value, re.IGNORECASE
+    )
     if match:
         return match.group(1).replace(".", "_")
-    return "".join(filter(str.isalnum, text_value)).casefold()
+    return ""
 
 
 def load_choices_from_excel(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
@@ -90,39 +92,35 @@ def load_choices_from_excel(excel: pd.ExcelFile, years: tuple[int, ...]) -> list
             sheet_name = f"Respuestas_{year}"
 
         if sheet_name not in excel.sheet_names:
-            logger.warning(
-                f"Hoja '{sheet_name}' no encontrada en el archivo. Saltando."
-            )
             continue
 
         df_raw = pd.read_excel(excel, sheet_name=sheet_name, header=None, dtype=object)
 
-        # State tracking for internal sheet blocks (Crucial for 2019 inline transition)
         is_reading_choices = True if year != 2019 else False
         col_map = {}
 
         for idx, row in df_raw.iterrows():
-            # Safe boundary check: ensure row has elements before checking column positions
             if len(row) < 2:
                 continue
 
-            # 2019 inline header transition scanner
+            # Complete rewrite of the 2019 transition scanning tier
             if year == 2019 and not is_reading_choices:
-                # --- FIXED: Use safe integer sequences instead of iterating over Hashable items ---
-                for col_idx in range(len(row) - 1):
-                    cell_val = clean_text(row.iloc[col_idx])
-                    next_cell_val = clean_text(row.iloc[col_idx + 1])
-                    if cell_val == "Pregunta" and next_cell_val == "Texto_pregunta":
-                        is_reading_choices = True
-                        row_headers = [clean_text(c) for _, c in row.items()]
-                        col_map = {h: i for i, h in enumerate(row_headers) if h}
-                        break
+                row_str_values = [
+                    fold_for_comparison(cell) or "" for _, cell in row.items()
+                ]
+                if "pregunta" in row_str_values and "texto_pregunta" in row_str_values:
+                    is_reading_choices = True
+                    # Dynamically save index points by mapping text names cleanly
+                    col_map = {
+                        str(cell).strip(): i
+                        for i, cell in enumerate(row.items())
+                        if clean_text(cell)
+                    }
                 continue
 
             if not is_reading_choices:
                 continue
 
-            # Standard sheet headers tracking
             if year != 2019 and idx == 0:
                 row_headers = [clean_text(cell) for _, cell in row.items()]
                 col_map = {h: i for i, h in enumerate(row_headers) if h}
@@ -162,14 +160,15 @@ def load_choices_from_excel(excel: pd.ExcelFile, years: tuple[int, ...]) -> list
             except (ValueError, TypeError):
                 display_order = 1
 
-            q_sig = get_alpha_numeric_signature(target_question_label)
+            q_sig = extract_clean_question_number(target_question_label)
+            if not q_sig:
+                continue
 
             extracted_choices.append(
                 {
                     "year": year,
-                    "question_signature": q_sig,
+                    "question_num_key": q_sig,
                     "display_order": display_order,
-                    "label": raw_option_text,
                     "raw_option_text": raw_option_text,
                 }
             )
@@ -186,10 +185,10 @@ def load_choices_from_excel(excel: pd.ExcelFile, years: tuple[int, ...]) -> list
 # -----------------------------------------------------------------------------
 
 
-async def get_fields_signature_lookup(
+async def get_fields_numeric_lookup(
     conn: AsyncConnection, years: tuple[int, ...]
 ) -> dict[tuple[int, str], str]:
-    """Mapea firmas de preguntas unificadas directamente al ID de campo de la Base de Datos."""
+    """Generates an explicit dictionary lookup linking parsed year and question numbers directly to Field IDs."""
     stmt = (
         select(
             Field.id.label("field_id"),
@@ -206,13 +205,13 @@ async def get_fields_signature_lookup(
     lookup = {}
     rows = (await conn.execute(stmt)).mappings().all()
     for r in rows:
-        if r["form_year"] is None:
+        if r["form_year"] is None or r["question_label"] is None:
             continue
         y = int(r["form_year"])
         if y in years:
-            q_sig = get_alpha_numeric_signature(str(r["question_label"]))
-            if q_sig:
-                lookup[(y, q_sig)] = str(r["field_id"])
+            q_num = extract_clean_question_number(str(r["question_label"]))
+            if q_num:
+                lookup[(y, q_num)] = str(r["field_id"])
     return lookup
 
 
@@ -256,7 +255,7 @@ async def upgrade() -> None:
             table_name="forms.field_choices",
         )
 
-        fields_sig_map = await get_fields_signature_lookup(conn, years)
+        fields_numeric_map = await get_fields_numeric_lookup(conn, years)
         existing_choices = await get_existing_field_choices(conn)
 
         seen_database_keys = set()
@@ -264,13 +263,12 @@ async def upgrade() -> None:
 
         for item in raw_choices:
             y = item["year"]
-            q_sig = item["question_signature"]
+            q_num = item["question_num_key"]
 
-            field_id_str = fields_sig_map.get((y, q_sig))
+            field_id_str = fields_numeric_map.get((y, q_num))
             if not field_id_str:
                 continue
 
-            # Control defensivo contra duplicados numéricos de orden por campo
             choice_unique_key = (field_id_str, int(item["display_order"]))
             if choice_unique_key in seen_database_keys:
                 continue
