@@ -69,7 +69,7 @@ def load_questions_from_excel(
             "Variable",
             "Indicador",
             "Pregunta",
-            f"Pregunta {year}",
+            "pre",
         }
 
         # Cargar la hoja limpia usando la utilidad core centralizada
@@ -86,7 +86,7 @@ def load_questions_from_excel(
                 "variable": frame["Variable"],
                 "indicator": frame["Indicador"],
                 "question": frame["Pregunta"],
-                "question_text": frame[f"Pregunta {year}"],
+                "question_text": frame["pre"],
                 "loop": frame["Bucle"] if has_loop_columns else None,
             }
         )
