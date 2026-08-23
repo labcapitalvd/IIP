@@ -1,32 +1,42 @@
 """Poblado de forms.forms.
 
 Carga los formularios principales del Índice de Innovación Pública por año:
-
-    IIP 2021
-    IIP 2023
-    IIP 2025
-    IIP 2027
+    IIP 2019, 2021, 2023, 2025, 2027
 
 Reglas:
 - Cada año es un formulario independiente.
-- No se relacionan preguntas entre años.
-- Si el formulario no existe, se crea con UUIDv7.
-- Si ya existe para ese año, se actualizan label y description.
-- Si ya existe pero su ID no es UUIDv7, el script se detiene.
-- Los siguientes scripts usarán forms.forms.code para recuperar el form_id.
+- Si el formulario no existe, se crea con un nuevo UUIDv7.
+- Si ya existe para ese año, se actualizan sus atributos (label y description).
+- Utiliza la infraestructura global de utilidades y los modelos ORM del sistema.
 """
 
-from uuid import UUID
-
+# Infraestructura y Modelos globales del proyecto
 from shared.infrastructure import async_engine
+
+# Importación del Modelo ORM centralizado
+from shared.models import (
+    Form,
+)
 from shared.utils.logger import get_logger
-from sqlalchemy import text
-from uuid_utils import uuid7
+
+# Utilidades globales de Seeding compartidas
+from shared.utils.seeding import (
+    assert_all_uuidv7,
+    assert_no_duplicates,
+    assert_no_missing,
+    clean_text,
+    get_table_columns,
+    new_uuidv7,
+    truncate_text,
+    validate_required_columns,
+)
+from sqlalchemy import insert, select, update
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 logger = get_logger(__name__)
 
-
-FORMS = [
+# Definición de datos maestros estructurados
+FORMS_DATA = [
     {
         "code": "2019",
         "label": "Índice de Innovación Pública 2019",
@@ -75,99 +85,8 @@ FORMS = [
 ]
 
 
-def new_uuidv7() -> str:
-    """Genera UUID versión 7 usando la misma librería del proyecto."""
-    return str(uuid7())
-
-
-def is_uuidv7(value) -> bool:
-    """Valida que un ID sea UUID versión 7."""
-    if value is None:
-        return False
-
-    try:
-        parsed = UUID(str(value))
-        return parsed.version == 7
-    except Exception:
-        return False
-
-
-def clean_text(value):
-    """Limpia cadenas vacías."""
-    if value is None:
-        return None
-
-    value = str(value).strip()
-
-    if value == "":
-        return None
-
-    return value
-
-
-async def get_table_columns(conn) -> dict:
-    """Consulta metadatos reales de forms.forms."""
-    query = text(
-        """
-        SELECT
-            column_name,
-            data_type,
-            character_maximum_length,
-            is_nullable
-        FROM information_schema.columns
-        WHERE table_schema = 'forms'
-          AND table_name = 'forms'
-        ORDER BY ordinal_position;
-        """
-    )
-
-    result = await conn.execute(query)
-    rows = result.mappings().all()
-
-    if not rows:
-        raise ValueError("No se encontró la tabla forms.forms en PostgreSQL.")
-
-    return {
-        row["column_name"]: {
-            "data_type": row["data_type"],
-            "max_length": row["character_maximum_length"],
-            "nullable": row["is_nullable"] == "YES",
-        }
-        for row in rows
-    }
-
-
-def validate_required_columns(db_columns: dict) -> None:
-    """Valida que la tabla tenga las columnas necesarias."""
-    required_columns = {"id", "code", "label", "description"}
-
-    missing = required_columns - set(db_columns.keys())
-
-    if missing:
-        raise ValueError(
-            "La tabla forms.forms no tiene todas las columnas requeridas. "
-            f"Faltan: {sorted(missing)}"
-        )
-
-
-def truncate_if_needed(value, max_length):
-    """Recorta texto si la columna tiene límite de longitud."""
-    value = clean_text(value)
-
-    if value is None:
-        return None
-
-    if max_length is None:
-        return value
-
-    if len(value) <= max_length:
-        return value
-
-    return value[:max_length]
-
-
 def prepare_form_record(item: dict, db_columns: dict) -> dict:
-    """Prepara un registro para insertar o actualizar."""
+    """Aplica limpieza de texto, validaciones de nulidad y recortes según el esquema."""
     record = {
         "code": item["code"],
         "label": clean_text(item["label"]),
@@ -175,243 +94,120 @@ def prepare_form_record(item: dict, db_columns: dict) -> dict:
     }
 
     if not record["label"]:
-        raise ValueError(f"El formulario del año {record['code']} no tiene label.")
+        raise ValueError(
+            f"El formulario del año {record['code']} no tiene un label válido."
+        )
 
+    # Validar y recortar el campo label usando metadatos dinámicos
     if "label" in db_columns:
-        max_length = db_columns["label"]["max_length"]
-
-        if max_length is not None and len(record["label"]) > max_length:
+        max_len = db_columns["label"]["max_length"]
+        if max_len is not None and len(record["label"]) > int(max_len):
             raise ValueError(
-                f"El label del formulario {record['code']} supera "
-                f"{max_length} caracteres."
+                f"El label del formulario {record['code']} supera el límite de {max_len} caracteres."
             )
 
+    # Validar y recortar el campo description
     if "description" in db_columns:
-        max_length = db_columns["description"]["max_length"]
-        record["description"] = truncate_if_needed(record["description"], max_length)
+        max_len = db_columns["description"]["max_length"]
+        record["description"] = truncate_text(record["description"], max_len)
 
-    if (
-        "description" in db_columns
-        and not db_columns["description"]["nullable"]
-        and record["description"] is None
-    ):
-        record["description"] = "Sin descripción registrada."
+        # Manejo de nulidad si la columna de la BD es requerida
+        if not db_columns["description"]["nullable"] and record["description"] is None:
+            record["description"] = "Sin descripción registrada."
 
     return record
 
 
-async def get_existing_form_by_code(conn, code: str):
-    """Busca un formulario existente por año."""
-    query = text(
-        """
-        SELECT
-            id::text AS id,
-            code,
-            label,
-            description
-        FROM forms.forms
-        WHERE code = :code;
-        """
+async def validate_forms_state(
+    conn: AsyncConnection, expected_codes: list[str]
+) -> None:
+    """Ejecuta un set estricto de aserciones de integridad post-carga usando las utilidades."""
+    # Consultar el estado final de las filas cargadas utilizando el modelo ORM
+    stmt = select(Form.id, Form.code, Form.label).where(Form.code.in_(expected_codes))
+    result = await conn.execute(stmt)
+    rows = [dict(row) for row in result.mappings().all()]
+
+    # 1. Verificar que no falte ningún formulario esperado en el destino
+    found_codes = {row["code"] for row in rows}
+    assert_no_missing(
+        expected=set(expected_codes), found=found_codes, what="formularios (años)"
     )
 
-    result = await conn.execute(query, {"code": code})
-    rows = result.mappings().all()
+    # 2. Verificar la validez de los identificadores UUIDv7 primarios
+    assert_all_uuidv7(rows=rows, id_key="id", label_key="code")
 
-    if len(rows) > 1:
-        raise ValueError(
-            f"Existe más de un formulario registrado para code={code}. "
-            "Debe existir máximo un formulario por año para poder conectar "
-            "correctamente secciones y preguntas."
-        )
+    # 3. Detectar si existen claves duplicadas a nivel de BD para este ámbito
+    assert_no_duplicates(rows=rows, key_fields=["code"], what="formularios de medición")
 
-    if not rows:
-        return None
-
-    return rows[0]
+    logger.debug("Validaciones de integridad para forms.forms completadas con éxito.")
 
 
-async def insert_form(conn, record: dict) -> str:
-    """Inserta un formulario nuevo con UUIDv7."""
-    new_id = new_uuidv7()
-
-    query = text(
-        """
-        INSERT INTO forms.forms (
-            id,
-            code,
-            label,
-            description
-        )
-        VALUES (
-            CAST(:id AS uuid),
-            :code,
-            :label,
-            :description
-        );
-        """
-    )
-
-    await conn.execute(
-        query,
-        {
-            "id": new_id,
-            "code": record["code"],
-            "label": record["label"],
-            "description": record["description"],
-        },
-    )
-
-    return new_id
-
-
-async def update_form(conn, existing_id: str, record: dict) -> None:
-    """Actualiza label y description de un formulario existente."""
-    query = text(
-        """
-        UPDATE forms.forms
-        SET
-            label = :label,
-            description = :description
-        WHERE id = CAST(:id AS uuid);
-        """
-    )
-
-    await conn.execute(
-        query,
-        {
-            "id": existing_id,
-            "label": record["label"],
-            "description": record["description"],
-        },
-    )
-
-
-async def validate_forms(conn) -> None:
-    """Valida que los formularios existan y tengan UUIDv7."""
-    expected_years = [item["code"] for item in FORMS]
-
-    query = text(
-        """
-        SELECT
-            id::text AS id,
-            code,
-            label,
-            description
-        FROM forms.forms
-        WHERE code = ANY(:expected_years)
-        ORDER BY code;
-        """
-    )
-
-    result = await conn.execute(query, {"expected_years": expected_years})
-    rows = result.mappings().all()
-
-    found_years = {row["code"] for row in rows}
-    expected_years_set = set(expected_years)
-
-    missing = expected_years_set - found_years
-
-    if missing:
-        raise ValueError(
-            f"No quedaron cargados todos los formularios. "
-            f"Faltan años: {sorted(missing)}"
-        )
-
-    non_v7 = [
-        {
-            "code": row["code"],
-            "label": row["label"],
-            "id": row["id"],
-        }
-        for row in rows
-        if not is_uuidv7(row["id"])
-    ]
-
-    if non_v7:
-        raise ValueError(
-            "Hay formularios con ID que no es UUIDv7. "
-            f"Registros problemáticos: {non_v7}"
-        )
-
-    duplicated_query = text(
-        """
-        SELECT
-            code,
-            COUNT(*) AS total
-        FROM forms.forms
-        WHERE code = ANY(:expected_years)
-        GROUP BY code
-        HAVING COUNT(*) > 1;
-        """
-    )
-
-    duplicated_result = await conn.execute(
-        duplicated_query,
-        {"expected_years": expected_years},
-    )
-
-    duplicated_rows = duplicated_result.mappings().all()
-
-    if duplicated_rows:
-        raise ValueError(
-            "Hay años duplicados en forms.forms. "
-            f"Registros problemáticos: {list(duplicated_rows)}"
-        )
-
-    logger.debug("forms.forms validation passed successfully.")
+# ... rest of your setup ...
 
 
 async def upgrade() -> None:
-    """Carga forms.forms."""
-    logger.debug("Starting forms.forms population...")
+    """Punto de entrada principal para ejecutar el poblado idempotente de formularios."""
+    logger.debug("Iniciando el proceso de poblado para forms.forms...")
 
     try:
         async with async_engine.begin() as conn:
-            db_columns = await get_table_columns(conn)
-            validate_required_columns(db_columns)
+            # Consultar y validar metadatos reales del esquema de la tabla de destino
+            db_columns = await get_table_columns(conn, schema="forms", table="forms")
+            validate_required_columns(
+                db_columns,
+                required={"id", "code", "label", "description"},
+                table_name="forms.forms",
+            )
 
             inserted = 0
             updated = 0
+            expected_codes = [item["code"] for item in FORMS_DATA]
 
-            for item in FORMS:
+            for item in FORMS_DATA:
                 record = prepare_form_record(item, db_columns)
                 code = record["code"]
 
-                existing = await get_existing_form_by_code(conn, code)
+                # Buscar registros existentes por su código único de negocio utilizando el modelo ORM
+                stmt_select = select(Form.id).where(Form.code == code)
+                existing_row = (await conn.execute(stmt_select)).mappings().first()
 
-                if existing:
-                    existing_id = existing["id"]
+                if existing_row:
+                    existing_id = str(existing_row["id"])
 
-                    if not is_uuidv7(existing_id):
-                        raise ValueError(
-                            f"El formulario del año {code} ya existe, pero su ID "
-                            f"no es UUIDv7: {existing_id}. "
-                            "Como este ID será usado por forms.sections.form_id, "
-                            "corrige ese registro antes de continuar."
+                    # Ejecutar actualización sobre el registro mapeado por el ORM
+                    stmt_update = (
+                        update(Form)
+                        .where(Form.id == existing_row["id"])
+                        .values(
+                            label=record["label"], description=record["description"]
                         )
-
-                    await update_form(conn, existing_id, record)
-                    updated += 1
-
-                    logger.debug(
-                        f"Updated form code={code} with existing UUIDv7: {existing_id}"
                     )
-
+                    await conn.execute(stmt_update)
+                    updated += 1
+                    logger.debug(
+                        f"Formulario actualizado: code={code} | ID={existing_id}"
+                    )
                 else:
-                    new_id = await insert_form(conn, record)
+                    # Generar un ID UUIDv7 nativo compatible y realizar la inserción segura
+                    new_id = new_uuidv7()
+
+                    # Core insert helper used cleanly with the declarative model
+                    stmt_insert = insert(Form).values(
+                        id=new_id,
+                        code=record["code"],
+                        label=record["label"],
+                        description=record["description"],
+                    )
+                    await conn.execute(stmt_insert)
                     inserted += 1
 
-                    logger.debug(
-                        f"Inserted form code={code} with UUIDv7: {new_id}"
-                    )
+            # Ejecutar el motor centralizado de validaciones post-carga
+            await validate_forms_state(conn, expected_codes)
 
-            await validate_forms(conn)
-
-        logger.debug(
-            f"forms.forms population finished. "
-            f"Inserted: {inserted}. Updated: {updated}."
+        logger.info(
+            f"Poblado de forms.forms finalizado con éxito. Creados: {inserted}. Actualizados: {updated}."
         )
 
     except Exception as e:
-        logger.error(f"Failed to run forms.forms population: {e}")
+        logger.error(f"Fallo crítico al ejecutar el poblado de forms.forms: {e}")
         raise

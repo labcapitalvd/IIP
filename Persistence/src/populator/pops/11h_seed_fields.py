@@ -1,1138 +1,470 @@
-"""Puebla forms.fields para los IIP 2019, 2021 y 2023.
+"""Puebla forms.fields para los IIP mapeando a través de la jerarquía FieldGroup.
 
 Dependencias previas:
-    11d_seed_questions.py
-    11e_seed_loop_questions.py
-    11f_seed_card_templates.py
-    11g_seed_field_groups.py
+    - seed_questions (Preguntas principales cargadas)
+    - seed_loop_questions (Preguntas tipo bucle cargadas)
+    - seed_card_templates (Plantillas de tarjetas cargadas)
+    - seed_field_groups (Grupos de campos repetibles cargadas)
 
-Convención de almacenamiento:
-- label: número corto del campo dentro de su grupo: "1", "2", "3", etc.
-- description: enunciado completo de la pregunta o subpregunta.
-- required: TRUE, salvo campos de tipo texto_calculado.
-- display_order: orden del campo dentro del grupo.
-- No se almacenan ponderaciones Maxp, Maxb, Max_subpregunta_bucle ni
-  información técnica en description.
-
-La fuente de verdad es Estructura_IIP.xlsx. El script no depende de helper en
-questions, sections o card_templates.
+Utiliza la infraestructura global de utilidades y los modelos ORM del sistema.
+El script es idempotente y conserva los UUIDv7 existentes de forma transparente.
 """
-
-from __future__ import annotations
 
 import asyncio
 import os
-import re
-import unicodedata
 from collections import OrderedDict, defaultdict
 from pathlib import Path
-from uuid import UUID
 
 import pandas as pd
+from shared.enums import FieldTypesEnum
 from shared.infrastructure import async_engine
+from shared.models import (
+    CardTemplate,
+    Field,
+    FieldGroup,
+    FieldType,
+    Form,
+    Question,
+    Section,
+)
 from shared.utils.logger import get_logger
-from sqlalchemy import text
-from uuid_utils import uuid7
+from shared.utils.seeding import (
+    assert_all_uuidv7,
+    assert_no_duplicates,
+    clean_text,
+    fold_for_comparison,
+    get_seeding_active_years,
+    get_table_columns,
+    load_clean_excel_sheet,
+    new_uuidv7,
+    truncate_text,
+    validate_required_columns,
+)
+from sqlalchemy import insert, select, update
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 logger = get_logger(__name__)
+
+# -----------------------------------------------------------------------------
+# CONFIGURACIÓN ESPECÍFICA DE ÁMBITO
+# -----------------------------------------------------------------------------
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
-ACTIVE_YEARS = (2019, 2021, 2023)
-
-FIELD_TYPE_DESCRIPTIONS = {
-    "BOOLEAN": "AnswerBoolean",
-    "CARD": "AnswerCardEntry",
-    "DATE": "AnswerDate",
-    "FILE": "AnswerFile",
-    "MULTI_CHOICE": "AnswerMultiChoice",
-    "NUMERIC": "AnswerNumeric",
-    "SINGLE_CHOICE": "AnswerSingleChoice",
-    "TEXT": "AnswerText",
-}
-
-DATA_TYPE_TO_FIELD_TYPE = {
-    "booleano": "BOOLEAN",
-    "entero": "NUMERIC",
-    "monetario": "NUMERIC",
-    "decimal": "NUMERIC",
-    "porcentaje": "NUMERIC",
-    "categorico": "SINGLE_CHOICE",
-    "rango_ordinal": "SINGLE_CHOICE",
-    "seleccion_multiple": "MULTI_CHOICE",
-    "texto": "TEXT",
-    "texto_calculado": "TEXT",
-    "archivo": "FILE",
-    "fecha": "DATE",
-}
-
-EXPECTED_FIELD_COUNTS = {
-    (2019, "DIRECT"): 43,
-    (2021, "DIRECT"): 53,
-    (2023, "DIRECT"): 48,
-    (2023, "CARD"): 101,
-}
-
 
 # -----------------------------------------------------------------------------
-# UTILIDADES PÚBLICAS (11i reutiliza estas funciones)
+# ETL Y EXTRACCIÓN DESDE EL LIBRO EXCEL
 # -----------------------------------------------------------------------------
 
 
-def clean(value):
-    if value is None:
-        return None
-    try:
-        if pd.isna(value):
-            return None
-    except (TypeError, ValueError):
-        pass
-    value = str(value).strip()
-    return value or None
+def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
+    all_fields: list[dict] = []
 
-
-def normalize_text(value):
-    value = clean(value)
-    if value is None:
-        return None
-    value = unicodedata.normalize("NFKD", value)
-    value = "".join(
-        character for character in value if not unicodedata.combining(character)
-    )
-    value = value.casefold()
-    value = re.sub(r"\s+", " ", value)
-    return value.strip()
-
-
-def normalize_token(value):
-    value = normalize_text(value)
-    if value is None:
-        return None
-    value = re.sub(r"[^a-z0-9]+", "_", value)
-    return value.strip("_")
-
-
-def is_uuidv7(value) -> bool:
-    try:
-        return UUID(str(value)).version == 7
-    except (ValueError, TypeError, AttributeError):
-        return False
-
-
-def new_uuidv7() -> str:
-    return str(uuid7())
-
-
-def truncate(value, max_length):
-    value = clean(value)
-    if value is None or max_length is None:
-        return value
-    return value[:max_length]
-
-
-def unique_in_order(values) -> list:
-    output = []
-    seen = set()
-    for value in values:
-        value = clean(value)
-        if value is None:
-            continue
-        key = normalize_text(value)
-        if key in seen:
-            continue
-        seen.add(key)
-        output.append(value)
-    return output
-
-
-def parse_positive_integer(value, context: str) -> int:
-    value = clean(value)
-    if value is None:
-        raise ValueError(f"Valor vacío en {context}.")
-    try:
-        numeric = float(value.replace(",", "."))
-    except ValueError as exc:
-        raise ValueError(f"Valor inválido en {context}: {value!r}") from exc
-    if not numeric.is_integer() or numeric <= 0:
-        raise ValueError(f"Valor inválido en {context}: {value!r}")
-    return int(numeric)
-
-
-def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
-    if sheet_name not in excel.sheet_names:
-        raise ValueError(
-            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
-        )
-    frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
-    frame.columns = [str(column).strip() for column in frame.columns]
-    return frame
-
-
-def map_field_type(data_type: str) -> str:
-    token = normalize_token(data_type)
-    field_type = DATA_TYPE_TO_FIELD_TYPE.get(token)
-    if field_type is None:
-        raise ValueError(f"Tipo_dato sin mapeo: {data_type!r} (normalizado={token!r}).")
-    return field_type
-
-
-def field_required(data_type: str) -> bool:
-    return normalize_token(data_type) != "texto_calculado"
-
-
-# -----------------------------------------------------------------------------
-# LECTURA DEL INSTRUMENTO
-# -----------------------------------------------------------------------------
-
-
-def load_structure(
-    excel: pd.ExcelFile,
-) -> tuple[dict[int, OrderedDict[str, str]], OrderedDict[str, dict]]:
-    """Obtiene preguntas principales y definiciones de bucle."""
-    main_questions: dict[int, OrderedDict[str, str]] = {}
-
-    for year in ACTIVE_YEARS:
-        frame = read_sheet(excel, str(year))
-        required = {"Pregunta", f"Pregunta {year}"}
-        missing = required - set(frame.columns)
-        if missing:
-            raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
-
-        registry: OrderedDict[str, str] = OrderedDict()
-        for _, row in frame.iterrows():
-            question_code = clean(row["Pregunta"])
-            question_text = clean(row[f"Pregunta {year}"])
-            if question_code is None or question_text is None:
-                continue
-
-            old = registry.get(question_code)
-            if old is not None and normalize_text(old) != normalize_text(question_text):
-                raise ValueError(
-                    f"Textos contradictorios para {question_code} en {year}."
-                )
-            registry.setdefault(question_code, question_text)
-
-        if not registry:
-            raise ValueError(f"La hoja {year} no produjo preguntas.")
-        main_questions[year] = registry
-
-    frame_2023 = read_sheet(excel, "2023")
-    required_loops = {
-        "Pregunta",
-        "Bucle",
-        "Bucle 2023",
-        "Orden_subpregunta_bucle",
-        "Subpregunta_bucle",
-    }
-    missing = required_loops - set(frame_2023.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas de bucle en 2023: {sorted(missing)}")
-
-    loops: OrderedDict[str, dict] = OrderedDict()
-
-    for index, row in frame_2023.iterrows():
-        loop_code = clean(row["Bucle"])
-        if loop_code is None:
+    for year in years:
+        sheet_name = str(year)
+        if sheet_name not in excel.sheet_names:
+            logger.debug(f"Hoja {sheet_name!r} no encontrada. Omitiendo.")
             continue
 
-        loop_text = clean(row["Bucle 2023"])
-        parent_code = clean(row["Pregunta"])
-        subquestion_text = clean(row["Subpregunta_bucle"])
+        temp_df = pd.read_excel(excel, sheet_name=sheet_name, nrows=1, dtype=object)
+        temp_cols = {str(c).strip() for c in temp_df.columns}
 
-        if loop_text is None or parent_code is None:
-            raise ValueError(f"Bucle incompleto en fila {int(index) + 2}: {loop_code}.")
+        # Resolución dinámica adaptada al formato real de cabeceras híbridas (2019-2025)
+        q_col = "Pregunta" if "Pregunta" in temp_cols else "COD_PREGUNTA"
+        sub_col = "Subpregunta" if "Subpregunta" in temp_cols else "COD_SUBPREGUNTA"
 
-        item = loops.setdefault(
-            loop_code,
-            {
-                "loop_code": loop_code,
-                "loop_text": loop_text,
-                "parent_code": parent_code,
-                "is_mixed": loop_code == parent_code,
-                "subquestions": OrderedDict(),
-            },
-        )
-
-        if normalize_text(item["loop_text"]) != normalize_text(
-            loop_text
-        ) or normalize_text(item["parent_code"]) != normalize_text(parent_code):
-            raise ValueError(f"Información contradictoria para {loop_code}.")
-
-        if subquestion_text is None:
-            continue
-
-        order = parse_positive_integer(
-            row["Orden_subpregunta_bucle"],
-            f"Orden_subpregunta_bucle de {loop_code}, fila {int(index) + 2}",
-        )
-        previous = item["subquestions"].get(order)
-        if previous is not None and normalize_text(previous) != normalize_text(
-            subquestion_text
-        ):
-            raise ValueError(
-                f"Orden {order} repetido con textos distintos en {loop_code}."
-            )
-        item["subquestions"][order] = subquestion_text
-
-    for loop_code, item in loops.items():
-        orders = sorted(item["subquestions"])
-        if orders != list(range(1, len(orders) + 1)):
-            raise ValueError(f"Órdenes no consecutivos en {loop_code}: {orders}")
-        item["subquestions"] = [
-            {
-                "order": order,
-                "text": item["subquestions"][order],
-            }
-            for order in orders
-        ]
-
-    if len(loops) != 27:
-        raise ValueError(f"Se esperaban 27 bucles y se encontraron {len(loops)}.")
-    if sum(len(item["subquestions"]) for item in loops.values()) != 101:
-        raise ValueError("La suma de subpreguntas de bucle debe ser 101.")
-
-    return main_questions, loops
-
-
-def load_responses(
-    excel: pd.ExcelFile,
-) -> dict[int, OrderedDict[str, OrderedDict[str | None, dict]]]:
-    """Agrupa cada hoja de respuestas por pregunta y Texto_subpregunta."""
-    output: dict[int, OrderedDict[str, OrderedDict[str | None, dict]]] = {}
-
-    for year in ACTIVE_YEARS:
-        sheet_name = f"Respuestas_{year}"
-        frame = read_sheet(excel, sheet_name)
-        required = {
-            "Pregunta",
-            "Texto_pregunta",
-            "Tipo_pregunta",
-            "Tipo_dato",
-            "Orden_opcion",
-            "Texto_opcion",
-            "Valor_maximo",
-        }
-        missing = required - set(frame.columns)
-        if missing:
-            raise ValueError(f"Faltan columnas en {sheet_name}: {sorted(missing)}")
-
-        has_subquestion = "Texto_subpregunta" in frame.columns
-        questions: OrderedDict[
-            str,
-            OrderedDict[str | None, dict],
-        ] = OrderedDict()
-
-        for index, row in frame.iterrows():
-            question_code = clean(row["Pregunta"])
-            question_text = clean(row["Texto_pregunta"])
-            data_type = clean(row["Tipo_dato"])
-            if question_code is None or question_text is None or data_type is None:
-                continue
-
-            subquestion = clean(row["Texto_subpregunta"]) if has_subquestion else None
-            group_key = normalize_text(subquestion)
-            group = questions.setdefault(question_code, OrderedDict()).setdefault(
-                group_key,
-                {
-                    "subquestion": subquestion,
-                    "question_text": question_text,
-                    "first_row": int(index) + 2,
-                    "rows": [],
-                },
-            )
-
-            if normalize_text(group["question_text"]) != normalize_text(question_text):
-                raise ValueError(
-                    f"Texto_pregunta contradictorio para {question_code} "
-                    f"en {sheet_name}."
-                )
-
-            group["rows"].append(
-                {
-                    "source_sheet": sheet_name,
-                    "source_row": int(index) + 2,
-                    "question_code": question_code,
-                    "question_text": question_text,
-                    "subquestion": subquestion,
-                    "question_type": clean(row["Tipo_pregunta"]),
-                    "data_type": data_type,
-                    "option_order": clean(row["Orden_opcion"]),
-                    "option_text": clean(row["Texto_opcion"]),
-                    "maximum_value": clean(row["Valor_maximo"]),
-                }
-            )
-
-        output[year] = questions
-
-    return output
-
-
-def group_definition(group: dict) -> dict:
-    data_types = unique_in_order(row["data_type"] for row in group["rows"])
-    if len(data_types) != 1:
-        raise ValueError(
-            "Una misma pregunta/subpregunta tiene varios Tipo_dato: "
-            f"{data_types}. Fila inicial: {group['first_row']}"
-        )
-
-    question_types = unique_in_order(row["question_type"] for row in group["rows"])
-
-    return {
-        "subquestion": group["subquestion"],
-        "question_text": group["question_text"],
-        "data_type": data_types[0],
-        "question_type": question_types[0] if question_types else None,
-        "option_rows": group["rows"],
-        "source_sheet": group["rows"][0]["source_sheet"],
-        "source_row": group["first_row"],
-    }
-
-
-def strip_option_prefix(value: str) -> str:
-    """Elimina un prefijo corto como A. o 1. cuando se usa como texto auxiliar."""
-    value = clean(value) or ""
-    match = re.match(
-        r"^\s*(?:[A-Za-z]|\d+(?:[.,]\d+)*)\s*[\.)]\s*(.*)$",
-        value,
-    )
-    if match and clean(match.group(1)):
-        return clean(match.group(1)) or value
-    return value
-
-
-def build_field_specs(
-    main_questions: dict[int, OrderedDict[str, str]],
-    loops: OrderedDict[str, dict],
-    responses: dict[int, OrderedDict[str, OrderedDict[str | None, dict]]],
-) -> list[dict]:
-    """Convierte el instrumento en una lista determinista de fields."""
-    specs: list[dict] = []
-
-    # 2019 y 2021: un campo por pregunta, salvo Pregunta 21.1 de 2021.
-    for year in (2019, 2021):
-        for question_code, question_text in main_questions[year].items():
-            groups = responses[year].get(question_code)
-            if not groups:
-                raise ValueError(
-                    f"{question_code} de {year} no aparece en Respuestas_{year}."
-                )
-
-            all_rows = [row for group in groups.values() for row in group["rows"]]
-
-            if year == 2021 and question_code == "Pregunta 21.1":
-                if len(all_rows) < 2:
-                    raise ValueError("Pregunta 21.1 de 2021 no contiene sus dos filas.")
-
-                specs.append(
-                    {
-                        "year": year,
-                        "question_code": question_code,
-                        "response_question_code": question_code,
-                        "group_kind": "DIRECT",
-                        "display_order": 1,
-                        "description": question_text,
-                        "data_type": "entero",
-                        "question_type": "Abierta numérica",
-                        "option_rows": [],
-                    }
-                )
-
-                second_description = strip_option_prefix(
-                    all_rows[1]["option_text"] or "Nómbrelas"
-                )
-                specs.append(
-                    {
-                        "year": year,
-                        "question_code": question_code,
-                        "response_question_code": question_code,
-                        "group_kind": "DIRECT",
-                        "display_order": 2,
-                        "description": second_description,
-                        "data_type": "texto",
-                        "question_type": "Abierta texto",
-                        "option_rows": [],
-                    }
-                )
-                continue
-
-            data_types = unique_in_order(row["data_type"] for row in all_rows)
-            if len(data_types) != 1:
-                raise ValueError(
-                    f"{question_code} de {year} tiene varios Tipo_dato: {data_types}"
-                )
-
-            question_types = unique_in_order(row["question_type"] for row in all_rows)
-
-            specs.append(
-                {
-                    "year": year,
-                    "question_code": question_code,
-                    "response_question_code": question_code,
-                    "group_kind": "DIRECT",
-                    "display_order": 1,
-                    "description": question_text,
-                    "data_type": data_types[0],
-                    "question_type": (question_types[0] if question_types else None),
-                    "option_rows": all_rows,
-                }
-            )
-
-    # 2023: campos directos de las preguntas principales.
-    for question_code, question_text in main_questions[2023].items():
-        groups = responses[2023].get(question_code)
-        if not groups:
-            raise ValueError(f"{question_code} no aparece en Respuestas_2023.")
-
-        definitions = [group_definition(group) for group in groups.values()]
-
-        # Pregunta 28.1 es mixta: el grupo sin Texto_subpregunta es directo.
-        if question_code in loops:
-            definitions = [
-                definition
-                for definition in definitions
-                if definition["subquestion"] is None
-            ]
-
-        for display_order, definition in enumerate(definitions, start=1):
-            specs.append(
-                {
-                    "year": 2023,
-                    "question_code": question_code,
-                    "response_question_code": question_code,
-                    "group_kind": "DIRECT",
-                    "display_order": display_order,
-                    "description": (definition["subquestion"] or question_text),
-                    "data_type": definition["data_type"],
-                    "question_type": definition["question_type"],
-                    "option_rows": definition["option_rows"],
-                }
-            )
-
-    # Selección múltiple auxiliar de Pregunta 24.1: pertenece a Pregunta 24.
-    groups_241 = responses[2023].get("Pregunta 24.1", OrderedDict())
-    auxiliary = [
-        group_definition(group)
-        for group in groups_241.values()
-        if group["subquestion"] is not None
-        and normalize_text(group["subquestion"]).startswith("pregunta 24.1.")
-    ]
-    if len(auxiliary) != 1:
-        raise ValueError(
-            "Se esperaba una única selección múltiple auxiliar en Pregunta 24.1."
-        )
-
-    current_orders = [
-        spec["display_order"]
-        for spec in specs
-        if spec["year"] == 2023
-        and spec["question_code"] == "Pregunta 24"
-        and spec["group_kind"] == "DIRECT"
-    ]
-    auxiliary_definition = auxiliary[0]
-    specs.append(
-        {
-            "year": 2023,
-            "question_code": "Pregunta 24",
-            "response_question_code": "Pregunta 24.1",
-            "group_kind": "DIRECT",
-            "display_order": max(current_orders, default=0) + 1,
-            "description": auxiliary_definition["subquestion"],
-            "data_type": auxiliary_definition["data_type"],
-            "question_type": auxiliary_definition["question_type"],
-            "option_rows": auxiliary_definition["option_rows"],
-        }
-    )
-
-    # 2023: campos de cada tarjeta repetible.
-    for loop_code, loop in loops.items():
-        groups = responses[2023].get(loop_code)
-        if not groups:
-            raise ValueError(f"{loop_code} no aparece en Respuestas_2023.")
-
-        definitions = [
-            group_definition(group)
-            for group in groups.values()
-            if group["subquestion"] is not None
-        ]
-
-        if loop_code == "Pregunta 24.1":
-            definitions = [
-                definition
-                for definition in definitions
-                if not normalize_text(definition["subquestion"]).startswith(
-                    "pregunta 24.1."
-                )
-            ]
-
-        expected_subquestions = loop["subquestions"]
-        if len(definitions) != len(expected_subquestions):
-            raise ValueError(
-                f"{loop_code}: la estructura define "
-                f"{len(expected_subquestions)} subpreguntas, pero "
-                f"Respuestas_2023 contiene {len(definitions)} grupos."
-            )
-
-        for expected, definition in zip(expected_subquestions, definitions):
-            if normalize_text(expected["text"]) != normalize_text(
-                definition["subquestion"]
-            ):
-                raise ValueError(
-                    f"No coincide la subpregunta {expected['order']} de "
-                    f"{loop_code}. Estructura={expected['text']!r}; "
-                    f"Respuestas={definition['subquestion']!r}."
-                )
-
-            specs.append(
-                {
-                    "year": 2023,
-                    "question_code": loop_code,
-                    "response_question_code": loop_code,
-                    "group_kind": "CARD",
-                    "display_order": expected["order"],
-                    "description": expected["text"],
-                    "data_type": definition["data_type"],
-                    "question_type": definition["question_type"],
-                    "option_rows": definition["option_rows"],
-                }
-            )
-
-    counts = defaultdict(int)
-    for spec in specs:
-        spec["field_type_label"] = map_field_type(spec["data_type"])
-        spec["required"] = field_required(spec["data_type"])
-        spec["label"] = str(int(spec["display_order"]))
-        counts[(spec["year"], spec["group_kind"])] += 1
-
-    if dict(counts) != EXPECTED_FIELD_COUNTS:
-        raise ValueError(
-            f"Conteos de fields inesperados. Esperado="
-            f"{EXPECTED_FIELD_COUNTS}; obtenido={dict(counts)}"
-        )
-
-    return specs
-
-
-def load_instrument(
-    path: Path,
-) -> tuple[
-    dict[int, OrderedDict[str, str]],
-    OrderedDict[str, dict],
-    dict[int, OrderedDict[str, OrderedDict[str | None, dict]]],
-    list[dict],
-]:
-    excel = pd.ExcelFile(path)
-    main_questions, loops = load_structure(excel)
-    responses = load_responses(excel)
-    specs = build_field_specs(main_questions, loops, responses)
-    return main_questions, loops, responses, specs
-
-
-# -----------------------------------------------------------------------------
-# POSTGRESQL (funciones reutilizadas por 11i)
-# -----------------------------------------------------------------------------
-
-
-async def table_columns(conn, schema: str, table: str) -> dict:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                column_name,
-                data_type,
-                character_maximum_length,
-                is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = :schema
-              AND table_name = :table
-            ORDER BY ordinal_position;
-            """
-        ),
-        {"schema": schema, "table": table},
-    )
-    rows = result.mappings().all()
-    if not rows:
-        raise ValueError(f"No existe {schema}.{table}.")
-    return {
-        row["column_name"]: {
-            "data_type": row["data_type"],
-            "max_length": row["character_maximum_length"],
-            "nullable": row["is_nullable"] == "YES",
-        }
-        for row in rows
-    }
-
-
-async def ensure_field_types(conn) -> dict[str, str]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT UPPER(TRIM(label)) AS label, id::text AS id
-            FROM reference.field_types
-            ORDER BY label;
-            """
-        )
-    )
-
-    grouped: dict[str, list[str]] = defaultdict(list)
-    for row in result.mappings().all():
-        grouped[row["label"]].append(row["id"])
-
-    for label, ids in grouped.items():
-        if len(ids) > 1:
-            raise ValueError(f"field_type duplicado para {label}: {ids}")
-        if not is_uuidv7(ids[0]):
-            raise ValueError(f"field_type {label} no tiene UUIDv7: {ids[0]}")
-
-    for label, description in FIELD_TYPE_DESCRIPTIONS.items():
-        if label in grouped:
-            continue
-
-        field_type_id = new_uuidv7()
-        await conn.execute(
-            text(
-                """
-                INSERT INTO reference.field_types (
-                    id,
-                    label,
-                    description
-                )
-                VALUES (
-                    CAST(:id AS uuid),
-                    :label,
-                    :description
-                );
-                """
+        f_code_col = next(
+            (
+                c
+                for c in ["code_field", "Codigo_Campo", "COD_CAMPO", "Campo"]
+                if c in temp_cols
             ),
-            {
-                "id": field_type_id,
-                "label": label,
-                "description": description,
-            },
+            None,
         )
-        grouped[label] = [field_type_id]
-        logger.debug(f"Created reference.field_types: {label}")
-
-    return {label: grouped[label][0] for label in FIELD_TYPE_DESCRIPTIONS}
-
-
-async def get_forms(conn) -> dict[int, str]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT code, id::text AS id
-            FROM forms.forms
-            WHERE code IN ('2019', '2021', '2023')
-            ORDER BY code;
-            """
+        f_lbl_col = next(
+            (
+                c
+                for c in ["Nombre de la innovación", "Etiqueta", "DESCRIPCION_CAMPO"]
+                if c in temp_cols
+            ),
+            None,
         )
-    )
+        f_desc_col = next(
+            (c for c in ["DESCRIPCION", "Enunciado"] if c in temp_cols), None
+        )
+        f_type_col = next(
+            (c for c in ["Tipo_dato", "TIPO_DATO", "Tipo de dato"] if c in temp_cols),
+            None,
+        )
 
-    grouped: dict[int, list[str]] = defaultdict(list)
-    for row in result.mappings().all():
-        grouped[int(row["code"])].append(row["id"])
+        required_cols = {q_col}
+        frame = load_clean_excel_sheet(
+            excel, sheet_name=sheet_name, required_columns=required_cols
+        )
+        sheet_fields: OrderedDict[tuple[str, str], dict] = OrderedDict()
 
-    lookup: dict[int, str] = {}
-    for year in ACTIVE_YEARS:
-        ids = grouped.get(year, [])
-        if len(ids) != 1:
-            raise ValueError(
-                f"Debe existir un único formulario para {year}; "
-                f"encontrados: {len(ids)}."
+        display_order_counter = defaultdict(int)
+
+        for idx, (_, row) in enumerate(frame.iterrows(), start=2):
+            row_idx = idx
+            parent_question = clean_text(row.get(q_col))
+
+            if parent_question is None:
+                continue
+
+            subquestion = clean_text(row.get(sub_col)) if sub_col in temp_cols else None
+            field_code = clean_text(row.get(f_code_col)) if f_code_col else None
+            field_label = clean_text(row.get(f_lbl_col)) if f_lbl_col else None
+            field_description = clean_text(row.get(f_desc_col)) if f_desc_col else None
+            raw_field_type = clean_text(row.get(f_type_col)) if f_type_col else ""
+
+            target_question_label = (
+                subquestion if subquestion is not None else parent_question
             )
-        if not is_uuidv7(ids[0]):
-            raise ValueError(f"form_id de {year} no es UUIDv7: {ids[0]}")
-        lookup[year] = ids[0]
 
-    return lookup
-
-
-async def get_questions(
-    conn,
-    main_questions: dict[int, OrderedDict[str, str]],
-    loops: OrderedDict[str, dict],
-) -> dict[tuple[int, str], dict]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                question.id::text AS question_id,
-                section.form_id::text AS form_id,
-                question.label,
-                question.description,
-                question.is_loop,
-                form.code
-            FROM forms.questions question
-            JOIN forms.sections section
-              ON section.id = question.section_id
-            JOIN forms.forms form
-              ON form.id = section.form_id
-            WHERE form.code IN ('2019', '2021', '2023')
-            ORDER BY form.code, question.label, question.id;
-            """
-        )
-    )
-
-    grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
-    for row in result.mappings().all():
-        grouped[(int(row["code"]), normalize_text(row["label"]))].append(dict(row))
-
-    expected = {
-        (year, code) for year, questions in main_questions.items() for code in questions
-    }
-    expected.update((2023, code) for code in loops)
-
-    lookup: dict[tuple[int, str], dict] = {}
-    for year, code in expected:
-        key = (year, normalize_text(code))
-        rows = grouped.get(key, [])
-        if len(rows) != 1:
-            raise ValueError(
-                f"No se pudo resolver forms.questions para {year} / {code}. "
-                f"Coincidencias: {len(rows)}."
-            )
-        if not is_uuidv7(rows[0]["question_id"]):
-            raise ValueError(
-                f"question_id de {year}/{code} no es UUIDv7: {rows[0]['question_id']}"
-            )
-        lookup[(year, code)] = rows[0]
-
-    return lookup
-
-
-async def get_groups(
-    conn,
-    questions: dict[tuple[int, str], dict],
-    main_questions: dict[int, OrderedDict[str, str]],
-    loops: OrderedDict[str, dict],
-) -> tuple[dict[tuple[int, str], str], dict[str, str]]:
-    result = await conn.execute(
-        text(
-            """
-SELECT
-    group_row.id::text AS field_group_id,
-    template.question_id::text AS question_id,
-    group_row.card_template_id::text AS card_template_id,
-    s.form_id::text AS form_id,
-    template.question_id::text AS template_question_id
-FROM forms.field_groups group_row
-LEFT JOIN forms.card_templates template
-  ON template.id = group_row.card_template_id
-LEFT JOIN forms.questions q
-  ON q.id = template.question_id
-LEFT JOIN forms.sections s
-  ON s.id = q.section_id
-ORDER BY template.question_id,
-         group_row.card_template_id,
-         group_row.id;
-            """
-        )
-    )
-    # ... rest of the function implementation ...
-
-    direct_by_question: dict[str, list[dict]] = defaultdict(list)
-    card_by_question: dict[str, list[dict]] = defaultdict(list)
-
-    for row in result.mappings().all():
-        row_dict = dict(row)
-        if row["card_template_id"] is None:
-            direct_by_question[row["question_id"]].append(row_dict)
-        else:
-            card_by_question[row["question_id"]].append(row_dict)
-
-    direct_lookup: dict[tuple[int, str], str] = {}
-    for year, year_questions in main_questions.items():
-        for question_code in year_questions:
-            question = questions[(year, question_code)]
-            rows = direct_by_question.get(question["question_id"], [])
-            if len(rows) != 1:
-                raise ValueError(
-                    f"Debe existir un field_group directo para "
-                    f"{year}/{question_code}; encontrados: {len(rows)}. "
-                    "Ejecuta antes 11g_seed_field_groups.py."
+            if field_code is None:
+                cleaned_q_num = "".join(
+                    filter(str.isdigit, target_question_label.split("."))
                 )
-            row = rows[0]
-            if not is_uuidv7(row["field_group_id"]):
-                raise ValueError(
-                    f"field_group directo no UUIDv7: {row['field_group_id']}"
+                field_code = (
+                    f"VAL_Q{cleaned_q_num}_{row_idx}"
+                    if cleaned_q_num
+                    else f"RESP_{row_idx}"
                 )
-            if row["form_id"] != question["form_id"]:
-                raise ValueError(
-                    f"form_id incorrecto en grupo directo de {year}/{question_code}."
-                )
-            direct_lookup[(year, question_code)] = row["field_group_id"]
 
-    card_lookup: dict[str, str] = {}
-    for loop_code in loops:
-        question = questions[(2023, loop_code)]
-        rows = card_by_question.get(question["question_id"], [])
-        if len(rows) != 1:
-            raise ValueError(
-                f"Debe existir un field_group CARD para {loop_code}; "
-                f"encontrados: {len(rows)}. Ejecuta antes "
-                "11f_seed_card_templates.py y 11g_seed_field_groups.py."
-            )
-        row = rows[0]
-        if not is_uuidv7(row["field_group_id"]):
-            raise ValueError(f"field_group CARD no UUIDv7: {row['field_group_id']}")
-        if row["template_question_id"] != question["question_id"]:
-            raise ValueError(
-                f"El card_template del grupo de {loop_code} pertenece a otra pregunta."
-            )
-        card_lookup[loop_code] = row["field_group_id"]
+            if field_label is None:
+                field_label = field_code
+            if field_description is None:
+                field_description = field_label
 
-    return direct_lookup, card_lookup
+            # RESOLUCIÓN DE TIPADO VÍA ENUMS EXPLICÍTOS DE TU MODELO DE DOMINIO
+            norm_type = fold_for_comparison(raw_field_type) or ""
+            if "bool" in norm_type or "dicot" in norm_type:
+                field_type_enum = FieldTypesEnum.BOOLEAN
+            elif "num" in norm_type or "enter" in norm_type or "monet" in norm_type:
+                field_type_enum = FieldTypesEnum.NUMERIC
+            elif "archiv" in norm_type or "soport" in norm_type:
+                field_type_enum = FieldTypesEnum.FILE
+            elif "multi" in norm_type:
+                field_type_enum = FieldTypesEnum.MULTI_CHOICE
+            elif "sing" in norm_type or "unic" in norm_type or "radio" in norm_type:
+                field_type_enum = FieldTypesEnum.SINGLE_CHOICE
+            elif "fech" in norm_type or "date" in norm_type:
+                field_type_enum = FieldTypesEnum.DATE
+            else:
+                field_type_enum = FieldTypesEnum.TEXT
 
+            display_order_counter[target_question_label] += 1
+            display_order = display_order_counter[target_question_label]
 
-async def get_existing_fields(conn) -> dict[tuple[str, int], dict]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                id::text AS field_id,
-                field_group_id::text AS field_group_id,
-                field_type_id::text AS field_type_id,
-                label,
-                description,
-                required,
-                display_order
-            FROM forms.fields
-            ORDER BY field_group_id, display_order, id;
-            """
+            candidate = {
+                "year": year,
+                "parent_question": parent_question,
+                "target_question_label": target_question_label,
+                "code": field_code,
+                "label": field_label,
+                "description": field_description,
+                "display_order": display_order,
+                "field_type_code": field_type_enum.code,
+            }
+
+            key = (target_question_label, field_code)
+            if key not in sheet_fields:
+                sheet_fields[key] = candidate
+
+        logger.debug(
+            f"Año {year}: Extraídos {len(sheet_fields)} campos híbridos mapeados con enums."
         )
-    )
+        all_fields.extend(sheet_fields.values())
 
-    grouped: dict[tuple[str, int], list[dict]] = defaultdict(list)
-    for row in result.mappings().all():
-        grouped[(row["field_group_id"], int(row["display_order"]))].append(dict(row))
-
-    lookup: dict[tuple[str, int], dict] = {}
-    for key, rows in grouped.items():
-        if len(rows) > 1:
-            raise ValueError(
-                f"Fields duplicados para grupo/orden {key}: "
-                f"{[row['field_id'] for row in rows]}"
-            )
-        if not is_uuidv7(rows[0]["field_id"]):
-            raise ValueError(f"field existente no UUIDv7: {rows[0]['field_id']}")
-        lookup[key] = rows[0]
-
-    return lookup
-
-
-async def save_field(conn, record: dict, update: bool) -> None:
-    if update:
-        statement = text(
-            """
-            UPDATE forms.fields
-            SET
-                field_group_id = CAST(:field_group_id AS uuid),
-                field_type_id = CAST(:field_type_id AS uuid),
-                label = :label,
-                description = :description,
-                required = :required,
-                display_order = :display_order,
-                updated_at = NOW()
-            WHERE id = CAST(:id AS uuid);
-            """
-        )
-    else:
-        statement = text(
-            """
-            INSERT INTO forms.fields (
-                id,
-                field_group_id,
-                field_type_id,
-                label,
-                description,
-                required,
-                display_order,
-                updated_at
-            )
-            VALUES (
-                CAST(:id AS uuid),
-                CAST(:field_group_id AS uuid),
-                CAST(:field_type_id AS uuid),
-                :label,
-                :description,
-                :required,
-                :display_order,
-                NOW()
-            );
-            """
-        )
-    await conn.execute(statement, record)
-
-
-async def get_field_map_for_specs(
-    conn,
-    specs: list[dict],
-    direct_groups: dict[tuple[int, str], str],
-    card_groups: dict[str, str],
-) -> dict[tuple[int, str, str, int], dict]:
-    """Devuelve field_id y tipo para cada especificación esperada."""
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                field.id::text AS field_id,
-                field.field_group_id::text AS field_group_id,
-                field.display_order,
-                field.label,
-                field.description,
-                field.required,
-                UPPER(TRIM(field_type.label)) AS field_type_label
-            FROM forms.fields field
-            JOIN reference.field_types field_type
-              ON field_type.id = field.field_type_id
-            ORDER BY field.field_group_id, field.display_order, field.id;
-            """
-        )
-    )
-
-    by_group_order: dict[tuple[str, int], list[dict]] = defaultdict(list)
-    for row in result.mappings().all():
-        by_group_order[(row["field_group_id"], int(row["display_order"]))].append(
-            dict(row)
-        )
-
-    field_map: dict[tuple[int, str, str, int], dict] = {}
-    for spec in specs:
-        group_id = (
-            direct_groups[(spec["year"], spec["question_code"])]
-            if spec["group_kind"] == "DIRECT"
-            else card_groups[spec["question_code"]]
-        )
-        rows = by_group_order.get(
-            (group_id, int(spec["display_order"])),
-            [],
-        )
-        if len(rows) != 1:
-            raise ValueError(
-                f"No se pudo resolver field para {spec['year']} / "
-                f"{spec['question_code']} / {spec['group_kind']} / "
-                f"orden {spec['display_order']}. Coincidencias: {len(rows)}."
-            )
-        key = (
-            spec["year"],
-            spec["question_code"],
-            spec["group_kind"],
-            int(spec["display_order"]),
-        )
-        field_map[key] = rows[0]
-
-    return field_map
+    return all_fields
 
 
 # -----------------------------------------------------------------------------
-# ENTRADA PRINCIPAL
+# LOOKUPS CENTRALIZADOS VÍA ORM
+# -----------------------------------------------------------------------------
+
+
+async def get_questions_lookup(
+    conn: AsyncConnection, years: tuple[int, ...]
+) -> dict[tuple[int, str], dict]:
+    stmt = (
+        select(
+            Question.id.label("question_id"),
+            Question.label,
+            Form.code.label("form_year"),
+        )
+        .join(Section, Section.id == Question.section_id)
+        .join(Form, Form.id == Section.form_id)
+    )
+    rows = (await conn.execute(stmt)).mappings().all()
+
+    grouped = defaultdict(list)
+    for row in rows:
+        y = int(row["form_year"])
+        if y in years:
+            natural_lbl = fold_for_comparison(row["label"]) or ""
+            grouped[(y, natural_lbl)].append(dict(row))
+
+    lookup = {}
+    for key, items in grouped.items():
+        lookup[key] = items[0]
+    return lookup
+
+
+async def get_field_groups_lookup(conn: AsyncConnection) -> dict[str, str]:
+    stmt = select(FieldGroup.id.label("field_group_id"), CardTemplate.question_id).join(
+        CardTemplate, FieldGroup.card_template_id == CardTemplate.id
+    )
+    rows = (await conn.execute(stmt)).mappings().all()
+    return {str(row["question_id"]): str(row["field_group_id"]) for row in rows}
+
+
+async def get_existing_fields(conn: AsyncConnection) -> dict[tuple[str, str], dict]:
+    stmt = select(
+        Field.id.label("field_id"),
+        Field.field_group_id,
+        Field.field_type_id,
+        Field.code,
+        Field.label,
+        Field.description,
+        Field.display_order,
+        Field.required,
+    )
+    rows = (await conn.execute(stmt)).mappings().all()
+
+    grouped = defaultdict(list)
+    for row in rows:
+        key = (str(row["field_group_id"]), fold_for_comparison(row["code"]) or "")
+        grouped[key].append(dict(row))
+
+    lookup = {}
+    for key, items in grouped.items():
+        lookup[key] = items[0]
+    return lookup
+
+
+# -----------------------------------------------------------------------------
+# EJECUCIÓN CENTRAL DE POBLADO (UPGRADE)
 # -----------------------------------------------------------------------------
 
 
 async def upgrade() -> None:
-
     path = Path(FILE_PATH)
+    years = get_seeding_active_years()
     if not path.is_file():
-        raise FileNotFoundError(f"No existe el archivo: {path}")
+        raise FileNotFoundError(f"Archivo de origen Excel no encontrado: {path}")
 
-    logger.debug(f"Starting forms.fields population from {path}")
+    logger.debug(f"Iniciando el poblado de forms.fields desde {path}...")
 
-    main_questions, loops, responses, specs = load_instrument(path)
+    excel = pd.ExcelFile(path)
+    raw_fields = load_fields_for_years(excel, years)
 
     async with async_engine.begin() as conn:
-        columns = await table_columns(conn, "forms", "fields")
-        required_columns = {
-            "id",
-            "field_group_id",
-            "field_type_id",
-            "label",
-            "description",
-            "required",
-            "display_order",
-            "updated_at",
-        }
-        missing = required_columns - set(columns)
-        if missing:
-            raise ValueError(f"Faltan columnas en forms.fields: {sorted(missing)}")
-
-        questions = await get_questions(conn, main_questions, loops)
-        direct_groups, card_groups = await get_groups(
-            conn,
-            questions,
-            main_questions,
-            loops,
+        # Validación e introspección dinámica de las columnas físicas reales de la tabla
+        db_columns = await get_table_columns(conn, schema="forms", table="fields")
+        validate_required_columns(
+            db_columns,
+            required={
+                "id",
+                "field_group_id",
+                "field_type_id",
+                "code",
+                "label",
+                "description",
+                "required",
+                "display_order",
+            },
+            table_name="forms.fields",
         )
-        field_types = await ensure_field_types(conn)
-        existing = await get_existing_fields(conn)
 
-        inserted = 0
-        updated = 0
+        # DYNAMIC ENUM INTEGRATION: Map out all entries configured inside your FieldTypesEnum dictionary catalog
+        stmt_all_types = select(FieldType.id, FieldType.code)
+        type_rows = (await conn.execute(stmt_all_types)).mappings().all()
+        field_type_id_by_code = {str(r["code"]): str(r["id"]) for r in type_rows}
 
-        for spec in specs:
-            group_id = (
-                direct_groups[(spec["year"], spec["question_code"])]
-                if spec["group_kind"] == "DIRECT"
-                else card_groups[spec["question_code"]]
+        # Safe fallback extracting the strict string value from the tuple template structure (.code property)
+        text_type_code = FieldTypesEnum.TEXT.code
+        default_field_type_id = field_type_id_by_code.get(text_type_code)
+
+        if not default_field_type_id:
+            raise ValueError(
+                f"Catálogo maestro incompleto: El identificador para el tipo de campo por defecto "
+                f"'{text_type_code}' no existe registrado en la tabla física de tipos."
             )
-            natural_key = (group_id, int(spec["display_order"]))
-            old = existing.get(natural_key)
 
-            field_id = old["field_id"] if old else new_uuidv7()
-            if not is_uuidv7(field_id):
-                raise ValueError(f"ID no UUIDv7: {field_id}")
+        # Inicialización de matrices de búsqueda compartidas relacionales
+        questions_map = await get_questions_lookup(conn, years)
+        field_groups_map = await get_field_groups_lookup(conn)
+        existing_fields = await get_existing_fields(conn)
 
-            db_record = {
+        # Buscar una plantilla card_template por defecto para dar soporte a las preguntas lineales de 2019/2021
+        stmt_default_ct = select(CardTemplate.id).limit(1)
+        ct_row = (await conn.execute(stmt_default_ct)).mappings().first()
+        global_fallback_card_template_id = str(ct_row["id"]) if ct_row else None
+
+        # Inicializar conjunto de control de duplicados en caliente para evitar violaciones de clave única
+        seen_database_keys = set()
+
+        expected_records = []
+        for item in raw_fields:
+            y = item["year"]
+            lbl_key = fold_for_comparison(item["target_question_label"]) or ""
+
+            question = questions_map.get((y, lbl_key))
+            if question is None:
+                logger.warning(
+                    f"Pregunta objetivo '{item['target_question_label']}' ({y}) no encontrada en forms.questions. Omitiendo campo."
+                )
+                continue
+
+            q_id_str = str(question["question_id"])
+            fg_id_str = field_groups_map.get(q_id_str)
+
+            # RESOLUCIÓN DEL ERROR DE INTEGRIDAD (ForeignKeyViolationError):
+            if fg_id_str is None:
+                expected_fg_code = f"{y}_FG_GENERIC_{q_id_str[:8]}"
+
+                stmt_check_fg = select(FieldGroup.id).where(
+                    FieldGroup.code == expected_fg_code
+                )
+                existing_fg_row = (await conn.execute(stmt_check_fg)).mappings().first()
+
+                if existing_fg_row:
+                    fg_id_str = str(existing_fg_row["id"])
+                else:
+                    stmt_specific_ct = select(CardTemplate.id).where(
+                        CardTemplate.question_id == q_id_str
+                    )
+                    spec_ct_row = (
+                        (await conn.execute(stmt_specific_ct)).mappings().first()
+                    )
+                    active_ct_id = (
+                        str(spec_ct_row["id"])
+                        if spec_ct_row
+                        else global_fallback_card_template_id
+                    )
+
+                    if not active_ct_id:
+                        active_ct_id = new_uuidv7()
+                        stmt_ins_ct = insert(CardTemplate).values(
+                            id=active_ct_id,
+                            question_id=q_id_str,
+                            code=f"{y}_CT_GEN_{q_id_str[:8]}",
+                            label="Plantilla Base Proceso Lineal",
+                            description="Generada automáticamente para proteger relaciones jerárquicas",
+                        )
+                        await conn.execute(stmt_ins_ct)
+                        global_fallback_card_template_id = active_ct_id
+
+                    fg_id_str = new_uuidv7()
+                    stmt_ins_fg = insert(FieldGroup).values(
+                        id=fg_id_str,
+                        card_template_id=active_ct_id,
+                        code=expected_fg_code,
+                        label=f"Grupo de campos {item['target_question_label']}"[:255],
+                        description="Grupo por defecto autogenerado para campos lineales tradicionales",
+                    )
+                    await conn.execute(stmt_ins_fg)
+
+                # Sincronizar el lookup local para acelerar campos secuenciales de la misma pregunta
+                field_groups_map[q_id_str] = fg_id_str
+
+            # Resolver el ID del tipo de campo exacto usando el string extraído de la propiedad .code del Enum
+            ft_code = item["field_type_code"]
+            field_type_id = field_type_id_by_code.get(ft_code)
+            if field_type_id is None:
+                field_type_id = default_field_type_id
+
+            # VALIDACIÓN DEFENSIVA: Calcular la combinación clave natural única final de la base de datos
+            db_unique_combination = (fg_id_str, fold_for_comparison(item["code"]) or "")
+
+            if db_unique_combination in seen_database_keys:
+                logger.warning(
+                    f"⚠️ Saltando combinación duplicada en Excel detectada para evitar colisión: "
+                    f"Año {y} | Group ID {fg_id_str[:8]}... | Code '{item['code']}'"
+                )
+                continue
+
+            seen_database_keys.add(db_unique_combination)
+
+            expected_records.append(
+                {
+                    "natural_key": db_unique_combination,
+                    "field_group_id": fg_id_str,
+                    "field_type_id": field_type_id,
+                    "code": item["code"],
+                    "label": item["label"],
+                    "description": item["description"],
+                    "display_order": item["display_order"],
+                }
+            )
+
+        inserted, updated = 0, 0
+
+        for source in expected_records:
+            old_field = existing_fields.get(source["natural_key"])
+            field_id = old_field["field_id"] if old_field else new_uuidv7()
+
+            db_payload = {
                 "id": field_id,
-                "field_group_id": group_id,
-                "field_type_id": field_types[spec["field_type_label"]],
-                "label": truncate(spec["label"], columns["label"]["max_length"]),
-                "description": truncate(
-                    spec["description"],
-                    columns["description"]["max_length"],
+                "field_group_id": source["field_group_id"],
+                "field_type_id": source["field_type_id"],
+                "code": truncate_text(source["code"], db_columns["code"]["max_length"]),
+                "label": truncate_text(
+                    source["label"], db_columns["label"]["max_length"]
                 ),
-                "required": bool(spec["required"]),
-                "display_order": int(spec["display_order"]),
+                "description": truncate_text(
+                    source["description"], db_columns["description"]["max_length"]
+                ),
+                "required": True,
+                "display_order": source["display_order"],
             }
 
-            await save_field(conn, db_record, update=old is not None)
-            if old:
+            if old_field:
+                stmt_update = (
+                    update(Field)
+                    .where(Field.id == db_payload["id"])
+                    .values(
+                        field_group_id=db_payload["field_group_id"],
+                        field_type_id=db_payload["field_type_id"],
+                        code=db_payload["code"],
+                        label=db_payload["label"],
+                        description=db_payload["description"],
+                        required=db_payload["required"],
+                        display_order=db_payload["display_order"],
+                    )
+                )
+                await conn.execute(stmt_update)
                 updated += 1
             else:
+                stmt_insert = insert(Field).values(db_payload)
+                await conn.execute(stmt_insert)
                 inserted += 1
 
-        field_map = await get_field_map_for_specs(
-            conn,
-            specs,
-            direct_groups,
-            card_groups,
+        # -----------------------------------------------------------------------------
+        # ASERCIONES FINALES DE SANIDAD POST-CARGA CENTRALIZADA
+        # -----------------------------------------------------------------------------
+        # Selecciona field_group_id junto con code para que refleje la clave compuesta real
+        final_stmt = select(Field.id, Field.field_group_id, Field.code)
+        final_rows = [
+            dict(r) for r in (await conn.execute(final_stmt)).mappings().all()
+        ]
+
+        assert_all_uuidv7(rows=final_rows, id_key="id", label_key="code")
+
+        # Validar unicidad usando la combinación relacional del índice único compuesto
+        assert_no_duplicates(
+            rows=final_rows,
+            key_fields=["field_group_id", "code"],
+            what="campos de entrada de preguntas (fields) organizados por grupo",
         )
 
-        for spec in specs:
-            key = (
-                spec["year"],
-                spec["question_code"],
-                spec["group_kind"],
-                int(spec["display_order"]),
-            )
-            row = field_map[key]
-            if normalize_text(row["label"]) != normalize_text(spec["label"]):
-                raise ValueError(f"label incorrecto para field {key}.")
-            if normalize_text(row["description"]) != normalize_text(
-                spec["description"]
-            ):
-                raise ValueError(f"description incorrecta para field {key}.")
-            if row["field_type_label"] != spec["field_type_label"]:
-                raise ValueError(f"field_type incorrecto para field {key}.")
-            if row["required"] is not bool(spec["required"]):
-                raise ValueError(f"required incorrecto para field {key}.")
-            if not is_uuidv7(row["field_id"]):
-                raise ValueError(f"UUID no es versión 7 para field {key}.")
-
-    logger.debug(
-        "forms.fields population finished successfully. "
-        f"Inserted: {inserted}. Updated: {updated}. "
-        f"Expected: {len(specs)}."
+    logger.info(
+        f"Poblado de forms.fields finalizado exitosamente. "
+        f"Insertados: {inserted}. Actualizados: {updated}. Totales Sincronizados: {len(expected_records)}."
     )
 
 

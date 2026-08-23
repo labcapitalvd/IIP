@@ -1,19 +1,28 @@
 from __future__ import annotations
 
 import asyncio
-import csv
-import io
 import os
-import re
-import unicodedata
-from decimal import Decimal, InvalidOperation
+from datetime import datetime
 from pathlib import Path
-from uuid import UUID
+from typing import Any, Mapping
 
 from shared.infrastructure import async_engine
+from shared.models import Actor, ActorSegment  # Models loaded cleanly
 from shared.utils.logger import get_logger
-from sqlalchemy import text
-from uuid_utils import uuid7
+from shared.utils.seeding import (
+    assert_all_uuidv7,
+    assert_field_lengths,
+    assert_no_duplicates,
+    cast_to_database_numeric,
+    clean_text,
+    fold_for_comparison,
+    generate_technical_slug,
+    get_table_columns,
+    load_normalized_csv,
+    new_uuidv7,
+    validate_required_columns,
+)
+from sqlalchemy import insert, select, update
 
 logger = get_logger(__name__)
 
@@ -28,6 +37,17 @@ REQUIRE_EXTENDED_ACTOR_COLUMNS = os.getenv(
     "REQUIRE_EXTENDED_ACTOR_COLUMNS",
     "true",
 ).strip().casefold() not in {"0", "false", "no", "off"}
+
+HEADER_ALIASES = {
+    "actorsegmentid": "actor_segment_id",
+    "actor_segmentid": "actor_segment_id",
+    "descripcionsector": "descripcion_sector",
+    "description_sector": "descripcion_sector",
+    "sigepcode": "sigep_code",
+    "treasurycode": "treasury_code",
+    "treusary_code": "treasury_code",
+    "sigla": "initials",
+}
 
 SOURCE_REQUIRED_COLUMNS = {
     "actor_segment_id",
@@ -60,767 +80,392 @@ TARGET_EXTENDED_COLUMNS = {
 }
 
 
-def clean_text(value: object) -> str | None:
-    if value is None:
-        return None
-
-    cleaned = str(value).replace("\ufeff", "").strip()
-    return cleaned or None
-
-
-def normalize_key(value: object) -> str | None:
-    cleaned = clean_text(value)
-    if cleaned is None:
-        return None
-
-    normalized = unicodedata.normalize("NFKD", cleaned)
-    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = normalized.casefold()
-    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    return normalized or None
-
-
-def normalize_column_name(value: object) -> str:
-    cleaned = clean_text(value) or ""
-    normalized = unicodedata.normalize("NFKD", cleaned)
-    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-    normalized = normalized.casefold().replace("-", " ")
-    normalized = re.sub(r"\s+", "_", normalized).strip("_")
-
-    aliases = {
-        "actorsegmentid": "actor_segment_id",
-        "actor_segmentid": "actor_segment_id",
-        "descripcionsector": "descripcion_sector",
-        "description_sector": "descripcion_sector",
-        "sigepcode": "sigep_code",
-        "treasurycode": "treasury_code",
-        "treusary_code": "treasury_code",
-        "sigla": "initials",
-    }
-    return aliases.get(normalized, normalized)
-
-
-def is_uuid(value: object) -> bool:
-    cleaned = clean_text(value)
-    if cleaned is None:
-        return False
-
-    try:
-        UUID(cleaned)
-        return True
-    except (ValueError, TypeError, AttributeError):
-        return False
-
-
-def is_uuidv7(value: object) -> bool:
-    cleaned = clean_text(value)
-    if cleaned is None:
-        return False
-
-    try:
-        return UUID(cleaned).version == 7
-    except (ValueError, TypeError, AttributeError):
-        return False
-
-
-def new_uuidv7() -> str:
-    return str(uuid7())
-
-
-def decode_csv(path: Path) -> str:
-    if not path.is_file():
-        raise FileNotFoundError(f"No existe el archivo de entidades: {path}")
-
-    raw = path.read_bytes()
-    errors: list[str] = []
-    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin1"):
-        try:
-            return raw.decode(encoding)
-        except UnicodeDecodeError as exc:
-            errors.append(f"{encoding}: {exc}")
-
-    raise ValueError(
-        f"No fue posible decodificar {path}. Intentos: {' | '.join(errors)}"
-    )
-
-
-def detect_delimiter(csv_text: str) -> str:
-    try:
-        return csv.Sniffer().sniff(csv_text[:20000], delimiters=";,|\t").delimiter
-    except csv.Error:
-        return ";"
-
-
-def load_source_rows(path: Path) -> list[dict[str, str | None]]:
-    csv_text = decode_csv(path)
-    delimiter = detect_delimiter(csv_text)
-    reader = csv.DictReader(io.StringIO(csv_text), delimiter=delimiter)
-
-    if reader.fieldnames is None:
-        raise ValueError(f"El archivo {path} no contiene encabezados.")
-
-    normalized_headers = [normalize_column_name(name) for name in reader.fieldnames]
-    if len(normalized_headers) != len(set(normalized_headers)):
-        raise ValueError(
-            "El archivo contiene encabezados duplicados después de normalizarlos: "
-            f"{normalized_headers}"
-        )
-
-    missing = SOURCE_REQUIRED_COLUMNS - set(normalized_headers)
-    if missing:
-        raise ValueError(
-            f"Faltan columnas obligatorias en {path.name}: {sorted(missing)}"
-        )
-
-    rows: list[dict[str, str | None]] = []
-    for line_number, raw_row in enumerate(reader, start=2):
-        row = {
-            normalized_headers[index]: clean_text(raw_row.get(original_header))
-            for index, original_header in enumerate(reader.fieldnames)
-        }
-        row["_line_number"] = str(line_number)
-
-        if all(value is None for key, value in row.items() if key != "_line_number"):
-            continue
-        rows.append(row)
-
-    if not rows:
-        raise ValueError(f"El archivo {path} no contiene entidades útiles.")
-
-    return rows
-
-
-def validate_optional_unique(
-    rows: list[dict[str, str | None]],
-    column: str,
-    normalize: bool = False,
-) -> None:
-    seen: dict[str, str] = {}
-    duplicates: list[tuple[str, str, str]] = []
-
-    for row in rows:
-        value = clean_text(row.get(column))
-        if value is None:
-            continue
-        key = normalize_key(value) if normalize else value
-        if key is None:
-            continue
-
-        previous_label = seen.get(key)
-        if previous_label is not None:
-            duplicates.append((value, previous_label, row["label"] or ""))
-        else:
-            seen[key] = row["label"] or ""
-
-    if duplicates:
-        raise ValueError(
-            f"La columna {column} contiene valores duplicados: {duplicates[:20]}"
-        )
-
-
 def validate_and_prepare_source(
-    rows: list[dict[str, str | None]],
-) -> list[dict[str, str | None]]:
-    prepared: list[dict[str, str | None]] = []
-    entity_keys: dict[str, str] = {}
-    sector_key_to_legacy_id: dict[str, str] = {}
-    legacy_segment_id_to_sector_key: dict[str, str] = {}
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Validates structural integrity constraints and prepares source records."""
+    prepared: list[dict[str, Any]] = []
+
+    assert_no_duplicates(
+        rows, key_fields=["label"], what="entidades por columna 'label'"
+    )
+    assert_no_duplicates(
+        rows, key_fields=["id"], what="identificadores 'id' de la fuente"
+    )
 
     for row in rows:
         line_number = row["_line_number"]
-        required_values = {
-            "sector": clean_text(row.get("sector")),
-            "descripcion_sector": clean_text(row.get("descripcion_sector")),
-            "label": clean_text(row.get("label")),
-            "description": clean_text(row.get("description")),
-            "mission": clean_text(row.get("mission")),
-            "vision": clean_text(row.get("vision")),
-            "id": clean_text(row.get("id")),
-            "actor_segment_id": clean_text(row.get("actor_segment_id")),
-        }
 
-        missing = [name for name, value in required_values.items() if value is None]
+        required_fields = [
+            "sector",
+            "descripcion_sector",
+            "label",
+            "description",
+            "mission",
+            "vision",
+            "id",
+            "actor_segment_id",
+        ]
+        missing = [f for f in required_fields if row.get(f) is None]
         if missing:
             raise ValueError(
                 f"Fila {line_number}: faltan valores obligatorios: {missing}."
             )
 
-        if not is_uuid(required_values["id"]):
-            raise ValueError(
-                f"Fila {line_number}: id legado inválido: {required_values['id']!r}."
-            )
-        if not is_uuid(required_values["actor_segment_id"]):
-            raise ValueError(
-                "Fila "
-                f"{line_number}: actor_segment_id legado inválido: "
-                f"{required_values['actor_segment_id']!r}."
-            )
-
-        entity_key = normalize_key(required_values["label"])
-        sector_key = normalize_key(required_values["sector"])
-        if entity_key is None or sector_key is None:
+        entity_key = fold_for_comparison(row["label"])
+        sector_key = fold_for_comparison(row["sector"])
+        if not entity_key or not sector_key:
             raise ValueError(f"Fila {line_number}: label o sector inválido.")
-
-        previous_label = entity_keys.get(entity_key)
-        if previous_label is not None:
-            raise ValueError(
-                "Hay entidades duplicadas por label normalizado: "
-                f"{previous_label!r} y {required_values['label']!r}."
-            )
-        entity_keys[entity_key] = required_values["label"] or ""
-
-        legacy_segment_id = required_values["actor_segment_id"] or ""
-        previous_legacy_id = sector_key_to_legacy_id.get(sector_key)
-        if previous_legacy_id is not None and previous_legacy_id != legacy_segment_id:
-            raise ValueError(
-                f"El sector {required_values['sector']!r} tiene más de un "
-                "actor_segment_id legado."
-            )
-        sector_key_to_legacy_id[sector_key] = legacy_segment_id
-
-        previous_sector_key = legacy_segment_id_to_sector_key.get(legacy_segment_id)
-        if previous_sector_key is not None and previous_sector_key != sector_key:
-            raise ValueError(
-                f"El actor_segment_id legado {legacy_segment_id} pertenece a más "
-                "de un sector."
-            )
-        legacy_segment_id_to_sector_key[legacy_segment_id] = sector_key
 
         sigep_code = clean_text(row.get("sigep_code"))
         treasury_code = clean_text(row.get("treasury_code"))
         initials = clean_text(row.get("initials"))
 
-        for column, value in (
+        for col_name, val in (
             ("sigep_code", sigep_code),
             ("treasury_code", treasury_code),
         ):
-            if value is not None and not re.fullmatch(r"\d+", value):
+            if val is not None and not str(val).isdigit():
                 raise ValueError(
-                    f"Fila {line_number}: {column} debe contener solo dígitos; "
-                    f"valor={value!r}."
+                    f"Fila {line_number}: {col_name} debe contener solo dígitos; valor={val!r}."
                 )
-        code_value = entity_key.replace(" ", "_") if entity_key else None
 
         prepared.append(
             {
                 "source_key": entity_key,
-                "code": code_value,
-                "legacy_id": required_values["id"],
-                "legacy_actor_segment_id": legacy_segment_id,
+                "code": generate_technical_slug(row["label"]),
+                "legacy_id": row["id"],
+                "legacy_actor_segment_id": row["actor_segment_id"],
                 "sector_key": sector_key,
-                "sector": required_values["sector"],
-                "label": required_values["label"],
-                "description": required_values["description"],
-                "mission": required_values["mission"],
-                "vision": required_values["vision"],
+                "sector": row["sector"],
+                "label": row["label"],
+                "description": row["description"],
+                "mission": row["mission"],
+                "vision": row["vision"],
                 "sigep_code": sigep_code,
                 "treasury_code": treasury_code,
                 "initials": initials,
+                "_line_number": line_number,
             }
         )
 
-    validate_optional_unique(prepared, "sigep_code")
-    validate_optional_unique(prepared, "treasury_code")
-    validate_optional_unique(prepared, "initials", normalize=True)
-
-    return sorted(prepared, key=lambda item: (item["label"] or "").casefold())
-
-
-async def get_table_columns(conn) -> dict[str, dict[str, object]]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                column_name,
-                data_type,
-                udt_name,
-                character_maximum_length,
-                numeric_precision,
-                numeric_scale,
-                is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = 'actors'
-              AND table_name = 'actors'
-            ORDER BY ordinal_position;
-            """
-        )
+    assert_no_duplicates(
+        [p for p in prepared if p.get("sigep_code") is not None],
+        key_fields=["sigep_code"],
+        what="sigep_code únicos",
     )
-    rows = result.mappings().all()
-    if not rows:
-        raise ValueError("No existe la tabla actors.actors.")
+    assert_no_duplicates(
+        [p for p in prepared if p.get("treasury_code") is not None],
+        key_fields=["treasury_code"],
+        what="treasury_code únicos",
+    )
+    assert_no_duplicates(
+        [p for p in prepared if p.get("initials") is not None],
+        key_fields=["initials"],
+        what="initials únicas",
+    )
 
-    return {
-        row["column_name"]: {
-            "data_type": row["data_type"],
-            "udt_name": row["udt_name"],
-            "max_length": row["character_maximum_length"],
-            "numeric_precision": row["numeric_precision"],
-            "numeric_scale": row["numeric_scale"],
-            "nullable": row["is_nullable"] == "YES",
-        }
-        for row in rows
-    }
+    return sorted(prepared, key=lambda item: str(item["label"]).casefold())
 
 
-def validate_target_columns(columns: dict[str, dict[str, object]]) -> set[str]:
-    missing_core = TARGET_CORE_COLUMNS - set(columns)
-    if missing_core:
-        raise ValueError(
-            "actors.actors no tiene todas las columnas principales requeridas. "
-            f"Faltan: {sorted(missing_core)}"
-        )
+def validate_target_columns(columns: Mapping[str, Any]) -> set[str]:
+    """Inspects target catalog fields and ensures minimum requirements are fulfilled."""
+    validate_required_columns(columns, TARGET_CORE_COLUMNS, table_name="actors.actors")
 
-    missing_extended = TARGET_EXTENDED_COLUMNS - set(columns)
+    missing_extended = TARGET_EXTENDED_COLUMNS - set(columns.keys())
     if missing_extended:
         message = (
             "La fuente Entidades.csv contiene sigep_code, treasury_code e initials, "
-            "pero actors.actors no tiene todas esas columnas. Faltan: "
-            f"{sorted(missing_extended)}."
+            f"pero actors.actors no tiene todas esas columnas. Faltan: {sorted(missing_extended)}."
         )
         if REQUIRE_EXTENDED_ACTOR_COLUMNS:
             raise ValueError(
-                message + " Agrega las columnas mediante el modelo/migración o define "
+                f"{message} Agrega las columnas mediante el modelo/migración o define "
                 "REQUIRE_EXTENDED_ACTOR_COLUMNS=false para una carga parcial."
             )
-        logger.warning(message + " Se omitirán únicamente esas columnas.")
+        logger.warning(f"{message} Se omitirán únicamente esas columnas.")
         print(f"[10b] ADVERTENCIA: {message}", flush=True)
 
-    return TARGET_EXTENDED_COLUMNS & set(columns)
+    return TARGET_EXTENDED_COLUMNS & set(columns.keys())
 
 
-def coerce_identifier_for_column(
-    value: str | None,
-    column_metadata: dict[str, object],
-    column_name: str,
-) -> str | int | Decimal | None:
-    if value is None:
-        return None
+async def get_segments_by_key(conn) -> dict[str, dict[str, Any]]:
+    """Builds a case-insensitive normalized lookup map for upstream sector segments using explicit structural mappings."""
+    stmt = select(
+        ActorSegment.id.label("id"),
+        ActorSegment.label.label("label"),
+        ActorSegment.description.label("description"),
+    ).order_by(ActorSegment.label, ActorSegment.id)
 
-    data_type = str(column_metadata["data_type"])
-    if data_type in {"smallint", "integer", "bigint"}:
-        try:
-            return int(value)
-        except ValueError as exc:
-            raise ValueError(
-                f"{column_name}={value!r} no puede convertirse a entero."
-            ) from exc
+    result = await conn.execute(stmt)
+    mapped_rows = result.mappings().all()
 
-    if data_type in {"numeric", "decimal", "real", "double precision"}:
-        try:
-            return Decimal(value)
-        except InvalidOperation as exc:
-            raise ValueError(
-                f"{column_name}={value!r} no puede convertirse a número."
-            ) from exc
-
-    return value
-
-
-def validate_lengths(
-    records: list[dict[str, str | None]],
-    columns: dict[str, dict[str, object]],
-    extended_columns: set[str],
-) -> None:
-    fields = {
-        "label",
-        "description",
-        "mission",
-        "vision",
-        "code",
-        *extended_columns,
-    }
-
-    for field in fields:
-        max_length = columns[field]["max_length"]
-        if max_length is None:
-            continue
-
-        too_long = [
-            (record["label"], record.get(field))
-            for record in records
-            if record.get(field) is not None
-            and len(str(record[field])) > int(max_length)
-        ]
-        if too_long:
-            raise ValueError(
-                f"Hay valores de {field} que superan {max_length} caracteres. "
-                f"Muestra: {too_long[:10]}"
-            )
-
-
-async def get_segments_by_key(conn) -> dict[str, dict[str, str]]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT id::text AS id, label, description
-            FROM actors.actor_segments
-            ORDER BY label, id;
-            """
-        )
-    )
-
-    rows = result.mappings().all()
-    if not rows:
+    if not mapped_rows:
         raise ValueError(
             "actors.actor_segments está vacía. Ejecuta primero 10a_seed_sectors.py."
         )
 
-    lookup: dict[str, dict[str, str]] = {}
-    for raw_row in rows:
-        row = dict(raw_row)
-        key = normalize_key(row["label"])
-        if key is None:
+    rows = [
+        {"id": str(row["id"]), "label": row["label"], "description": row["description"]}
+        for row in mapped_rows
+    ]
+    assert_all_uuidv7(rows, id_key="id", label_key="label")
+
+    lookup: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        key = fold_for_comparison(row["label"])
+        if not key:
             raise ValueError(f"Sector con label inválido en DB: {row['id']}")
         if key in lookup:
             raise ValueError(f"Sectores duplicados por label normalizado en DB: {key}")
-        if not is_uuidv7(row["id"]):
-            raise ValueError(f"El sector {row['label']!r} no tiene UUIDv7: {row['id']}")
         lookup[key] = row
 
     return lookup
 
 
 async def get_existing_actors(
-    conn,
-    extended_columns: set[str],
-) -> dict[str, dict[str, dict[str, object]]]:
-    selected = ["id::text AS id", "label"]
-    if "sigep_code" in extended_columns:
-        selected.append("sigep_code")
-    if "treasury_code" in extended_columns:
-        selected.append("treasury_code")
+    conn, extended_columns: set[str]
+) -> dict[str, dict[str, Any]]:
+    """Fetches already persisted entities into standardized indexing grids using explicit mapping targets."""
+    columns_to_select = [Actor.id.label("id"), Actor.label.label("label")]
 
-    result = await conn.execute(
-        text(
-            f"""
-            SELECT {", ".join(selected)}
-            FROM actors.actors
-            ORDER BY label, id;
-            """
-        )
-    )
+    for col in sorted(extended_columns):
+        if hasattr(Actor, col):
+            columns_to_select.append(getattr(Actor, col).label(col))
 
-    indexes: dict[str, dict[str, dict[str, object]]] = {
+    stmt = select(*columns_to_select).order_by(Actor.label, Actor.id)
+    result = await conn.execute(stmt)
+
+    rows: list[dict[str, Any]] = []
+    for row in result.mappings().all():
+        record = {
+            "id": str(row["id"]),
+            "label": row["label"],
+        }
+
+        for col in sorted(extended_columns):
+            if col in row:
+                record[col] = row[col]
+
+        rows.append(record)
+
+    assert_all_uuidv7(rows, id_key="id", label_key="label")
+
+    indexes: dict[str, dict[str, Any]] = {
         "label": {},
         "sigep_code": {},
         "treasury_code": {},
     }
 
-    for raw_row in result.mappings().all():
-        row = dict(raw_row)
-        if not is_uuidv7(row["id"]):
-            raise ValueError(
-                "La entidad existente no tiene UUIDv7. Debe corregirse antes de "
-                f"continuar: {row['label']!r} -> {row['id']}"
-            )
-
-        label_key = normalize_key(row["label"])
-        if label_key is None:
-            raise ValueError(f"Entidad con label inválido en DB: {row['id']}")
-        if label_key in indexes["label"]:
-            raise ValueError(
-                f"Entidades duplicadas por label normalizado en DB: {label_key}"
-            )
-        indexes["label"][label_key] = row
+    # FIX: Iterate directly over the clean records list instead of the DB row proxy mapping
+    for record in rows:
+        label_key = fold_for_comparison(record["label"])
+        if label_key:
+            if label_key in indexes["label"]:
+                raise ValueError(
+                    f"Entidades duplicadas por label normalizado en DB: {label_key}"
+                )
+            indexes["label"][label_key] = record
 
         for column in ("sigep_code", "treasury_code"):
-            if column not in extended_columns:
+            if column not in record:
                 continue
-            value = clean_text(row.get(column))
-            if value is None:
-                continue
-            if value in indexes[column]:
-                raise ValueError(f"Entidades duplicadas por {column} en DB: {value}")
-            indexes[column][value] = row
+            val = clean_text(record[column])
+            if val is not None:
+                if val in indexes[column]:
+                    raise ValueError(f"Entidades duplicadas por {column} en DB: {val}")
+                indexes[column][val] = record
 
     return indexes
 
 
 def match_existing_actor(
-    source: dict[str, object],
-    indexes: dict[str, dict[str, dict[str, object]]],
+    source: dict[str, Any],
+    indexes: dict[str, dict[str, Any]],
     extended_columns: set[str],
-) -> dict[str, object] | None:
-    candidates: list[tuple[str, dict[str, object]]] = []
+) -> dict[str, Any] | None:
+    """Matches a source record with an existing database entry using prioritized unique constraints."""
+    candidates: list[tuple[str, dict[str, Any]]] = []
 
-    if "sigep_code" in extended_columns:
-        sigep_key = clean_text(source.get("sigep_code"))
-        if sigep_key is not None and sigep_key in indexes["sigep_code"]:
-            candidates.append(("sigep_code", indexes["sigep_code"][sigep_key]))
+    if "sigep_code" in extended_columns and source.get("sigep_code") is not None:
+        val = clean_text(source["sigep_code"])
+        if val in indexes["sigep_code"]:
+            candidates.append(("sigep_code", indexes["sigep_code"][val]))
 
-    if "treasury_code" in extended_columns:
-        treasury_key = clean_text(source.get("treasury_code"))
-        if treasury_key is not None and treasury_key in indexes["treasury_code"]:
-            candidates.append(("treasury_code", indexes["treasury_code"][treasury_key]))
+    if "treasury_code" in extended_columns and source.get("treasury_code") is not None:
+        val = clean_text(source["treasury_code"])
+        if val in indexes["treasury_code"]:
+            candidates.append(("treasury_code", indexes["treasury_code"][val]))
 
-    label_key = str(source["source_key"])
+    label_key = source["source_key"]
     if label_key in indexes["label"]:
         candidates.append(("label", indexes["label"][label_key]))
 
     if not candidates:
         return None
 
-    ids = {str(candidate[1]["id"]) for candidate in candidates}
-    if len(ids) > 1:
+    # FIX: Correctly access the row dictionary payload located at index [1] of the candidate tuple
+    matched_ids = {str(item[1]["id"]) for item in candidates}
+    if len(matched_ids) > 1:
         details = [
             (criterion, row["id"], row["label"]) for criterion, row in candidates
         ]
         raise ValueError(
-            "Los criterios de identificación de una entidad apuntan a registros "
-            f"distintos. Fuente={source['label']!r}; coincidencias={details}"
+            f"Los criterios de identificación apuntan a registros distintos: Fuente={source['label']!r}; coincidencias={details}"
         )
 
+    # FIX: Safely return the row dictionary payload mapping asset directly
     return candidates[0][1]
-
-
-def resolve_segment_ids(
-    records: list[dict[str, str | None]],
-    segments: dict[str, dict[str, str]],
-) -> list[dict[str, object]]:
-    resolved: list[dict[str, object]] = []
-    missing: list[tuple[str | None, str | None]] = []
-
-    for source in records:
-        segment = segments.get(str(source["sector_key"]))
-        if segment is None:
-            missing.append((source["label"], source["sector"]))
-            continue
-
-        resolved.append(
-            {
-                **source,
-                "actor_segment_id": segment["id"],
-            }
-        )
-
-    if missing:
-        raise ValueError(
-            "No se encontró el sector real en PostgreSQL para algunas entidades. "
-            f"Muestra: {missing[:20]}"
-        )
-
-    return resolved
-
-
-def build_source_values(
-    source: dict[str, object],
-    columns: dict[str, dict[str, object]],
-    extended_columns: set[str],
-) -> dict[str, object]:
-    values: dict[str, object] = {
-        "actor_segment_id": source["actor_segment_id"],
-        "label": source["label"],
-        "description": source["description"],
-        "mission": source["mission"],
-        "vision": source["vision"],
-        "code": source.get("code") or (str(source["source_key"]).replace(" ", "_")),
-    }
-
-    for column in sorted(extended_columns):
-        raw_value = source.get(column)
-        if column in {"sigep_code", "treasury_code"}:
-            values[column] = coerce_identifier_for_column(
-                value=clean_text(raw_value),
-                column_metadata=columns[column],
-                column_name=column,
-            )
-        else:
-            values[column] = clean_text(raw_value)
-
-    return values
 
 
 async def persist_actors(
     conn,
-    records: list[dict[str, object]],
-    existing: dict[str, dict[str, dict[str, object]]],
-    columns: dict[str, dict[str, object]],
+    records: list[dict[str, Any]],
+    existing: dict[str, dict[str, Any]],
+    columns: dict[str, Any],
     extended_columns: set[str],
-) -> tuple[int, int, list[dict[str, object]]]:
+) -> tuple[int, int, list[dict[str, Any]]]:
+    """Performs bulk upsert modifications via ORM statements mapping row values safely."""
     inserted = 0
     updated = 0
-    expected: list[dict[str, object]] = []
+    expected: list[dict[str, Any]] = []
     has_updated_at = "updated_at" in columns
 
-    value_columns = [
-        "actor_segment_id",
-        "label",
-        "description",
-        "mission",
-        "vision",
-        "code",
-        *sorted(extended_columns),
-    ]
-
     for source in records:
-        previous = match_existing_actor(
-            source=source,
-            indexes=existing,
-            extended_columns=extended_columns,
-        )
+        previous = match_existing_actor(source, existing, extended_columns)
         record_id = str(previous["id"]) if previous else new_uuidv7()
-        if not is_uuidv7(record_id):
-            raise ValueError(f"ID no UUIDv7 preparado para entidad: {record_id}")
 
-        values = build_source_values(source, columns, extended_columns)
-        params = {"id": record_id, **values}
+        params: dict[str, Any] = {
+            "actor_segment_id": source["actor_segment_id"],
+            "label": source["label"],
+            "description": source["description"],
+            "mission": source["mission"],
+            "vision": source["vision"],
+            "code": source["code"],
+        }
+
+        for col in sorted(extended_columns):
+            raw_val = source.get(col)
+            if col in {"sigep_code", "treasury_code"}:
+                params[col] = cast_to_database_numeric(
+                    raw_val, columns[col]["data_type"], column_context=col
+                )
+            else:
+                params[col] = clean_text(raw_val)
 
         if previous:
-            assignments = []
-            for column in value_columns:
-                if column == "actor_segment_id":
-                    assignments.append(
-                        "actor_segment_id = CAST(:actor_segment_id AS uuid)"
-                    )
-                else:
-                    assignments.append(f"{column} = :{column}")
+            stmt_update = update(Actor).where(Actor.id == record_id).values(**params)
             if has_updated_at:
-                assignments.append("updated_at = NOW()")
+                stmt_update = stmt_update.values(updated_at=datetime.utcnow())
 
-            await conn.execute(
-                text(
-                    f"""
-                    UPDATE actors.actors
-                    SET {", ".join(assignments)}
-                    WHERE id = CAST(:id AS uuid);
-                    """
-                ),
-                params,
-            )
+            await conn.execute(stmt_update)
             updated += 1
         else:
-            insert_columns = ["id", *value_columns]
-            insert_values = ["CAST(:id AS uuid)"]
-            for column in value_columns:
-                if column == "actor_segment_id":
-                    insert_values.append("CAST(:actor_segment_id AS uuid)")
-                else:
-                    insert_values.append(f":{column}")
+            params["id"] = record_id
             if has_updated_at:
-                insert_columns.append("updated_at")
-                insert_values.append("NOW()")
+                params["updated_at"] = datetime.utcnow()
 
-            await conn.execute(
-                text(
-                    f"""
-                    INSERT INTO actors.actors ({", ".join(insert_columns)})
-                    VALUES ({", ".join(insert_values)});
-                    """
-                ),
-                params,
-            )
+            stmt_insert = insert(Actor).values(**params)
+            await conn.execute(stmt_insert)
             inserted += 1
 
-        expected.append(
-            {
-                "id": record_id,
-                "source_key": source["source_key"],
-                **values,
-            }
-        )
+        expected.append({"id": record_id, "source_key": source["source_key"], **params})
 
     return inserted, updated, expected
 
 
 async def validate_loaded_actors(
-    conn,
-    expected: list[dict[str, object]],
-    extended_columns: set[str],
+    conn, expected: list[dict[str, Any]], extended_columns: set[str]
 ) -> None:
-    selected_columns = [
-        "actor.id::text AS id",
-        "actor.actor_segment_id::text AS actor_segment_id",
-        "actor.label",
-        "actor.description",
-        "actor.mission",
-        "actor.vision",
-        "actor.code",
-        *[f"actor.{column}" for column in sorted(extended_columns)],
+    """Post-load verification routine cross-checking database state using the ORM model."""
+    columns_to_select = [
+        Actor.id.label("id"),
+        Actor.actor_segment_id.label("actor_segment_id"),
+        Actor.label.label("label"),
+        Actor.description.label("description"),
+        Actor.mission.label("mission"),
+        Actor.vision.label("vision"),
+        Actor.code.label("code"),
     ]
 
-    result = await conn.execute(
-        text(
-            f"""
-            SELECT {", ".join(selected_columns)}
-            FROM actors.actors AS actor;
-            """
-        )
-    )
+    for col in sorted(extended_columns):
+        if hasattr(Actor, col):
+            columns_to_select.append(getattr(Actor, col).label(col))
 
-    loaded: dict[str, dict[str, object]] = {}
-    for raw_row in result.mappings().all():
-        row = dict(raw_row)
-        key = normalize_key(row["label"])
-        if key is None:
-            continue
-        if key in loaded:
-            raise ValueError(
-                f"Entidad duplicada por label normalizado después de cargar: {key}"
-            )
-        loaded[key] = row
+    stmt = select(*columns_to_select)
+    result = await conn.execute(stmt)
 
-    missing: list[str] = []
-    comparable_fields = {
-        "actor_segment_id",
-        "label",
-        "description",
-        "mission",
-        "vision",
-        "code",
-        *extended_columns,
-    }
+    loaded_map: dict[str, dict[str, Any]] = {}
+    for r in result.mappings().all():
+        row = {
+            "id": str(r["id"]),
+            "actor_segment_id": str(r["actor_segment_id"]),
+            "label": r["label"],
+            "description": r["description"],
+            "mission": r["mission"],
+            "vision": r["vision"],
+            "code": r["code"],
+        }
+
+        for col in sorted(extended_columns):
+            if col in r:
+                row[col] = r[col]
+
+        key = fold_for_comparison(row["label"])
+        if key:
+            if key in loaded_map:
+                raise ValueError(
+                    f"Entidad duplicada por label normalizado después de cargar: {key}"
+                )
+            loaded_map[key] = row
 
     for record in expected:
         key = str(record["source_key"])
-        row = loaded.get(key)
+        row = loaded_map.get(key)
         if row is None:
-            missing.append(str(record["label"]))
-            continue
+            raise ValueError(
+                f"No se cargó la entidad esperada en la base de datos: {record['label']}"
+            )
 
-        if row["id"] != record["id"]:
+        if row["id"] != str(record["id"]):
             raise ValueError(
                 f"El UUID cambió inesperadamente para {record['label']!r}."
             )
-        if not is_uuidv7(row["id"]):
-            raise ValueError(f"La entidad {record['label']!r} no quedó con UUIDv7.")
 
-        for field in comparable_fields:
-            loaded_value = row.get(field)
-            expected_value = record.get(field)
+        fields_to_check = [
+            "actor_segment_id",
+            "label",
+            "description",
+            "mission",
+            "vision",
+            "code",
+            *extended_columns,
+        ]
 
+        for field in fields_to_check:
             if field in {"sigep_code", "treasury_code"}:
-                if loaded_value is None or expected_value is None:
-                    loaded_clean = loaded_value
-                    expected_clean = expected_value
-                elif isinstance(expected_value, (int, Decimal)):
-                    try:
-                        loaded_clean = Decimal(str(loaded_value))
-                        expected_clean = Decimal(str(expected_value))
-                    except InvalidOperation as exc:
-                        raise ValueError(
-                            f"No fue posible comparar {record['label']!r}.{field}."
-                        ) from exc
-                else:
-                    loaded_clean = str(loaded_value)
-                    expected_clean = str(expected_value)
-            else:
-                loaded_clean = clean_text(loaded_value)
-                expected_clean = clean_text(expected_value)
-
-            if loaded_clean != expected_clean:
+                exp_v = str(record[field]) if record[field] is not None else None
+                lod_v = str(row[field]) if row[field] is not None else None
+                if exp_v != lod_v:
+                    raise ValueError(
+                        f"Valor numérico incorrecto en {record['label']!r}.{field}: "
+                        f"SQL={row[field]!r}; esperado={record[field]!r}"
+                    )
+            elif clean_text(row.get(field)) != clean_text(record.get(field)):
                 raise ValueError(
                     f"Valor incorrecto para {record['label']!r}.{field}: "
-                    f"SQL={loaded_value!r}; esperado={expected_value!r}."
+                    f"SQL={row.get(field)!r}; esperado={record.get(field)!r}."
                 )
-
-    if missing:
-        raise ValueError(f"No se cargaron las entidades: {missing}")
 
 
 async def upgrade() -> None:
     logger.debug(f"Starting actors population from {ENTITIES_FILE}")
-    source_rows = load_source_rows(ENTITIES_FILE)
+
+    source_rows = load_normalized_csv(
+        ENTITIES_FILE,
+        required_columns=SOURCE_REQUIRED_COLUMNS,
+        header_aliases=HEADER_ALIASES,
+    )
     prepared = validate_and_prepare_source(source_rows)
 
     sector_count = len({record["sector_key"] for record in prepared})
@@ -831,32 +476,44 @@ async def upgrade() -> None:
     )
 
     async with async_engine.begin() as conn:
-        columns = await get_table_columns(conn)
+        columns = await get_table_columns(conn, schema="actors", table="actors")
         extended_columns = validate_target_columns(columns)
-        validate_lengths(prepared, columns, extended_columns)
+
+        assert_field_lengths(
+            prepared,
+            columns,
+            fields=[
+                "label",
+                "description",
+                "mission",
+                "vision",
+                "code",
+                *extended_columns,
+            ],
+        )
 
         segments = await get_segments_by_key(conn)
-        resolved = resolve_segment_ids(prepared, segments)
-        existing = await get_existing_actors(
-            conn=conn,
-            extended_columns=extended_columns,
-        )
+
+        resolved: list[dict[str, Any]] = []
+        for src in prepared:
+            seg = segments.get(str(src["sector_key"]))
+            if seg is None:
+                raise ValueError(
+                    f"No se encontró el sector en PostgreSQL para la entidad: "
+                    f"{src['label']} (Sector: {src['sector']})"
+                )
+            resolved.append({**src, "actor_segment_id": seg["id"]})
+
+        existing = await get_existing_actors(conn, extended_columns)
 
         inserted, updated, expected = await persist_actors(
-            conn=conn,
-            records=resolved,
-            existing=existing,
-            columns=columns,
-            extended_columns=extended_columns,
-        )
-        await validate_loaded_actors(
-            conn=conn,
-            expected=expected,
-            extended_columns=extended_columns,
+            conn, resolved, existing, columns, extended_columns
         )
 
+        await validate_loaded_actors(conn, expected, extended_columns)
+
     logger.debug(
-        "actors population finished successfully. "
+        f"actors population finished successfully. "
         f"Inserted={inserted}; updated={updated}; total_source={len(expected)}."
     )
     print(

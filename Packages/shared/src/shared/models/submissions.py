@@ -215,7 +215,6 @@ class Submission(Base):
         target=f"{TargetTable.SUBMISSION_STATUS_TYPES.fq_name}.id", ondelete="SET NULL"
     )
 
-    created_at: Mapped[datetime] = column_created_at()
     updated_at: Mapped[datetime] = column_updated_at()
 
     # Relationships

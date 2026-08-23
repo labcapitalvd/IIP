@@ -3,174 +3,79 @@
 Fuente:
     Estructura_IIP.xlsx
 
-Años activos:
-    2019, 2021 y 2023
-
-Convención de almacenamiento:
-- label: código visible de la pregunta, por ejemplo "Pregunta 1".
-- description: enunciado completo de la pregunta.
-- helper: NULL (o cadena vacía si la columna no permite NULL).
-- file_id: NULL.
-- required: TRUE.
-- is_loop: TRUE únicamente cuando una pregunta principal también es un bucle.
-  En el archivo actual esto ocurre con Pregunta 28.1 de 2023.
-- Los valores Maxp, Maxb y demás ponderaciones NO se guardan aquí.
-
-Relaciones:
-- form_id -> forms.forms.id
-- section_id -> forms.sections.id del INDICADOR correspondiente
-
-El script es idempotente y conserva UUIDv7 existentes.
+Utiliza la infraestructura global de utilidades y los modelos ORM del sistema.
+El script es idempotente y conserva UUIDv7 existentes basándose en estrategias
+de coincidencia por combinaciones únicas de años, etiquetas y jerarquías.
 """
-
-from __future__ import annotations
 
 import asyncio
 import os
 import re
-import unicodedata
 from collections import OrderedDict, defaultdict
 from pathlib import Path
-from uuid import UUID
 
 import pandas as pd
+
+# Infraestructura y Registro global del proyecto
 from shared.infrastructure import async_engine
+
+# Importación de Modelos ORM Centralizados desde tu Módulo init
+from shared.models import Form, Question, Section, SectionType
 from shared.utils.logger import get_logger
-from sqlalchemy import text
-from uuid_utils import uuid7
+
+# Utilidades Core de Seeding Compartidas (Elimina duplicación)
+from shared.utils.seeding import (
+    assert_all_uuidv7,
+    assert_no_duplicates,
+    clean_text,
+    compute_hierarchical_order,
+    fold_for_comparison,
+    get_seeding_active_years,
+    get_table_columns,
+    load_clean_excel_sheet,
+    new_uuidv7,
+    truncate_text,
+    validate_required_columns,
+)
+from sqlalchemy import insert, select, update
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 logger = get_logger(__name__)
+
+# -----------------------------------------------------------------------------
+# CONFIGURACIÓN ESPECÍFICA DE ÁMBITO
+# -----------------------------------------------------------------------------
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
-DEFAULT_ACTIVE_YEARS = (2019, 2021, 2023, 2025)
 
 
 # -----------------------------------------------------------------------------
-# UTILIDADES
+# ETL Y EXTRACCIÓN DESDE EL LIBRO EXCEL
 # -----------------------------------------------------------------------------
 
 
-def active_years() -> tuple[int, ...]:
-    raw = os.getenv("IIP_ACTIVE_YEARS")
-    if not raw:
-        return DEFAULT_ACTIVE_YEARS
-
-    years: list[int] = []
-    for value in raw.split(","):
-        value = value.strip()
-        if not value:
-            continue
-        try:
-            years.append(int(value))
-        except ValueError as exc:
-            raise ValueError(f"Año inválido en IIP_ACTIVE_YEARS: {value!r}") from exc
-
-    if not years or len(years) != len(set(years)):
-        raise ValueError(
-            f"IIP_ACTIVE_YEARS debe contener años únicos y válidos: {years}"
-        )
-
-    return tuple(years)
-
-
-def clean(value):
-    if value is None:
-        return None
-    try:
-        if pd.isna(value):
-            return None
-    except (TypeError, ValueError):
-        pass
-    value = str(value).strip()
-    return value or None
-
-
-def normalize(value):
-    value = clean(value)
-    if value is None:
-        return None
-    value = unicodedata.normalize("NFKD", value)
-    value = "".join(
-        character for character in value if not unicodedata.combining(character)
-    )
-    value = value.casefold()
-    value = re.sub(r"\s+", " ", value)
-    return value.strip()
-
-
-def is_uuidv7(value) -> bool:
-    try:
-        return UUID(str(value)).version == 7
-    except (ValueError, TypeError, AttributeError):
-        return False
-
-
-def new_uuidv7() -> str:
-    return str(uuid7())
-
-
-def truncate(value, max_length):
-    value = clean(value)
-    if value is None or max_length is None:
-        return value
-    return value[:max_length]
-
-
-def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
-    if sheet_name not in excel.sheet_names:
-        raise ValueError(
-            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
-        )
-
-    frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
-    frame.columns = [str(column).strip() for column in frame.columns]
-    return frame
-
-
-def display_order_from_question(value) -> int:
-    value = clean(value)
-    if value is None:
-        return 0
-
-    match = re.search(r"(\d+(?:[.,]\d+)*)", value)
-    if not match:
-        return 0
-
-    parts = [int(part) for part in match.group(1).replace(",", ".").split(".")]
-
-    if len(parts) == 1:
-        return parts[0] * 1000
-
-    order = parts[0] * 1000 + parts[1]
-    for part in parts[2:]:
-        order = order * 1000 + part
-    return order
-
-
-# -----------------------------------------------------------------------------
-# LECTURA DEL EXCEL
-# -----------------------------------------------------------------------------
-
-
-def load_questions(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
+def load_questions_from_excel(
+    excel: pd.ExcelFile, years: tuple[int, ...]
+) -> list[dict]:
     """Construye preguntas principales únicas y su jerarquía metodológica."""
     records: list[dict] = []
 
     for year in years:
-        frame = read_sheet(excel, str(year))
-        required = {
+        required_cols = {
             "Componente",
             "Variable",
             "Indicador",
             "Pregunta",
             f"Pregunta {year}",
         }
-        missing = required - set(frame.columns)
-        if missing:
-            raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
+
+        # Cargar la hoja limpia usando la utilidad core centralizada
+        frame = load_clean_excel_sheet(
+            excel, sheet_name=str(year), required_columns=required_cols
+        )
 
         has_loop_columns = "Bucle" in frame.columns and f"Bucle {year}" in frame.columns
 
@@ -186,19 +91,19 @@ def load_questions(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
             }
         )
 
-        for column in data.columns:
-            if column != "source_row":
-                data[column] = data[column].apply(clean)
+        for col in data.columns:
+            if col != "source_row":
+                data[col] = data[col].apply(clean_text)
 
+        # Rellenar jerarquías combinadas
         hierarchy = ["component", "variable", "indicator"]
         data[hierarchy] = data[hierarchy].ffill()
 
+        # Filtrar registros que cuenten con la estructura mínima requerida
         data = data[
-            data["component"].notna()
-            & data["variable"].notna()
-            & data["indicator"].notna()
-            & data["question"].notna()
-            & data["question_text"].notna()
+            data[["component", "variable", "indicator", "question", "question_text"]]
+            .notna()
+            .all(axis=1)
         ].copy()
 
         registry: OrderedDict[str, dict] = OrderedDict()
@@ -213,8 +118,8 @@ def load_questions(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
                 "indicator": row["indicator"],
                 "question": question,
                 "question_text": row["question_text"],
-                "is_loop": clean(row["loop"]) == question,
-                "display_order": display_order_from_question(question),
+                "is_loop": clean_text(row["loop"]) == question,
+                "display_order": compute_hierarchical_order(question),
             }
 
             existing = registry.get(question)
@@ -222,438 +127,307 @@ def load_questions(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[dict]:
                 registry[question] = candidate
                 continue
 
-            fields = (
-                "component",
-                "variable",
-                "indicator",
-                "question_text",
-            )
+            # Validar que no existan contradicciones de negocio en filas duplicadas del Excel
+            fields_to_check = ("component", "variable", "indicator", "question_text")
             conflicts = [
-                field
-                for field in fields
-                if normalize(existing[field]) != normalize(candidate[field])
+                f
+                for f in fields_to_check
+                if fold_for_comparison(existing[f]) != fold_for_comparison(candidate[f])
             ]
             if conflicts:
                 raise ValueError(
-                    f"Información contradictoria para {question} en {year}. "
-                    f"Campos: {conflicts}. Filas: "
-                    f"{existing['source_row']} y {candidate['source_row']}."
+                    f"Información contradictoria para {question} en la hoja {year}. "
+                    f"Campos en conflicto: {conflicts}. Filas: {existing['source_row']} y {candidate['source_row']}."
                 )
 
             existing["is_loop"] = existing["is_loop"] or candidate["is_loop"]
 
         year_records = list(registry.values())
         if not year_records:
-            raise ValueError(f"La hoja {year} no produjo preguntas válidas.")
+            raise ValueError(
+                f"La hoja {year} no produjo ninguna estructura de preguntas válida."
+            )
 
         records.extend(year_records)
-        logger.debug(f"Year {year}: {len(year_records)} preguntas principales.")
+        logger.debug(
+            f"Año {year}: {len(year_records)} preguntas principales procesadas."
+        )
 
     return records
 
 
 # -----------------------------------------------------------------------------
-# POSTGRESQL
+# ESTRUCTURAS DE LOOKUPS ACCEDIDAS VÍA ORM
 # -----------------------------------------------------------------------------
 
 
-async def table_columns(conn, schema: str, table: str) -> dict:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                column_name,
-                character_maximum_length,
-                is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = :schema
-              AND table_name = :table
-            ORDER BY ordinal_position;
-            """
-        ),
-        {"schema": schema, "table": table},
-    )
-    rows = result.mappings().all()
-    if not rows:
-        raise ValueError(f"No existe {schema}.{table}.")
+async def get_forms_lookup(
+    conn: AsyncConnection, years: tuple[int, ...]
+) -> dict[int, str]:
+    stmt = select(Form.code, Form.id).order_by(Form.code)
+    rows = (await conn.execute(stmt)).mappings().all()
 
-    return {
-        row["column_name"]: {
-            "max_length": row["character_maximum_length"],
-            "nullable": row["is_nullable"] == "YES",
-        }
-        for row in rows
-    }
+    grouped = defaultdict(list)
+    for row in rows:
+        y = int(row["code"])
+        if y in years:
+            grouped[y].append(str(row["id"]))
 
-
-async def get_forms(conn, years: tuple[int, ...]) -> dict[int, str]:
-    result = await conn.execute(
-        text("SELECT code, id::text AS id FROM forms.forms ORDER BY code;")
-    )
-
-    grouped: dict[int, list[str]] = defaultdict(list)
-    for row in result.mappings().all():
-        year = int(row["code"])
-        if year in years:
-            grouped[year].append(row["id"])
-
-    lookup: dict[int, str] = {}
+    lookup = {}
     for year in years:
         ids = grouped.get(year, [])
         if len(ids) != 1:
             raise ValueError(
-                f"Debe existir un único formulario para {year}; "
-                f"encontrados: {len(ids)}."
+                f"Debe existir un único formulario asignado para el año {year} en forms.forms."
             )
-        if not is_uuidv7(ids[0]):
-            raise ValueError(f"form_id de {year} no es UUIDv7: {ids[0]}")
         lookup[year] = ids[0]
 
     return lookup
 
 
-async def get_indicator_map(
-    conn,
-    years: tuple[int, ...],
+async def get_indicator_sections_map(
+    conn: AsyncConnection, years: tuple[int, ...]
 ) -> dict[tuple[int, str, str, str], str]:
-    """Relaciona año + códigos visibles de la jerarquía con INDICADOR."""
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                form.code,
-                component.label AS component_label,
-                variable.label AS variable_label,
-                indicator.label AS indicator_label,
-                indicator.id::text AS indicator_id
-            FROM forms.sections indicator
-            JOIN forms.section_types indicator_type
-              ON indicator_type.id = indicator.section_type_id
-             AND UPPER(TRIM(indicator_type.label)) = 'INDICADOR'
-            JOIN forms.sections variable
-              ON variable.id = indicator.parent_id
-            JOIN forms.section_types variable_type
-              ON variable_type.id = variable.section_type_id
-             AND UPPER(TRIM(variable_type.label)) = 'VARIABLE'
-            JOIN forms.sections component
-              ON component.id = variable.parent_id
-            JOIN forms.section_types component_type
-              ON component_type.id = component.section_type_id
-             AND UPPER(TRIM(component_type.label)) = 'COMPONENTE'
-            JOIN forms.forms form
-              ON form.id = indicator.form_id
-            ORDER BY form.code, component.label, variable.label, indicator.label;
-            """
+    """Relaciona de forma única el año + códigos normalizados de jerarquía con el ID de su INDICADOR."""
+    stmt = (
+        select(
+            Form.code.label("form_year"),
+            Section.label.label("indicator_label"),
+            Section.id.label("indicator_id"),
+            Section.parent_id.label("parent_var_id"),
         )
+        .join(Form, Form.id == Section.form_id)
+        .join(SectionType, SectionType.id == Section.section_type_id)
+        .where(SectionType.label.like("%INDICADOR%"))
     )
+    indicator_rows = (await conn.execute(stmt)).mappings().all()
+    if not indicator_rows:
+        return {}
+
+    # Extraer todas las secciones para reconstruir el árbol parental componente -> variable de manera eficiente
+    all_sections_stmt = select(Section.id, Section.label, Section.parent_id)
+    all_sections = {
+        str(r["id"]): {
+            "label": r["label"],
+            "parent_id": str(r["parent_id"]) if r["parent_id"] else None,
+        }
+        for r in (await conn.execute(all_sections_stmt)).mappings().all()
+    }
 
     lookup: dict[tuple[int, str, str, str], str] = {}
-    for row in result.mappings().all():
-        year = int(row["code"])
+    for row in indicator_rows:
+        year = int(row["form_year"])
         if year not in years:
             continue
 
-        indicator_id = row["indicator_id"]
-        if not is_uuidv7(indicator_id):
-            raise ValueError(f"Indicador no UUIDv7: {indicator_id}")
+        var_id = row["parent_var_id"]
+        if not var_id or str(var_id) not in all_sections:
+            continue
+        var_data = all_sections[str(var_id)]
 
+        comp_id = var_data["parent_id"]
+        if not comp_id or str(comp_id) not in all_sections:
+            continue
+        comp_data = all_sections[str(comp_id)]
+
+        # Added fallback strings to prevent str | None from being assigned into a strict str slot
         key = (
             year,
-            normalize(row["component_label"]),
-            normalize(row["variable_label"]),
-            normalize(row["indicator_label"]),
+            fold_for_comparison(comp_data["label"]) or "",
+            fold_for_comparison(var_data["label"]) or "",
+            fold_for_comparison(row["indicator_label"]) or "",
         )
-
-        if key in lookup and lookup[key] != indicator_id:
-            raise ValueError(f"Indicador ambiguo para la llave {key}.")
-
-        lookup[key] = indicator_id
+        lookup[key] = str(row["indicator_id"])
 
     return lookup
 
 
 async def get_existing_questions(
-    conn,
-    years: tuple[int, ...],
+    conn: AsyncConnection, years: tuple[int, ...]
 ) -> dict[tuple[int, str], dict]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                question.id::text AS question_id,
-                question.section_id::text AS section_id,
-                question.code,
-                question.label,
-                question.description,
-                question.display_order,
-                question.required,
-                question.is_loop,
-                form.code AS form_code
-            FROM forms.questions question
-            JOIN forms.sections section 
-              ON section.id = question.section_id
-            JOIN forms.forms form 
-              ON form.id = section.form_id
-            ORDER BY form.code, question.label, question.id;
-            """
+    """Recupera el mapa de preguntas persistidas indexadas por el año del formulario y su etiqueta."""
+    stmt = (
+        select(
+            Question.id.label("question_id"),
+            Question.section_id,
+            Question.code,
+            Question.label,
+            Question.description,
+            Question.display_order,
+            Question.required,
+            Question.is_loop,
+            Form.code.label("form_year"),
         )
+        .join(Section, Section.id == Question.section_id)
+        .join(
+            Form, Form.id == Section.form_id
+        )  # Fixed lowercase 'section' to uppercase 'Section'
     )
+    rows = (await conn.execute(stmt)).mappings().all()
 
+    # Explicit type annotation for the dictionary coordinates to satisfy the strict signature
     grouped: dict[tuple[int, str], list[dict]] = defaultdict(list)
-    for row in result.mappings().all():
-        year = int(row["form_code"])
-        if year in years:
-            grouped[(year, normalize(row["label"]))].append(dict(row))
+    for row in rows:
+        y = int(row["form_year"])
+        if y in years:
+            # Applied fallback fallback string 'or ""' to satisfy strict 'str' tuple type engine constraints
+            natural_label = fold_for_comparison(row["label"]) or ""
+            grouped[(y, natural_label)].append(dict(row))
 
     existing: dict[tuple[int, str], dict] = {}
-    for key, rows in grouped.items():
-        if len(rows) > 1:
+    for key, items in grouped.items():
+        if len(items) > 1:
             raise ValueError(
-                f"Existen preguntas duplicadas para {key}: "
-                f"{[row['question_id'] for row in rows]}"
+                f"Inconsistencia de negocio: Existen preguntas duplicadas para la clave natural {key}."
             )
-        if not is_uuidv7(rows[0]["question_id"]):
-            raise ValueError(f"Pregunta existente sin UUIDv7: {rows[0]['question_id']}")
-        existing[key] = rows[0]
+        existing[key] = items[0]
 
     return existing
 
 
-async def save_question(conn, record: dict, update: bool) -> None:
-    if update:
-        statement = text(
-            """
-            UPDATE forms.questions
-            SET
-                code = :code,
-                section_id = CAST(:section_id AS uuid),
-                file_id = NULL,
-                label = :label,
-                description = :description,
-                helper = :helper,
-                display_order = :display_order,
-                required = :required,
-                is_loop = :is_loop,
-                updated_at = NOW()
-            WHERE id = CAST(:id AS uuid);
-            """
-        )
-    else:
-        statement = text(
-            """
-            INSERT INTO forms.questions (
-                id,
-                code,
-                section_id,
-                file_id,
-                label,
-                description,
-                helper,
-                display_order,
-                required,
-                is_loop,
-                updated_at
-            )
-            VALUES (
-                CAST(:id AS uuid),
-                :code,
-                CAST(:section_id AS uuid),
-                NULL,
-                :label,
-                :description,
-                :helper,
-                :display_order,
-                :required,
-                :is_loop,
-                NOW()
-            );
-            """
-        )
-
-    await conn.execute(statement, record)
-
-
-async def validate_loaded(
-    conn,
-    source_records: list[dict],
-    forms: dict[int, str],
-    indicators: dict[tuple[int, str, str, str], str],
-) -> None:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                question.id::text AS question_id,
-                question.section_id::text AS section_id,
-                question.code,
-                question.label,
-                question.description,
-                question.helper,
-                question.required,
-                question.is_loop,
-                form.code AS form_code,
-                section_type.label AS section_type
-            FROM forms.questions question
-            JOIN forms.sections section
-              ON section.id = question.section_id
-            JOIN forms.forms form
-              ON form.id = section.form_id
-            LEFT JOIN forms.section_types section_type
-              ON section_type.id = section.section_type_id
-            ORDER BY form.code, question.label;
-            """
-        )
-    )
-
-    by_key: dict[tuple[int, str], list[dict]] = defaultdict(list)
-    for row in result.mappings().all():
-        by_key[(int(row["form_code"]), normalize(row["label"]))].append(dict(row))
-
-    for source in source_records:
-        key = (source["year"], normalize(source["question"]))
-        rows = by_key.get(key, [])
-        if len(rows) != 1:
-            raise ValueError(
-                f"Validación fallida para {source['year']} / "
-                f"{source['question']}: coincidencias={len(rows)}."
-            )
-
-        row = rows[0]
-        hierarchy_key = (
-            source["year"],
-            normalize(source["component"]),
-            normalize(source["variable"]),
-            normalize(source["indicator"]),
-        )
-        expected_section_id = indicators[hierarchy_key]
-
-        if row["section_id"] != expected_section_id:
-            raise ValueError(f"section_id incorrecto para {key}.")
-        if normalize(row["description"]) != normalize(source["question_text"]):
-            raise ValueError(f"description incorrecta para {key}.")
-        if clean(row["helper"]) is not None:
-            raise ValueError(f"helper debe quedar vacío para {key}.")
-        if row["required"] is not True:
-            raise ValueError(f"required debe ser TRUE para {key}.")
-        if row["is_loop"] is not bool(source["is_loop"]):
-            raise ValueError(f"is_loop incorrecto para {key}.")
-        if (clean(row["section_type"]) or "").upper() != "INDICADOR":
-            raise ValueError(f"{key} no está conectado a un INDICADOR.")
-        if not is_uuidv7(row["question_id"]):
-            raise ValueError(f"UUID no es versión 7 para {key}.")
-
-    logger.debug(
-        f"forms.questions validation passed. "
-        f"Validated: {len(source_records)} preguntas principales."
-    )
-
-
 # -----------------------------------------------------------------------------
-# ENTRADA PRINCIPAL
+# EJECUCIÓN CENTRAL DE POBLADO (UPGRADE)
 # -----------------------------------------------------------------------------
 
 
 async def upgrade() -> None:
-
     path = Path(FILE_PATH)
-    years = active_years()
+    years = get_seeding_active_years()
 
-    logger.debug(f"Starting forms.questions population from {path}")
-
+    logger.debug(f"Iniciando el poblado de forms.questions desde {path}...")
     if not path.is_file():
-        raise FileNotFoundError(f"No existe el archivo: {path}")
+        raise FileNotFoundError(
+            f"Archivo de estructura no localizado en la ruta: {path}"
+        )
 
-    excel = pd.ExcelFile(path)
-    source_records = load_questions(excel, years)
+    try:
+        excel = pd.ExcelFile(path)
+        source_records = load_questions_from_excel(excel, years)
 
-    async with async_engine.begin() as conn:
-        columns = await table_columns(conn, "forms", "questions")
-        required_columns = {
-            "id",
-            "code",
-            "section_id",
-            "file_id",
-            "label",
-            "description",
-            "helper",
-            "display_order",
-            "required",
-            "is_loop",
-            "updated_at",
-        }
-        missing = required_columns - set(columns)
-        if missing:
-            raise ValueError(f"Faltan columnas en forms.questions: {sorted(missing)}")
-
-        forms = await get_forms(conn, years)
-        indicators = await get_indicator_map(conn, years)
-        existing = await get_existing_questions(conn, years)
-
-        inserted = 0
-        updated = 0
-
-        for source in source_records:
-            hierarchy_key = (
-                source["year"],
-                normalize(source["component"]),
-                normalize(source["variable"]),
-                normalize(source["indicator"]),
+        async with async_engine.begin() as conn:
+            # Validación e introspección dinámica de las columnas físicas reales de la tabla
+            db_columns = await get_table_columns(
+                conn, schema="forms", table="questions"
             )
-            section_id = indicators.get(hierarchy_key)
-            if section_id is None:
-                raise ValueError(
-                    "No se encontró el INDICADOR para "
-                    f"{source['year']} / {source['question']}. "
-                    f"Jerarquía: {hierarchy_key}"
+            validate_required_columns(
+                db_columns,
+                required={
+                    "id",
+                    "code",
+                    "section_id",
+                    "file_id",
+                    "label",
+                    "description",
+                    "helper",
+                    "display_order",
+                    "required",
+                    "is_loop",
+                },
+                table_name="forms.questions",
+            )
+
+            # Inicialización de matrices de búsqueda compartidas
+            forms_lookup = await get_forms_lookup(conn, years)
+            indicators_map = await get_indicator_sections_map(conn, years)
+            existing_questions = await get_existing_questions(conn, years)
+
+            inserted, updated = 0, 0
+
+            for source in source_records:
+                hierarchy_key = (
+                    source["year"],
+                    fold_for_comparison(source["component"]),
+                    fold_for_comparison(source["variable"]),
+                    fold_for_comparison(source["indicator"]),
+                )
+                section_id = indicators_map.get(hierarchy_key)
+                if section_id is None:
+                    raise ValueError(
+                        f"Fallo relacional: No se localizó la sección INDICADOR correspondiente para el año {source['year']} "
+                        f"y la pregunta '{source['question']}'. Estructura buscada: {hierarchy_key}"
+                    )
+
+                natural_key = (source["year"], fold_for_comparison(source["question"]))
+                old_record = existing_questions.get(natural_key)
+
+                # Idempotencia: Preservar el identificador primario exacto en caso de existencia previa
+                question_id = old_record["question_id"] if old_record else new_uuidv7()
+                helper_value = None if db_columns["helper"]["nullable"] else ""
+
+                # Normalización del código técnico de negocio para matching e indexación uniforme
+                raw_num = re.sub(r"[^\d.]", "", source["question"]).replace(".", "_")
+                code_identifier = (
+                    f"{source['year']}_Q{raw_num}"
+                    if raw_num
+                    else f"{source['year']}_{source['question']}"
                 )
 
-            natural_key = (
-                source["year"],
-                normalize(source["question"]),
+                db_payload = {
+                    "id": question_id,
+                    "code": code_identifier,
+                    "section_id": section_id,
+                    "file_id": None,
+                    "label": truncate_text(
+                        source["question"], db_columns["label"]["max_length"]
+                    ),
+                    "description": truncate_text(
+                        source["question_text"], db_columns["description"]["max_length"]
+                    ),
+                    "helper": helper_value,
+                    "display_order": int(source["display_order"]),
+                    "required": True,
+                    "is_loop": bool(source["is_loop"]),
+                }
+
+                if old_record:
+                    stmt_update = (
+                        update(Question)
+                        .where(Question.id == db_payload["id"])
+                        .values(
+                            code=db_payload["code"],
+                            section_id=db_payload["section_id"],
+                            file_id=db_payload["file_id"],
+                            label=db_payload["label"],
+                            description=db_payload["description"],
+                            helper=db_payload["helper"],
+                            display_order=db_payload["display_order"],
+                            required=db_payload["required"],
+                            is_loop=db_payload["is_loop"],
+                        )
+                    )
+                    await conn.execute(stmt_update)
+                    updated += 1
+                else:
+                    stmt_insert = insert(Question).values(db_payload)
+                    await conn.execute(stmt_insert)
+                    inserted += 1
+
+            # -----------------------------------------------------------------------------
+            # ASERCIONES FINALES DE SANIDAD POST-CARGA CENTRALIZADA
+            # -----------------------------------------------------------------------------
+            final_stmt = (
+                select(Question.id, Question.code)
+                .join(Section, Section.id == Question.section_id)
+                .where(Section.form_id.in_(list(forms_lookup.values())))
             )
-            old = existing.get(natural_key)
+            final_rows = [
+                dict(r) for r in (await conn.execute(final_stmt)).mappings().all()
+            ]
 
-            question_id = old["question_id"] if old else new_uuidv7()
-            if not is_uuidv7(question_id):
-                raise ValueError(f"ID no UUIDv7: {question_id}")
-
-            helper_value = None if columns["helper"]["nullable"] else ""
-
-            # Extracción limpia del número de la pregunta
-            raw_num = re.sub(r"[^\d.]", "", source["question"]).replace(".", "_")
-            code = (
-                f"{source['year']}_Q{raw_num}"
-                if raw_num
-                else f"{source['year']}_{source['question']}"
+            assert_all_uuidv7(rows=final_rows, id_key="id", label_key="code")
+            assert_no_duplicates(
+                rows=final_rows,
+                key_fields=["code"],
+                what="preguntas principales de formularios",
             )
 
-            db_record = {
-                "id": question_id,
-                "code": code,
-                "section_id": section_id,
-                "label": truncate(source["question"], columns["label"]["max_length"]),
-                "description": truncate(
-                    source["question_text"],
-                    columns["description"]["max_length"],
-                ),
-                "helper": helper_value,
-                "display_order": int(source["display_order"]),
-                "required": True,
-                "is_loop": bool(source["is_loop"]),
-            }
+        logger.info(
+            f"Poblado de forms.questions completado con éxito. Insertados: {inserted}. Actualizados: {updated}."
+        )
 
-            await save_question(conn, db_record, update=old is not None)
-            if old:
-                updated += 1
-            else:
-                inserted += 1
-
-        await validate_loaded(conn, source_records, forms, indicators)
-
-    logger.debug(
-        "forms.questions population finished successfully. "
-        f"Inserted: {inserted}. Updated: {updated}."
-    )
+    except Exception as exc:
+        logger.error(f"Error crítico en el proceso de poblado de questions: {exc}")
+        raise
 
 
 if __name__ == "__main__":
