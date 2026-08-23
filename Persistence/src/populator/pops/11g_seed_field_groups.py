@@ -84,6 +84,7 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
         for idx, (_, row) in enumerate(frame.iterrows(), start=2):
             row_idx = idx
             loop_question = clean_text(row.get("Bucle"))
+            label = clean_text(row.get(f"Bucle {year}"))
             if loop_question is None:
                 continue
 
@@ -96,7 +97,9 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
                 )
 
             excel_code = clean_text(row.get("code_field_groups")) or ""
+
             excel_label = clean_text(row.get("field_groups"))
+            excel_label = None
 
             # Formatear códigos técnicos estables de negocio para matching universal
             q_clean = (
@@ -115,7 +118,7 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
                 "parent_question": parent_question,
                 "is_mixed": loop_question == parent_question,
                 "code": code_fg,
-                "label": loop_question,
+                "label": label,
                 "description": description,
             }
 
