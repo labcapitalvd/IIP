@@ -52,16 +52,29 @@ __all__ = [
     "get_claims",
     "configure_logging",
     "get_logger",
+    # Assertions
     "assert_no_missing",
     "assert_all_uuidv7",
     "assert_no_duplicates",
+    # Identifiers
     "new_uuidv7",
-    "is_uuidv7"
+    "is_uuidv7",
+    # Introspection
     "get_table_columns",
     "validate_required_columns",
+    "assert_field_lengths",
+    # Input / Output File Processing
+    "load_normalized_csv",
+    "load_clean_excel_sheet",
+    "get_seeding_active_years",
+    # Text Manipulation & Formatting
     "clean_text",
     "remove_diacritics",
     "fold_for_comparison",
     "generate_technical_slug",
     "truncate_text",
+    "normalize_key",
+    "extract_numeric_suffix",
+    "compute_hierarchical_order",
+    "cast_to_database_numeric",
 ]

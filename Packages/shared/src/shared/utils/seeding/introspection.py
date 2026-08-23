@@ -6,12 +6,12 @@ Reemplaza las implementaciones duplicadas de `get_table_columns` /
 
 from __future__ import annotations
 
+from typing import Any, Mapping, Sequence
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-__all__ = ["get_table_columns", "validate_required_columns"]
-
-ColumnMeta = dict[str, object]
+ColumnMeta = dict[str, Any]
 
 
 async def get_table_columns(
@@ -55,9 +55,9 @@ async def get_table_columns(
 
 
 def validate_required_columns(
-    columns: dict[str, ColumnMeta], required: set[str], table_name: str
+    columns: Mapping[str, ColumnMeta], required: set[str], table_name: str
 ) -> None:
-    """Valida que `columns` (salida de get_table_columns) tenga `required`.
+    """Valida que `columns` tenga todas las llaves obligatorias configuradas.
 
     Lanza ValueError con el nombre de la tabla y las columnas faltantes.
     """
@@ -67,3 +67,34 @@ def validate_required_columns(
             f"La tabla {table_name} no tiene todas las columnas requeridas. "
             f"Faltan: {sorted(missing)}"
         )
+
+
+def assert_field_lengths(
+    records: Sequence[Mapping[str, Any]],
+    columns: Mapping[str, ColumnMeta],
+    fields: Sequence[str],
+) -> None:
+    """Centralized boundary engine checking string fields lengths against database limits.
+
+    Raises ValueError with a formatted preview sample grid if boundaries are crossed.
+    """
+    for field in fields:
+        if field not in columns:
+            continue
+
+        max_len = columns[field]["max_length"]
+        if max_len is None:
+            continue
+
+        max_len_int = int(max_len)
+        too_long = [
+            str(record[field])
+            for record in records
+            if record.get(field) is not None and len(str(record[field])) > max_len_int
+        ]
+
+        if too_long:
+            raise ValueError(
+                f"Hay valores de '{field}' que superan el límite de "
+                f"{max_len_int} caracteres en el esquema: {too_long[:10]}"
+            )
