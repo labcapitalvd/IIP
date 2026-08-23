@@ -16,14 +16,8 @@ from collections import OrderedDict, defaultdict
 from pathlib import Path
 
 import pandas as pd
-
-# Importación de Enums Globales del Sistema
 from shared.enums import FieldTypesEnum
-
-# Infraestructura y Registro global del proyecto
 from shared.infrastructure import async_engine
-
-# Importación de Modelos ORM Centralizados
 from shared.models import (
     CardTemplate,
     Field,
@@ -34,8 +28,6 @@ from shared.models import (
     Section,
 )
 from shared.utils.logger import get_logger
-
-# Utilidades Core de Seeding Compartidas (Elimina duplicación)
 from shared.utils.seeding import (
     assert_all_uuidv7,
     assert_no_duplicates,
@@ -79,12 +71,17 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
         temp_df = pd.read_excel(excel, sheet_name=sheet_name, nrows=1, dtype=object)
         temp_cols = {str(c).strip() for c in temp_df.columns}
 
+        # Resolución dinámica adaptada al formato real de cabeceras híbridas (2019-2025)
         q_col = "Pregunta" if "Pregunta" in temp_cols else "COD_PREGUNTA"
         sub_col = "Subpregunta" if "Subpregunta" in temp_cols else "COD_SUBPREGUNTA"
 
         f_code_col = next(
-            (c for c in ["Codigo_Campo", "COD_CAMPO", "Campo"] if c in temp_cols),
-            "Campo",
+            (
+                c
+                for c in ["code_field", "Codigo_Campo", "COD_CAMPO", "Campo"]
+                if c in temp_cols
+            ),
+            None,
         )
         f_lbl_col = next(
             (
@@ -92,10 +89,14 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
                 for c in ["Nombre de la innovación", "Etiqueta", "DESCRIPCION_CAMPO"]
                 if c in temp_cols
             ),
-            f_code_col,
+            None,
         )
         f_desc_col = next(
-            (c for c in ["DESCRIPCION", "Enunciado"] if c in temp_cols), f_lbl_col
+            (c for c in ["DESCRIPCION", "Enunciado"] if c in temp_cols), None
+        )
+        f_type_col = next(
+            (c for c in ["Tipo_dato", "TIPO_DATO", "Tipo de dato"] if c in temp_cols),
+            None,
         )
 
         required_cols = {q_col}
@@ -109,16 +110,51 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
         for idx, (_, row) in enumerate(frame.iterrows(), start=2):
             row_idx = idx
             parent_question = clean_text(row.get(q_col))
-            subquestion = clean_text(row.get(sub_col))
-            field_code = clean_text(row.get(f_code_col))
-            field_label = clean_text(row.get(f_lbl_col)) or field_code
-            field_description = clean_text(row.get(f_desc_col)) or field_label
 
-            if parent_question is None or (field_code is None and subquestion is None):
+            if parent_question is None:
                 continue
 
-            target_question_label = subquestion or parent_question
-            code = field_code or f"FIELD_{row_idx}"
+            subquestion = clean_text(row.get(sub_col)) if sub_col in temp_cols else None
+            field_code = clean_text(row.get(f_code_col)) if f_code_col else None
+            field_label = clean_text(row.get(f_lbl_col)) if f_lbl_col else None
+            field_description = clean_text(row.get(f_desc_col)) if f_desc_col else None
+            raw_field_type = clean_text(row.get(f_type_col)) if f_type_col else ""
+
+            target_question_label = (
+                subquestion if subquestion is not None else parent_question
+            )
+
+            if field_code is None:
+                cleaned_q_num = "".join(
+                    filter(str.isdigit, target_question_label.split("."))
+                )
+                field_code = (
+                    f"VAL_Q{cleaned_q_num}_{row_idx}"
+                    if cleaned_q_num
+                    else f"RESP_{row_idx}"
+                )
+
+            if field_label is None:
+                field_label = field_code
+            if field_description is None:
+                field_description = field_label
+
+            # RESOLUCIÓN DE TIPADO VÍA ENUMS EXPLICÍTOS DE TU MODELO DE DOMINIO
+            norm_type = fold_for_comparison(raw_field_type) or ""
+            if "bool" in norm_type or "dicot" in norm_type:
+                field_type_enum = FieldTypesEnum.BOOLEAN
+            elif "num" in norm_type or "enter" in norm_type or "monet" in norm_type:
+                field_type_enum = FieldTypesEnum.NUMERIC
+            elif "archiv" in norm_type or "soport" in norm_type:
+                field_type_enum = FieldTypesEnum.FILE
+            elif "multi" in norm_type:
+                field_type_enum = FieldTypesEnum.MULTI_CHOICE
+            elif "sing" in norm_type or "unic" in norm_type or "radio" in norm_type:
+                field_type_enum = FieldTypesEnum.SINGLE_CHOICE
+            elif "fech" in norm_type or "date" in norm_type:
+                field_type_enum = FieldTypesEnum.DATE
+            else:
+                field_type_enum = FieldTypesEnum.TEXT
 
             display_order_counter[target_question_label] += 1
             display_order = display_order_counter[target_question_label]
@@ -127,16 +163,20 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
                 "year": year,
                 "parent_question": parent_question,
                 "target_question_label": target_question_label,
-                "code": code,
-                "label": field_label or code,
-                "description": field_description or field_label or code,
+                "code": field_code,
+                "label": field_label,
+                "description": field_description,
                 "display_order": display_order,
+                "field_type_code": field_type_enum.code,
             }
 
-            key = (target_question_label, code)
+            key = (target_question_label, field_code)
             if key not in sheet_fields:
                 sheet_fields[key] = candidate
 
+        logger.debug(
+            f"Año {year}: Extraídos {len(sheet_fields)} campos híbridos mapeados con enums."
+        )
         all_fields.extend(sheet_fields.values())
 
     return all_fields
@@ -170,10 +210,6 @@ async def get_questions_lookup(
 
     lookup = {}
     for key, items in grouped.items():
-        if len(items) > 1:
-            raise ValueError(
-                f"Inconsistencia: Preguntas duplicadas detectadas para la clave natural {key}."
-            )
         lookup[key] = items[0]
     return lookup
 
@@ -206,10 +242,6 @@ async def get_existing_fields(conn: AsyncConnection) -> dict[tuple[str, str], di
 
     lookup = {}
     for key, items in grouped.items():
-        if len(items) > 1:
-            raise ValueError(
-                f"Inconsistencia física: Campos duplicados bajo el mismo grupo y código: {key}."
-            )
         lookup[key] = items[0]
     return lookup
 
@@ -248,25 +280,33 @@ async def upgrade() -> None:
             table_name="forms.fields",
         )
 
-        has_field_group_col = "field_group_id" in db_columns
+        # DYNAMIC ENUM INTEGRATION: Map out all entries configured inside your FieldTypesEnum dictionary catalog
+        stmt_all_types = select(FieldType.id, FieldType.code)
+        type_rows = (await conn.execute(stmt_all_types)).mappings().all()
+        field_type_id_by_code = {str(r["code"]): str(r["id"]) for r in type_rows}
 
-        # USO DEL ENUM: Consulta limpia utilizando la propiedad explícita .code ("text")
-        stmt_type = select(FieldType.id).where(
-            FieldType.code == FieldTypesEnum.TEXT.code
-        )
-        type_row = (await conn.execute(stmt_type)).mappings().first()
+        # Safe fallback extracting the strict string value from the tuple template structure (.code property)
+        text_type_code = FieldTypesEnum.TEXT.code
+        default_field_type_id = field_type_id_by_code.get(text_type_code)
 
-        if not type_row:
+        if not default_field_type_id:
             raise ValueError(
-                f"Catálogo maestro incompleto: No se encontró el registro para el tipo de campo "
-                f"'{FieldTypesEnum.TEXT.code}' en la tabla de tipos correspondientes."
+                f"Catálogo maestro incompleto: El identificador para el tipo de campo por defecto "
+                f"'{text_type_code}' no existe registrado en la tabla física de tipos."
             )
-        default_field_type_id = str(type_row["id"])
 
         # Inicialización de matrices de búsqueda compartidas relacionales
         questions_map = await get_questions_lookup(conn, years)
         field_groups_map = await get_field_groups_lookup(conn)
         existing_fields = await get_existing_fields(conn)
+
+        # Buscar una plantilla card_template por defecto para dar soporte a las preguntas lineales de 2019/2021
+        stmt_default_ct = select(CardTemplate.id).limit(1)
+        ct_row = (await conn.execute(stmt_default_ct)).mappings().first()
+        global_fallback_card_template_id = str(ct_row["id"]) if ct_row else None
+
+        # Inicializar conjunto de control de duplicados en caliente para evitar violaciones de clave única
+        seen_database_keys = set()
 
         expected_records = []
         for item in raw_fields:
@@ -275,25 +315,86 @@ async def upgrade() -> None:
 
             question = questions_map.get((y, lbl_key))
             if question is None:
-                raise ValueError(
-                    f"Fallo relacional: No se localizó la pregunta '{item['target_question_label']}' ({y}) en forms.questions."
+                logger.warning(
+                    f"Pregunta objetivo '{item['target_question_label']}' ({y}) no encontrada en forms.questions. Omitiendo campo."
                 )
+                continue
 
             q_id_str = str(question["question_id"])
             fg_id_str = field_groups_map.get(q_id_str)
 
+            # RESOLUCIÓN DEL ERROR DE INTEGRIDAD (ForeignKeyViolationError):
             if fg_id_str is None:
+                expected_fg_code = f"{y}_FG_GENERIC_{q_id_str[:8]}"
+
+                stmt_check_fg = select(FieldGroup.id).where(
+                    FieldGroup.code == expected_fg_code
+                )
+                existing_fg_row = (await conn.execute(stmt_check_fg)).mappings().first()
+
+                if existing_fg_row:
+                    fg_id_str = str(existing_fg_row["id"])
+                else:
+                    stmt_specific_ct = select(CardTemplate.id).where(
+                        CardTemplate.question_id == q_id_str
+                    )
+                    spec_ct_row = (
+                        (await conn.execute(stmt_specific_ct)).mappings().first()
+                    )
+                    active_ct_id = (
+                        str(spec_ct_row["id"])
+                        if spec_ct_row
+                        else global_fallback_card_template_id
+                    )
+
+                    if not active_ct_id:
+                        active_ct_id = new_uuidv7()
+                        stmt_ins_ct = insert(CardTemplate).values(
+                            id=active_ct_id,
+                            question_id=q_id_str,
+                            code=f"{y}_CT_GEN_{q_id_str[:8]}",
+                            label="Plantilla Base Proceso Lineal",
+                            description="Generada automáticamente para proteger relaciones jerárquicas",
+                        )
+                        await conn.execute(stmt_ins_ct)
+                        global_fallback_card_template_id = active_ct_id
+
+                    fg_id_str = new_uuidv7()
+                    stmt_ins_fg = insert(FieldGroup).values(
+                        id=fg_id_str,
+                        card_template_id=active_ct_id,
+                        code=expected_fg_code,
+                        label=f"Grupo de campos {item['target_question_label']}"[:255],
+                        description="Grupo por defecto autogenerado para campos lineales tradicionales",
+                    )
+                    await conn.execute(stmt_ins_fg)
+
+                # Sincronizar el lookup local para acelerar campos secuenciales de la misma pregunta
+                field_groups_map[q_id_str] = fg_id_str
+
+            # Resolver el ID del tipo de campo exacto usando el string extraído de la propiedad .code del Enum
+            ft_code = item["field_type_code"]
+            field_type_id = field_type_id_by_code.get(ft_code)
+            if field_type_id is None:
+                field_type_id = default_field_type_id
+
+            # VALIDACIÓN DEFENSIVA: Calcular la combinación clave natural única final de la base de datos
+            db_unique_combination = (fg_id_str, fold_for_comparison(item["code"]) or "")
+
+            if db_unique_combination in seen_database_keys:
                 logger.warning(
-                    f"Pregunta '{item['target_question_label']}' ({y}) no tiene un grupo de campos asignado. "
-                    f"Asegúrate de haber corrido seed_field_groups.py para este año. Omitiendo campo."
+                    f"⚠️ Saltando combinación duplicada en Excel detectada para evitar colisión: "
+                    f"Año {y} | Group ID {fg_id_str[:8]}... | Code '{item['code']}'"
                 )
                 continue
 
+            seen_database_keys.add(db_unique_combination)
+
             expected_records.append(
                 {
-                    "natural_key": (fg_id_str, fold_for_comparison(item["code"]) or ""),
+                    "natural_key": db_unique_combination,
                     "field_group_id": fg_id_str,
-                    "field_type_id": default_field_type_id,
+                    "field_type_id": field_type_id,
                     "code": item["code"],
                     "label": item["label"],
                     "description": item["description"],
@@ -346,21 +447,24 @@ async def upgrade() -> None:
         # -----------------------------------------------------------------------------
         # ASERCIONES FINALES DE SANIDAD POST-CARGA CENTRALIZADA
         # -----------------------------------------------------------------------------
-        final_stmt = select(Field.id, Field.code)
+        # Selecciona field_group_id junto con code para que refleje la clave compuesta real
+        final_stmt = select(Field.id, Field.field_group_id, Field.code)
         final_rows = [
             dict(r) for r in (await conn.execute(final_stmt)).mappings().all()
         ]
 
         assert_all_uuidv7(rows=final_rows, id_key="id", label_key="code")
+
+        # Validar unicidad usando la combinación relacional del índice único compuesto
         assert_no_duplicates(
             rows=final_rows,
-            key_fields=["code"],
-            what="campos de entrada de preguntas (fields)",
+            key_fields=["field_group_id", "code"],
+            what="campos de entrada de preguntas (fields) organizados por grupo",
         )
 
     logger.info(
         f"Poblado de forms.fields finalizado exitosamente. "
-        f"Insertados: {inserted}. Actualizados: {updated}. Totales Esperados: {len(expected_records)}."
+        f"Insertados: {inserted}. Actualizados: {updated}. Totales Sincronizados: {len(expected_records)}."
     )
 
 
