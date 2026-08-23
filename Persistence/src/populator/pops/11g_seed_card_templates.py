@@ -1,168 +1,114 @@
 """Puebla forms.card_templates para los bucles de los formularios IIP.
 
 Dependencias previas:
-    11d_seed_questions.py
-    11e_seed_loop_questions.py
+    - seed_questions (Preguntas principales cargadas)
+    - seed_loop_questions (Preguntas tipo bucle cargadas)
 
-Convención de almacenamiento:
-- question_id: pregunta tipo bucle correspondiente.
-- code: código técnico del card_template (ej. "CT_2023_Q28_1").
-- label: código visible del bucle, por ejemplo "Pregunta 1.1".
-- description: enunciado completo del bucle.
-- helper: NULL (o cadena vacía si la columna no permite NULL).
+Utiliza la infraestructura global de utilidades y los modelos ORM del sistema.
+El script es idempotente y conserva los UUIDv7 existentes de forma transparente.
 """
-
-from __future__ import annotations
 
 import asyncio
 import os
 import re
-import unicodedata
 from collections import OrderedDict, defaultdict
 from pathlib import Path
-from uuid import UUID
 
 import pandas as pd
+
+# Infraestructura y Registro global del proyecto
 from shared.infrastructure import async_engine
+
+# Importación de Modelos ORM Centralizados desde tu Módulo init
+from shared.models import CardTemplate, Form, Question, Section
 from shared.utils.logger import get_logger
-from sqlalchemy import text
-from uuid_utils import uuid7
+
+# Utilidades Core de Seeding Compartidas (Elimina duplicación)
+from shared.utils.seeding import (
+    assert_all_uuidv7,
+    assert_no_duplicates,
+    clean_text,
+    extract_numeric_suffix,
+    fold_for_comparison,
+    get_seeding_active_years,
+    get_table_columns,
+    load_clean_excel_sheet,
+    new_uuidv7,
+    truncate_text,
+    validate_required_columns,
+)
+from sqlalchemy import insert, select, update
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 logger = get_logger(__name__)
+
+# -----------------------------------------------------------------------------
+# CONFIGURACIÓN ESPECÍFICA DE ÁMBITO
+# -----------------------------------------------------------------------------
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",
     "/api/populator/pops/jhonatan/Estructura_IIP.xlsx",
 )
 
-DEFAULT_ACTIVE_YEARS = (2023, 2025)
-
-
 # -----------------------------------------------------------------------------
-# UTILIDADES
+# IDENTIFICADORES TÉCNICOS Y TRATAMIENTO LOCAL
 # -----------------------------------------------------------------------------
 
 
-def get_active_years() -> tuple[int, ...]:
-    raw_value = os.getenv("IIP_ACTIVE_YEARS")
-    if not raw_value:
-        return DEFAULT_ACTIVE_YEARS
-
-    years: list[int] = []
-    for value in raw_value.split(","):
-        value = value.strip()
-        if not value:
-            continue
-        try:
-            years.append(int(value))
-        except ValueError as exc:
-            raise ValueError(f"IIP_ACTIVE_YEARS inválido: {value!r}") from exc
-
-    if not years:
-        raise ValueError("IIP_ACTIVE_YEARS no contiene años válidos.")
-
-    return tuple(years)
-
-
-def clean(value):
-    if value is None:
-        return None
-    try:
-        if pd.isna(value):
-            return None
-    except (TypeError, ValueError):
-        pass
-    value = str(value).strip()
-    return value or None
-
-
-def normalize(value):
-    value = clean(value)
-    if value is None:
-        return None
-    value = unicodedata.normalize("NFKD", value)
-    value = "".join(
-        character for character in value if not unicodedata.combining(character)
-    )
-    value = value.casefold()
-    value = re.sub(r"\s+", " ", value)
-    return value.strip()
-
-
-def is_uuidv7(value) -> bool:
-    try:
-        return UUID(str(value)).version == 7
-    except (ValueError, TypeError, AttributeError):
-        return False
-
-
-def new_uuidv7() -> str:
-    return str(uuid7())
-
-
-def truncate(value, max_length):
-    value = clean(value)
-    if value is None or max_length is None:
-        return value
-    return value[:max_length]
-
-
-def read_sheet(excel: pd.ExcelFile, sheet_name: str) -> pd.DataFrame:
-    if sheet_name not in excel.sheet_names:
-        raise ValueError(
-            f"No existe la hoja {sheet_name!r}. Hojas disponibles: {excel.sheet_names}"
-        )
-    frame = pd.read_excel(excel, sheet_name=sheet_name, dtype=object)
-    frame.columns = [str(column).strip() for column in frame.columns]
-    return frame
-
-
-def make_template_code(year: int, loop_question_label: str) -> str:
+def make_template_code_local(year: int, loop_question_label: str) -> str:
     """Genera un código técnico limpio y consistente para la plantilla.
 
     Ejemplos:
-        Pregunta 1.1 -> CT_2023_Q1_1
-        Pregunta 28.1 -> CT_2023_Q28_1
+        Pregunta 1.1 -> 2023_CT_Q1_1
+        Pregunta 28.1 -> 2023_CT_Q28_1
     """
-    raw_num = re.sub(r"[^\d.]", "", loop_question_label).replace(".", "_")
-    if raw_num:
-        return f"{year}_CT_Q{raw_num}"
+    suffix = extract_numeric_suffix(loop_question_label)
+    if suffix:
+        return f"{year}_CT_Q{suffix}"
 
-    clean_label = re.sub(r"[^A-Za-z0-9]+", "_", loop_question_label).strip("_")
-    return f"{year}_CT_{clean_label}"
+    folded = fold_for_comparison(loop_question_label) or "sin_codigo"
+    cleaned = re.sub(r"[^a-z0-9]+", "_", folded).strip("_")
+    return f"{year}_CT_{cleaned}"
 
 
 # -----------------------------------------------------------------------------
-# EXCEL
+# ETL Y EXTRACCIÓN DESDE EL LIBRO EXCEL
 # -----------------------------------------------------------------------------
 
 
-def load_loops(excel: pd.ExcelFile, year: int) -> list[dict]:
+def load_loops_from_excel(excel: pd.ExcelFile, year: int) -> list[dict]:
     sheet_name = str(year)
     if sheet_name not in excel.sheet_names:
         logger.warning(f"Hoja para el año {year} no encontrada en el Excel. Omitiendo.")
         return []
 
-    frame = read_sheet(excel, sheet_name)
+    # Determinar si la columna 'Bucle' viene parametrizada con el año o es estática
+    temp_df = pd.read_excel(excel, sheet_name=sheet_name, nrows=1, dtype=object)
+    temp_cols = [str(c).strip() for c in temp_df.columns]
+    bucle_text_col = f"Bucle {year}" if f"Bucle {year}" in temp_cols else "Bucle"
 
-    # Evaluar columnas requeridas (soportando variantes con/sin año en la columna Bucle)
-    bucle_col = f"Bucle {year}" if f"Bucle {year}" in frame.columns else "Bucle"
-    required = {"Pregunta", "Bucle"}
-    missing = required - set(frame.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas en la hoja {year}: {sorted(missing)}")
+    required_cols = {"Pregunta", "Bucle", bucle_text_col}
+    frame = load_clean_excel_sheet(
+        excel, sheet_name=sheet_name, required_columns=required_cols
+    )
 
     registry: OrderedDict[str, dict] = OrderedDict()
 
-    for row_idx, (_, row) in enumerate(frame.iterrows(), start=2):
-        loop_question = clean(row["Bucle"])
-        loop_text = clean(row.get(bucle_col)) or loop_question
-        parent_question = clean(row["Pregunta"])
+    # Using enumerate() ensures row_idx is initialized directly from a pure primitive int slot
+    for idx, (_, row) in enumerate(frame.iterrows(), start=2):
+        row_idx = idx
+
+        loop_question = clean_text(row["Bucle"])
+        loop_text = clean_text(row.get(bucle_text_col)) or loop_question
+        parent_question = clean_text(row["Pregunta"])
 
         if loop_question is None:
             continue
         if loop_text is None or parent_question is None:
-            raise ValueError(f"Bucle incompleto en fila {row_idx} de la hoja {year}.")
+            raise ValueError(
+                f"Estructura de bucle incompleta en la fila {row_idx} de la hoja {year}."
+            )
 
         candidate = {
             "year": year,
@@ -177,327 +123,212 @@ def load_loops(excel: pd.ExcelFile, year: int) -> list[dict]:
             registry[loop_question] = candidate
             continue
 
-        if normalize(existing["loop_text"]) != normalize(loop_text) or normalize(
-            existing["parent_question"]
-        ) != normalize(parent_question):
+        if fold_for_comparison(existing["loop_text"]) != fold_for_comparison(
+            loop_text
+        ) or fold_for_comparison(existing["parent_question"]) != fold_for_comparison(
+            parent_question
+        ):
             raise ValueError(
-                f"Información contradictoria para {loop_question} en año {year}."
+                f"Información contradictoria detectada para el bucle '{loop_question}' en el año {year}."
             )
 
     return list(registry.values())
 
 
 # -----------------------------------------------------------------------------
-# POSTGRESQL
+# LOOKUPS CENTRALIZADOS VÍA ORM
 # -----------------------------------------------------------------------------
 
 
-async def table_columns(conn, schema: str, table: str) -> dict:
-    result = await conn.execute(
-        text(
-            """
-            SELECT column_name, character_maximum_length, is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = :schema
-              AND table_name = :table
-            ORDER BY ordinal_position;
-            """
-        ),
-        {"schema": schema, "table": table},
-    )
-    rows = result.mappings().all()
-    if not rows:
-        raise ValueError(f"No existe {schema}.{table}.")
-    return {
-        row["column_name"]: {
-            "max_length": row["character_maximum_length"],
-            "nullable": row["is_nullable"] == "YES",
-        }
-        for row in rows
-    }
+async def get_form_by_year(conn: AsyncConnection, year: int) -> str | None:
+    stmt = select(Form.id).where(Form.code == str(year))
+    row = (await conn.execute(stmt)).mappings().first()
+    return str(row["id"]) if row else None
 
 
-async def get_form(conn, year: int) -> str | None:
-    result = await conn.execute(
-        text("SELECT id::text AS id FROM forms.forms WHERE code = :year;"),
-        {"year": str(year)},
-    )
-    rows = result.mappings().all()
-    if len(rows) == 0:
-        return None
-    if len(rows) > 1:
-        raise ValueError(
-            f"Existe más de un formulario con código {year}; encontrados: {len(rows)}."
+async def get_questions_lookup(conn: AsyncConnection, form_id: str) -> dict[str, dict]:
+    stmt = (
+        select(
+            Question.id.label("question_id"),
+            Question.label,
+            Question.description,
+            Question.is_loop,
         )
-    form_id = rows[0]["id"]
-    if not is_uuidv7(form_id):
-        raise ValueError(f"form_id de {year} no es UUIDv7: {form_id}")
-    return form_id
-
-
-async def get_questions(conn, form_id: str) -> dict[str, dict]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                q.id::text AS question_id,
-                q.label,
-                q.description,
-                q.is_loop
-            FROM forms.questions q
-            JOIN forms.sections s ON q.section_id = s.id
-            WHERE s.form_id = CAST(:form_id AS uuid)
-            ORDER BY q.label, q.id;
-            """
-        ),
-        {"form_id": form_id},
+        .join(Section, Section.id == Question.section_id)
+        .where(Section.form_id == form_id)
     )
+    result = await conn.execute(stmt)
 
-    grouped: dict[str, list[dict]] = defaultdict(list)
+    grouped = defaultdict(list)
     for row in result.mappings().all():
-        grouped[normalize(row["label"])].append(dict(row))
+        natural_label = fold_for_comparison(row["label"]) or ""
+        grouped[natural_label].append(dict(row))
 
-    lookup: dict[str, dict] = {}
-    for key, rows in grouped.items():
-        if len(rows) > 1:
+    lookup = {}
+    for key, items in grouped.items():
+        if len(items) > 1:
             raise ValueError(
-                f"Preguntas duplicadas para {key}: "
-                f"{[row['question_id'] for row in rows]}"
+                f"Inconsistencia: Preguntas duplicadas para el label '{key}' dentro del formulario."
             )
-        if not is_uuidv7(rows[0]["question_id"]):
-            raise ValueError(f"Pregunta sin UUIDv7: {rows[0]['question_id']}")
-        lookup[key] = rows[0]
-
+        lookup[key] = items[0]
     return lookup
 
 
-async def get_existing_templates(conn) -> dict[str, dict]:
-    result = await conn.execute(
-        text(
-            """
-            SELECT
-                id::text AS card_template_id,
-                question_id::text AS question_id,
-                code,
-                label,
-                description,
-                helper
-            FROM forms.card_templates
-            ORDER BY question_id, id;
-            """
-        )
+async def get_existing_templates(conn: AsyncConnection) -> dict[str, dict]:
+    """Mapea el id de la pregunta con su único card_template registrado."""
+    stmt = select(
+        CardTemplate.id.label("card_template_id"),
+        CardTemplate.question_id,
+        CardTemplate.code,
+        CardTemplate.label,
+        CardTemplate.description,
+        CardTemplate.helper,
     )
+    result = await conn.execute(stmt)
 
-    grouped: dict[str, list[dict]] = defaultdict(list)
+    grouped = defaultdict(list)
     for row in result.mappings().all():
-        grouped[row["question_id"]].append(dict(row))
+        grouped[str(row["question_id"])].append(dict(row))
 
-    lookup: dict[str, dict] = {}
-    for question_id, rows in grouped.items():
-        if len(rows) > 1:
+    lookup = {}
+    for question_id, items in grouped.items():
+        if len(items) > 1:
             raise ValueError(
-                f"La pregunta {question_id} tiene varios card_templates: "
-                f"{[row['card_template_id'] for row in rows]}"
+                f"La pregunta '{question_id}' cuenta con múltiples plantillas card_templates."
             )
-        if not is_uuidv7(rows[0]["card_template_id"]):
-            raise ValueError(f"card_template sin UUIDv7: {rows[0]['card_template_id']}")
-        lookup[question_id] = rows[0]
-
+        lookup[question_id] = items[0]
     return lookup
-
-
-async def save_template(conn, record: dict, update: bool) -> None:
-    if update:
-        statement = text(
-            """
-            UPDATE forms.card_templates
-            SET
-                question_id = CAST(:question_id AS uuid),
-                code = :code,
-                label = :label,
-                description = :description,
-                helper = :helper,
-                updated_at = NOW()
-            WHERE id = CAST(:id AS uuid);
-            """
-        )
-    else:
-        statement = text(
-            """
-            INSERT INTO forms.card_templates (
-                id,
-                question_id,
-                code,
-                label,
-                description,
-                helper,
-                updated_at
-            )
-            VALUES (
-                CAST(:id AS uuid),
-                CAST(:question_id AS uuid),
-                :code,
-                :label,
-                :description,
-                :helper,
-                NOW()
-            );
-            """
-        )
-    await conn.execute(statement, record)
-
-
-async def validate_loaded(
-    conn,
-    expected: list[dict],
-    question_map: dict[str, dict],
-    year: int,
-) -> None:
-    existing = await get_existing_templates(conn)
-
-    for source in expected:
-        question = question_map.get(normalize(source["loop_question"]))
-        if question is None:
-            raise ValueError(
-                f"No existe la pregunta de bucle {source['loop_question']}."
-            )
-
-        template = existing.get(question["question_id"])
-        if template is None:
-            raise ValueError(
-                f"No se cargó card_template para {source['loop_question']}."
-            )
-
-        expected_code = make_template_code(year, source["loop_question"])
-        if template["code"] != expected_code:
-            raise ValueError(
-                f"code incorrecto para card_template de {source['loop_question']}: "
-                f"{template['code']!r} != {expected_code!r}"
-            )
-        if normalize(template["label"]) != normalize(source["loop_question"]):
-            raise ValueError(
-                f"label incorrecto para card_template de {source['loop_question']}."
-            )
-        if normalize(template["description"]) != normalize(source["loop_text"]):
-            raise ValueError(
-                f"description incorrecta para card_template de "
-                f"{source['loop_question']}."
-            )
-        if clean(template["helper"]) is not None:
-            raise ValueError(
-                f"helper debe quedar vacío para {source['loop_question']}."
-            )
-        if not is_uuidv7(template["card_template_id"]):
-            raise ValueError(f"UUID no es versión 7 para {source['loop_question']}.")
-
-    logger.debug(
-        f"forms.card_templates validation passed for year {year}. Validated: {len(expected)}."
-    )
 
 
 # -----------------------------------------------------------------------------
-# ENTRADA PRINCIPAL
+# EJECUCIÓN CENTRAL DE POBLADO (UPGRADE)
 # -----------------------------------------------------------------------------
 
 
 async def upgrade() -> None:
     path = Path(FILE_PATH)
     if not path.is_file():
-        raise FileNotFoundError(f"No existe el archivo: {path}")
+        raise FileNotFoundError(f"Archivo de origen Excel no encontrado: {path}")
 
-    active_years = get_active_years()
+    active_years = get_seeding_active_years()
     logger.debug(
-        f"Starting forms.card_templates population from {path} for years: {active_years}"
+        f"Iniciando el poblado de forms.card_templates desde {path} para los años: {active_years}"
     )
 
     excel = pd.ExcelFile(path)
 
     async with async_engine.begin() as conn:
-        columns = await table_columns(conn, "forms", "card_templates")
-        required = {
-            "id",
-            "question_id",
-            "code",
-            "label",
-            "description",
-            "helper",
-            "updated_at",
-        }
-        missing = required - set(columns)
-        if missing:
-            raise ValueError(
-                f"Faltan columnas en forms.card_templates: {sorted(missing)}"
-            )
+        # Validación e introspección dinámica de las columnas físicas reales de la tabla
+        db_columns = await get_table_columns(
+            conn, schema="forms", table="card_templates"
+        )
+        validate_required_columns(
+            db_columns,
+            required={"id", "question_id", "code", "label", "description", "helper"},
+            table_name="forms.card_templates",
+        )
 
-        helper_value = None if columns["helper"]["nullable"] else ""
-        existing = await get_existing_templates(conn)
+        helper_value = None if db_columns["helper"]["nullable"] else ""
+        existing_templates = await get_existing_templates(conn)
 
         total_inserted = 0
         total_updated = 0
 
         for year in active_years:
-            loops = load_loops(excel, year)
+            loops = load_loops_from_excel(excel, year)
             if not loops:
                 continue
 
-            form_id = await get_form(conn, year)
+            form_id = await get_form_by_year(conn, year)
             if not form_id:
                 logger.warning(
-                    f"No existe el formulario con código {year} en BD. Omitiendo año."
+                    f"No existe el formulario operacional registrado para el año {year}. Omitiendo."
                 )
                 continue
 
-            questions = await get_questions(conn, form_id)
+            questions_map = await get_questions_lookup(conn, form_id)
 
             inserted = 0
             updated = 0
 
             for source in loops:
-                question = questions.get(normalize(source["loop_question"]))
+                natural_loop_lbl = fold_for_comparison(source["loop_question"]) or ""
+                question = questions_map.get(natural_loop_lbl)
+
                 if question is None:
                     raise ValueError(
-                        f"No existe {source['loop_question']} en forms.questions para el año {year}. "
-                        "Ejecuta antes 11e_seed_loop_questions.py."
+                        f"Fallo relacional: No se localizó la pregunta '{source['loop_question']}' en forms.questions "
+                        f"para el año {year}. Asegúrate de ejecutar seed_loop_questions.py previamente."
                     )
                 if question["is_loop"] is not True:
                     raise ValueError(
-                        f"{source['loop_question']} (Año {year}) tiene is_loop distinto de TRUE."
+                        f"La pregunta '{source['loop_question']}' (Año {year}) no está configurada como is_loop = TRUE."
                     )
 
-                old = existing.get(question["question_id"])
-                card_template_id = old["card_template_id"] if old else new_uuidv7()
-                if not is_uuidv7(card_template_id):
-                    raise ValueError(f"ID no UUIDv7: {card_template_id}")
+                q_id_str = str(question["question_id"])
+                old_template = existing_templates.get(q_id_str)
 
-                template_code = make_template_code(year, source["loop_question"])
+                # Mantener la idempotencia preservando identificadores UUIDv7 previos
+                card_template_id = (
+                    old_template["card_template_id"] if old_template else new_uuidv7()
+                )
+                template_code = make_template_code_local(year, source["loop_question"])
 
-                db_record = {
+                db_payload = {
                     "id": card_template_id,
-                    "question_id": question["question_id"],
-                    "code": truncate(template_code, columns["code"]["max_length"]),
-                    "label": truncate(
-                        source["loop_question"], columns["label"]["max_length"]
+                    "question_id": q_id_str,
+                    "code": truncate_text(
+                        template_code, db_columns["code"]["max_length"]
                     ),
-                    "description": truncate(
-                        source["loop_text"],
-                        columns["description"]["max_length"],
+                    "label": truncate_text(
+                        source["loop_question"], db_columns["label"]["max_length"]
+                    ),
+                    "description": truncate_text(
+                        source["loop_text"], db_columns["description"]["max_length"]
                     ),
                     "helper": helper_value,
                 }
 
-                await save_template(conn, db_record, update=old is not None)
-                if old:
+                if old_template:
+                    stmt_update = (
+                        update(CardTemplate)
+                        .where(CardTemplate.id == db_payload["id"])
+                        .values(
+                            question_id=db_payload["question_id"],
+                            code=db_payload["code"],
+                            label=db_payload["label"],
+                            description=db_payload["description"],
+                            helper=db_payload["helper"],
+                        )
+                    )
+                    await conn.execute(stmt_update)
                     updated += 1
                 else:
+                    stmt_insert = insert(CardTemplate).values(db_payload)
+                    await conn.execute(stmt_insert)
                     inserted += 1
 
-            await validate_loaded(conn, loops, questions, year)
             total_inserted += inserted
             total_updated += updated
 
-    logger.debug(
-        "forms.card_templates population finished successfully. "
-        f"Total Inserted: {total_inserted}. Total Updated: {total_updated}."
+        # -----------------------------------------------------------------------------
+        # ASERCIONES FINALES DE SANIDAD POST-CARGA CENTRALIZADA
+        # -----------------------------------------------------------------------------
+        final_stmt = select(CardTemplate.id, CardTemplate.code)
+        final_rows = [
+            dict(r) for r in (await conn.execute(final_stmt)).mappings().all()
+        ]
+
+        assert_all_uuidv7(rows=final_rows, id_key="id", label_key="code")
+        assert_no_duplicates(
+            rows=final_rows,
+            key_fields=["code"],
+            what="plantillas de tarjetas (card_templates)",
+        )
+
+    logger.info(
+        f"Poblado de forms.card_templates finalizado exitosamente. "
+        f"Total Creados: {total_inserted}. Total Actualizados: {total_updated}."
     )
 
 
