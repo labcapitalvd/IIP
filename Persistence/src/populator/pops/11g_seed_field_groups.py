@@ -72,7 +72,7 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
             logger.debug(f"Hoja {sheet_name!r} no contiene columna 'Bucle'. Omitiendo.")
             continue
 
-        bucle_col = f"Bucle {year}" if f"Bucle {year}" in temp_cols else "Bucle 2023"
+        bucle_col = "card_template" if "card_template" in temp_cols else "card_template"
         required_cols = {"Pregunta", "Bucle", bucle_col}
 
         frame = load_clean_excel_sheet(
@@ -96,8 +96,9 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
                 )
 
             excel_code = clean_text(row.get("code_field_groups")) or ""
-            excel_label = clean_text(row.get("field_groups"))
-            excel_description = loop_text
+            excel_label = clean_text(row.get("field_group"))
+            excel_description = clean_text(row.get("desc_field_group"))
+
 
             # Formatear códigos técnicos estables de negocio para matching universal
             q_clean = (
