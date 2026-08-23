@@ -83,37 +83,46 @@ def load_loops_from_excel(excel: pd.ExcelFile, year: int) -> list[dict]:
         logger.warning(f"Hoja para el año {year} no encontrada en el Excel. Omitiendo.")
         return []
 
-    # Determinar si la columna 'Bucle' viene parametrizada con el año o es estática
-    temp_df = pd.read_excel(excel, sheet_name=sheet_name, nrows=1, dtype=object)
-    temp_cols = [str(c).strip() for c in temp_df.columns]
-    bucle_text_col = f"Bucle {year}" if f"Bucle {year}" in temp_cols else "Bucle"
-
-    required_cols = {"Pregunta", "Bucle", bucle_text_col}
+    required_cols = {"Pregunta", "Bucle"}
     frame = load_clean_excel_sheet(
         excel, sheet_name=sheet_name, required_columns=required_cols
     )
 
     registry: OrderedDict[str, dict] = OrderedDict()
 
-    # Using enumerate() ensures row_idx is initialized directly from a pure primitive int slot
     for idx, (_, row) in enumerate(frame.iterrows(), start=2):
         row_idx = idx
 
         loop_question = clean_text(row["Bucle"])
-        loop_text = clean_text(row.get(bucle_text_col)) or loop_question
         parent_question = clean_text(row["Pregunta"])
 
         if loop_question is None:
             continue
-        if loop_text is None or parent_question is None:
+
+        # Extract card_template (label) with fallback to Bucle
+        card_template_label = (
+            clean_text(row.get("card_template"))
+            if "card_template" in frame.columns
+            else None
+        ) or loop_question
+
+        # Extract desc_card_template (description) with fallback to Bucle
+        card_template_desc = (
+            clean_text(row.get("desc_card_template"))
+            if "desc_card_template" in frame.columns
+            else None
+        ) or loop_question
+
+        if parent_question is None:
             raise ValueError(
                 f"Estructura de bucle incompleta en la fila {row_idx} de la hoja {year}."
             )
 
         candidate = {
             "year": year,
-            "loop_question": loop_question,
-            "loop_text": loop_text,
+            "loop_question": loop_question,  # Key used for database lookups
+            "loop_label": card_template_label,  # Label from card_template
+            "loop_text": card_template_desc,  # Description from desc_card_template
             "parent_question": parent_question,
             "is_mixed": loop_question == parent_question,
         }
@@ -124,7 +133,7 @@ def load_loops_from_excel(excel: pd.ExcelFile, year: int) -> list[dict]:
             continue
 
         if fold_for_comparison(existing["loop_text"]) != fold_for_comparison(
-            loop_text
+            card_template_desc
         ) or fold_for_comparison(existing["parent_question"]) != fold_for_comparison(
             parent_question
         ):
@@ -281,7 +290,7 @@ async def upgrade() -> None:
                         template_code, db_columns["code"]["max_length"]
                     ),
                     "label": truncate_text(
-                        source["loop_question"], db_columns["label"]["max_length"]
+                        source["loop_label"], db_columns["label"]["max_length"]
                     ),
                     "description": truncate_text(
                         source["loop_text"], db_columns["description"]["max_length"]
