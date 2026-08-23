@@ -11,14 +11,16 @@ de fallas con alta legibilidad en la consola de terminal.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Set as AbstractSet
 from typing import Any, Hashable, Sequence
 
-from shared.utils import format_list
-from shared.utils.seeding.ids import is_uuidv7
+from shared.utils.texts import format_list
+
+from .ids import is_uuidv7
 
 
 def assert_no_missing(
-    expected: set[Hashable], found: set[Hashable], *, what: str
+    expected: AbstractSet[Hashable], found: AbstractSet[Hashable], *, what: str
 ) -> None:
     """Verifica que todo lo esperado haya quedado cargado.
 

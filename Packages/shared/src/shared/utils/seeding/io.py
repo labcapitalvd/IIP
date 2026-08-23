@@ -6,7 +6,7 @@ from typing import Any, Sequence
 
 import pandas as pd
 
-from shared.utils.seeding.text import clean_text, normalize_key
+from .text import clean_text, normalize_key
 
 
 def read_and_decode_csv(path: Path) -> str:
