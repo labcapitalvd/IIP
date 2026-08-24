@@ -19,11 +19,10 @@ RUN mkdir -p application domain infrastructure routers schemas utils \
 # -----------------------------
 # 3. Overwrite the mock folders with your actual real implementation code
 COPY Core/src/main.py ./main.py
-COPY Core/src/application/ ./application/
-COPY Core/src/domain/ ./domain/
 COPY Core/src/infrastructure/ ./infrastructure/
 COPY Core/src/routers/ ./routers/
 COPY Core/src/schemas/ ./schemas/
+COPY Core/src/services/ ./services/
 COPY Core/src/utils/ ./utils/
 
 # -----------------------------

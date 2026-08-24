@@ -19,11 +19,11 @@ RUN mkdir -p application domain infrastructure routers schemas utils \
 # -----------------------------
 # 3. Overwrite the mock folders with your actual real implementation code
 COPY Auth/src/main.py ./main.py
-COPY Auth/src/infrastructure ./infrastructure
-COPY Auth/src/routers ./routers
-COPY Auth/src/schemas ./schemas
-COPY Auth/src/services ./services
-COPY Auth/src/utils ./utils
+COPY Auth/src/infrastructure/ ./infrastructure/
+COPY Auth/src/routers/ ./routers/
+COPY Auth/src/schemas/ ./schemas/
+COPY Auth/src/services/ ./services/
+COPY Auth/src/utils/ ./utils/
 
 # -----------------------------
 # 4. Re-run a fast, local-only install to sync your actual code metadata 
