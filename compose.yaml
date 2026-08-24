@@ -46,19 +46,29 @@ services:
   cache:
     container_name: app_cache
     image: docker.io/valkey/valkey:alpine
-    env_file: ./.env
     restart: unless-stopped
+    env_file: ./.env
     secrets:
       - valkey_password
     entrypoint:
       - sh
       - -c
       - |
-        VALKEY_PASS=$(cat /run/secrets/valkey_password)
+        if [ -s /run/secrets/valkey_password ]; then
+          VALKEY_PASS=$$(cat /run/secrets/valkey_password)
+        else
+          VALKEY_PASS="$${VALKEY_PASSWORD}"
+        fi
+
+        if [ -z "$$VALKEY_PASS" ]; then
+          echo "ERROR: Neither secret file nor VALKEY_PASSWORD env var is set!"
+          exit 1
+        fi
+
         exec valkey-server \
-          --requirepass "$VALKEY_PASS" \
-          --user default on ">$VALKEY_PASS" ~* +@all \
-          --user "${VALKEY_USER:-valkey_user}" on ">$VALKEY_PASS" ~* +@all
+          --requirepass "$$VALKEY_PASS" \
+          --user default on ">$$VALKEY_PASS" ~* +@all \
+          --user "$${VALKEY_USER:-valkey_user}" on ">$$VALKEY_PASS" ~* +@all
     ports:
       - "6379:6379"
     networks:
@@ -66,7 +76,13 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - VALKEY_PASS=$(cat /run/secrets/valkey_password) && valkey-cli --user "${VALKEY_USER:-valkey_user}" -a "$VALKEY_PASS" ping | grep -q PONG
+        - |
+          if [ -s /run/secrets/valkey_password ]; then
+            VPASS=$$(cat /run/secrets/valkey_password)
+          else
+            VPASS="$${VALKEY_PASSWORD}"
+          fi
+          valkey-cli --user "$${VALKEY_USER:-valkey_user}" -a "$$VPASS" ping | grep -q PONG
       interval: 5s
       timeout: 3s
       retries: 5
