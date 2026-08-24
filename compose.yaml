@@ -48,7 +48,6 @@ services:
     image: docker.io/valkey/valkey:alpine
     env_file: ./.env
     restart: unless-stopped
-    command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}"] # or mount secret
     command: >
       sh -c "valkey-server 
       --requirepass \"$$VALKEY_PASSWORD\" 
