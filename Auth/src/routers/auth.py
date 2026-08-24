@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from application import AuthAppService
+from services.application import AuthAppService
 from schemas.auth import RequestRegister, RequestLogin
 
 
