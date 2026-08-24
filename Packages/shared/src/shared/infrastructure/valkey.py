@@ -6,7 +6,7 @@ from shared.utils import format_banner, format_list
 
 logger = getLogger(__name__)
 
-VALKEY_USER = os.getenv("VALKEY_USER", "valkey_user")
+VALKEY_USER = os.getenv("VALKEY_USER", "default")
 VALKEY_DB = os.getenv("VALKEY_DB", "0")
 VALKEY_HOST = os.getenv(
     "VALKEY_HOST", "cache"
