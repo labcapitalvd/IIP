@@ -73,7 +73,7 @@ def make_template_code_local(year: int, loop_question_label: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# ETL Y EXTRACCIÓN DESDE EL LIBRO EXCEL
+# ETL Y EXTRACCION DESDE EL LIBRO EXCEL
 # -----------------------------------------------------------------------------
 
 
@@ -83,7 +83,8 @@ def load_loops_from_excel(excel: pd.ExcelFile, year: int) -> list[dict]:
         logger.warning(f"Hoja para el año {year} no encontrada en el Excel. Omitiendo.")
         return []
 
-    required_cols = {"Pregunta", "Bucle"}
+    # Remojamos la validación estricta de la columna "Bucle" para permitir hojas tradicionales (2019/2021)
+    required_cols = {"Pregunta"}
     frame = load_clean_excel_sheet(
         excel, sheet_name=sheet_name, required_columns=required_cols
     )
@@ -93,36 +94,32 @@ def load_loops_from_excel(excel: pd.ExcelFile, year: int) -> list[dict]:
     for idx, (_, row) in enumerate(frame.iterrows(), start=2):
         row_idx = idx
 
-        loop_question = clean_text(row["Bucle"])
         parent_question = clean_text(row["Pregunta"])
+        if parent_question is None:
+            continue  # Ignorar filas completamente rotas o vacías
 
-        if loop_question is None:
-            continue
+        # Fallback adaptativo: Si no es un bucle, la tarjeta apunta a la pregunta principal
+        loop_question = clean_text(row.get("Bucle")) or parent_question
 
-        # Extract card_template (label) with fallback to Bucle
+        # Extraer etiquetas con fallback seguro
         card_template_label = (
             clean_text(row.get("card_template"))
             if "card_template" in frame.columns
             else None
         ) or loop_question
 
-        # Extract desc_card_template (description) with fallback to Bucle
+        # Extraer descripciones con fallback seguro
         card_template_desc = (
             clean_text(row.get("desc_card_template"))
             if "desc_card_template" in frame.columns
             else None
         ) or loop_question
 
-        if parent_question is None:
-            raise ValueError(
-                f"Estructura de bucle incompleta en la fila {row_idx} de la hoja {year}."
-            )
-
         candidate = {
             "year": year,
-            "loop_question": loop_question,  # Key used for database lookups
-            "loop_label": card_template_label,  # Label from card_template
-            "loop_text": card_template_desc,  # Description from desc_card_template
+            "loop_question": loop_question,
+            "loop_label": card_template_label,
+            "loop_text": card_template_desc,
             "parent_question": parent_question,
             "is_mixed": loop_question == parent_question,
         }
@@ -134,11 +131,9 @@ def load_loops_from_excel(excel: pd.ExcelFile, year: int) -> list[dict]:
 
         if fold_for_comparison(existing["loop_text"]) != fold_for_comparison(
             card_template_desc
-        ) or fold_for_comparison(existing["parent_question"]) != fold_for_comparison(
-            parent_question
         ):
             raise ValueError(
-                f"Información contradictoria detectada para el bucle '{loop_question}' en el año {year}."
+                f"Informacion contradictoria detectada para el bucle '{loop_question}' en el año {year}."
             )
 
     return list(registry.values())
@@ -269,10 +264,10 @@ async def upgrade() -> None:
                         f"Fallo relacional: No se localizó la pregunta '{source['loop_question']}' en forms.questions "
                         f"para el año {year}. Asegúrate de ejecutar seed_loop_questions.py previamente."
                     )
-                if question["is_loop"] is not True:
-                    raise ValueError(
-                        f"La pregunta '{source['loop_question']}' (Año {year}) no está configurada como is_loop = TRUE."
-                    )
+                # if question["is_loop"] is not True:
+                #     raise ValueError(
+                #         f"La pregunta '{source['loop_question']}' (Año {year}) no está configurada como is_loop = TRUE."
+                #     )
 
                 q_id_str = str(question["question_id"])
                 old_template = existing_templates.get(q_id_str)
