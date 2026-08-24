@@ -45,7 +45,7 @@ class AuthUoW(UnitOfWork):
 
         self.add_post_commit_hook(valkey_write_operation)
 
-    def invalidate_session_cache(self, jti: UUID) -> None:
+    def invalidate_session_cache(self, jti: str) -> None:
         """Schedule session deletion from Valkey post-commit."""
 
         async def valkey_delete_operation() -> None:
