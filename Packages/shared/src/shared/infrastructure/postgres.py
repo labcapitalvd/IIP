@@ -36,7 +36,7 @@ env_key = os.getenv("POSTGRES_PASSWORD")
 
 # Ensure FERNET_PASSWORD is always bytes
 if env_key:
-    pg_pass = env_key.encode()
+    pg_pass = env_key
 else:
     pg_pass = load_postgres_key()
 
