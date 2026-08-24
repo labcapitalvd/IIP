@@ -11,7 +11,7 @@ from .hashing import verify_string, verify_password, verify_token
 from .texts import sanitize_text, sanitize_email, format_list, format_banner
 from .tokens import AccessContext, SessionContext
 from .tokens import generate_token, decode_token, get_claims
-from .logger import configure_logging, get_logger
+from .logger import configure_logging, getLogger
 
 from .seeding import (
     new_uuidv7,
@@ -51,7 +51,7 @@ __all__ = [
     "decode_token",
     "get_claims",
     "configure_logging",
-    "get_logger",
+    "getLogger",
     # Assertions
     "assert_no_missing",
     "assert_all_uuidv7",

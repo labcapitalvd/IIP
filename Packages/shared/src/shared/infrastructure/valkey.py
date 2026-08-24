@@ -1,10 +1,10 @@
 # Packages/shared/src/shared/infra/valkey.py
 import os
 import valkey.asyncio as aiovalkey
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils import format_banner, format_list
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 VALKEY_USER = os.getenv("VALKEY_USER", "valkey_user")
 VALKEY_DB = os.getenv("VALKEY_DB", "app_cache")

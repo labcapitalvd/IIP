@@ -3,10 +3,10 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils import format_banner, format_list
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres_user")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "app_db")

@@ -4,11 +4,11 @@ import shutil
 import aiofiles
 from fastapi import UploadFile
 
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 
 from .errors import FileError, FileNameError, FileOSError
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def _safe_path(base: str, filename: str) -> Path:
