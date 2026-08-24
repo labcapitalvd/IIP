@@ -72,7 +72,7 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
             logger.debug(f"Hoja {sheet_name!r} no contiene columna 'Bucle'. Omitiendo.")
             continue
 
-        bucle_col = f"Bucle {year}" if f"Bucle {year}" in temp_cols else "Bucle 2023"
+        bucle_col = "card_template" if "card_template" in temp_cols else "card_template"
         required_cols = {"Pregunta", "Bucle", bucle_col}
 
         frame = load_clean_excel_sheet(
@@ -81,24 +81,23 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
         sheet_loops: OrderedDict[str, dict] = OrderedDict()
 
         # Enumerate garantiza que row_idx sea tratado como int estricto para los validadores estáticos
+
         for idx, (_, row) in enumerate(frame.iterrows(), start=2):
             row_idx = idx
-            loop_question = clean_text(row.get("Bucle"))
-            if loop_question is None:
-                continue
 
             parent_question = clean_text(row.get("Pregunta"))
+            if parent_question is None:
+                continue
+
+            # Fallback to parent text if Bucle is absent (standard linear item)
+            loop_question = clean_text(row.get("Bucle")) or parent_question
             loop_text = clean_text(row.get(bucle_col)) or loop_question
 
-            if loop_text is None or parent_question is None:
-                raise ValueError(
-                    f"Estructura de bucle incompleta en la fila {row_idx} de la hoja {year}."
-                )
+            excel_code = clean_text(row.get("code_field_groups")) or "MAIN"
+            excel_label = clean_text(row.get("field_group")) or loop_text
+            excel_description = clean_text(row.get("desc_field_group")) or excel_label
 
-            excel_code = clean_text(row.get("code_field_groups")) or ""
-            excel_label = clean_text(row.get("field_groups"))
-
-            # Formatear códigos técnicos estables de negocio para matching universal
+            # Format uniform database technical identification keys
             q_clean = (
                 str(loop_question)
                 .replace("Pregunta", "Q")
@@ -106,7 +105,6 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
                 .replace(" ", "")
             )
             code_fg = f"{year}_FG_{q_clean}_{excel_code}".strip("_")
-            description = excel_label or loop_text
 
             candidate = {
                 "year": year,
@@ -115,20 +113,19 @@ def load_loops_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[di
                 "parent_question": parent_question,
                 "is_mixed": loop_question == parent_question,
                 "code": code_fg,
-                "label": loop_question,
-                "description": description,
+                "label": excel_label,
+                "description": excel_description,
             }
 
-            old = sheet_loops.get(loop_question)
+            # Deduplicate by group code to allow consecutive variable lines to bind cleanly
+            old = sheet_loops.get(code_fg)
             if old is None:
-                sheet_loops[loop_question] = candidate
+                sheet_loops[code_fg] = candidate
             elif fold_for_comparison(old["loop_text"]) != fold_for_comparison(
                 loop_text
-            ) or fold_for_comparison(old["parent_question"]) != fold_for_comparison(
-                parent_question
             ):
                 raise ValueError(
-                    f"Información contradictoria para {loop_question} en la hoja {year}."
+                    f"Información contradictoria para el grupo {code_fg} en la hoja {year}."
                 )
 
         all_loops.extend(sheet_loops.values())
@@ -218,8 +215,10 @@ async def get_card_templates_lookup(conn: AsyncConnection) -> dict[str, dict]:
     return lookup
 
 
-async def get_existing_groups(conn: AsyncConnection) -> dict[tuple[str, str], dict]:
-    """Mapea la tupla indexada (question_id, card_template_id) con su registro persistido."""
+async def get_existing_groups(
+    conn: AsyncConnection,
+) -> dict[tuple[str, str, str], dict]:
+    """Mapea la tupla indexada (question_id, card_template_id, code) con su registro persistido."""
     stmt = (
         select(
             FieldGroup.id.label("field_group_id"),
@@ -237,23 +236,25 @@ async def get_existing_groups(conn: AsyncConnection) -> dict[tuple[str, str], di
     )
     rows = (await conn.execute(stmt)).mappings().all()
 
-    grouped = defaultdict(list)
-    for row in rows:
-        key = (str(row["question_id"]), str(row["card_template_id"]))
-        grouped[key].append(dict(row))
-
+    # SOLUCIÓN: Agrupar usando la clave compuesta de 3 elementos para permitir re-runs idempotentes
     lookup = {}
-    for key, items in grouped.items():
-        if len(items) > 1:
+    for row in rows:
+        key = (
+            str(row["question_id"]),
+            str(row["card_template_id"]),
+            str(row["code"]).strip(),
+        )
+        if key in lookup:
             raise ValueError(
-                f"field_groups duplicados detectados para los IDs relacionales {key}."
+                f"Error crítico: El código de grupo '{row['code']}' ya existe para esta plantilla de tarjeta."
             )
-        lookup[key] = items[0]
+        lookup[key] = dict(row)
+
     return lookup
 
 
 # -----------------------------------------------------------------------------
-# EJECUCIÓN CENTRAL DE POBLADO (UPGRADE)
+# EJECUCION CENTRAL DE POBLADO (UPGRADE)
 # -----------------------------------------------------------------------------
 
 
@@ -269,7 +270,6 @@ async def upgrade() -> None:
     loops = load_loops_for_years(excel, years)
 
     async with async_engine.begin() as conn:
-        # Validación e introspección dinámica de las columnas físicas reales de la tabla
         db_columns = await get_table_columns(conn, schema="forms", table="field_groups")
         validate_required_columns(
             db_columns,
@@ -284,7 +284,6 @@ async def upgrade() -> None:
             table_name="forms.field_groups",
         )
 
-        # Cargar matrices de relaciones unificadas
         forms_map = await get_forms_lookup(conn, years)
         questions_map = await get_questions_lookup(conn, years)
         templates_map = await get_card_templates_lookup(conn)
@@ -298,26 +297,31 @@ async def upgrade() -> None:
             question = questions_map.get((y, lbl_key))
             if question is None:
                 raise ValueError(
-                    f"Fallo relacional: No se localizó la pregunta '{loop['loop_question']}' ({y}) en forms.questions."
+                    f"Fallo relacional: No se localizo la pregunta '{loop['loop_question']}' ({y}) en forms.questions."
                 )
-            if question["is_loop"] is not True:
-                raise ValueError(
-                    f"La pregunta '{loop['loop_question']}' ({y}) tiene is_loop configurado como FALSE en BD."
-                )
+            # if question["is_loop"] is not True:
+            #     raise ValueError(
+            #         f"La pregunta '{loop['loop_question']}' ({y}) tiene is_loop configurado como FALSE en BD."
+            #     )
 
             q_id_str = str(question["question_id"])
             template = templates_map.get(q_id_str)
             if template is None:
                 raise ValueError(
-                    f"Fallo de dependencias: No se halló un card_template para la pregunta ID '{q_id_str}' ({loop['loop_question']})."
+                    f"Fallo de dependencias: No se hallo un card_template para la pregunta ID '{q_id_str}' ({loop['loop_question']})."
                 )
 
+            db_group_code = loop["code"]
             expected_records.append(
                 {
-                    "natural_key": (q_id_str, str(template["card_template_id"])),
+                    "natural_key": (
+                        q_id_str,
+                        str(template["card_template_id"]),
+                        str(db_group_code).strip(),
+                    ),
                     "form_id": forms_map[y],
                     "card_template_id": str(template["card_template_id"]),
-                    "code": loop["code"],
+                    "code": db_group_code,
                     "label": loop["label"],
                     "description": loop["description"],
                     "display_order": 2 if loop["is_mixed"] else 1,
@@ -328,8 +332,6 @@ async def upgrade() -> None:
 
         for source in expected_records:
             old_group = existing_groups.get(source["natural_key"])
-
-            # Garantizar identificador primario idempotente UUIDv7
             field_group_id = old_group["field_group_id"] if old_group else new_uuidv7()
 
             db_payload = {

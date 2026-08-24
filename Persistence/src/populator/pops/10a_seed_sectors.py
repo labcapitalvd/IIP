@@ -118,37 +118,39 @@ def build_sector_records(
 
 
 async def get_existing_segments(conn) -> dict[str, dict[str, str]]:
-    """Obtiene los segmentos existentes usando consultas ORM puras."""
-    stmt = select(ActorSegment).order_by(ActorSegment.label, ActorSegment.id)
+    """Obtiene los segmentos existentes usando consultas de selección limpias."""
+    stmt = select(
+        ActorSegment.id.label("id"),
+        ActorSegment.label.label("label"),
+        ActorSegment.description.label("description"),
+    ).order_by(ActorSegment.label, ActorSegment.id)
+
     result = await conn.execute(stmt)
-    segments = result.scalars().all()
 
     lookup: dict[str, dict[str, str]] = {}
-    for segment in segments:
-        key = fold_for_comparison(segment.label)
+    for row in result.mappings().all():
+        key = fold_for_comparison(row["label"])
 
         if key is None:
-            raise ValueError(
-                f"Existe un actor_segment con label inválido: {segment.id}"
-            )
+            raise ValueError(f"Existe un actor_segment con label inválido: {row['id']}")
 
         if key in lookup:
             raise ValueError(
                 "Existen sectores duplicados por label normalizado en PostgreSQL: "
-                f"{lookup[key]['label']!r} y {segment.label!r}."
+                f"{lookup[key]['label']!r} y {row['label']!r}."
             )
 
-        segment_id_str = str(segment.id)
+        segment_id_str = str(row["id"])
         if not is_uuidv7(segment_id_str):
             raise ValueError(
                 "El sector existente no tiene UUIDv7. Debe corregirse antes de "
-                f"continuar: {segment.label!r} -> {segment_id_str}"
+                f"continuar: {row['label']!r} -> {segment_id_str}"
             )
 
         lookup[key] = {
             "id": segment_id_str,
-            "label": segment.label,
-            "description": segment.description,
+            "label": row["label"],
+            "description": row["description"],
         }
 
     return lookup

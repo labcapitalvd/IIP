@@ -110,11 +110,11 @@ def make_section_label(level: str, raw_code) -> str:
 def required_columns_for_year(year: int) -> dict[str, str]:
     return {
         "component_code": "Componente",
-        "component_description": f"Componente {year}",
+        "component_description": "comp",
         "variable_code": "Variable",
-        "variable_description": f"Variable {year}",
+        "variable_description": "var",
         "indicator_code": "Indicador",
-        "indicator_description": f"Indicador {year}",
+        "indicator_description": "ind",
     }
 
 

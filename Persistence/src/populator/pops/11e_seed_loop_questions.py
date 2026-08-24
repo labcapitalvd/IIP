@@ -17,32 +17,30 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 import pandas as pd
-from sqlalchemy import insert, select, update
-from sqlalchemy.ext.asyncio import AsyncConnection
 
 # Infraestructura y Registro global del proyecto
 from shared.infrastructure import async_engine
-from shared.utils.logger import get_logger
 
 # Importación de Modelos ORM Centralizados desde tu Módulo init
 from shared.models import Form, Question, Section, SectionType
+from shared.utils.logger import get_logger
 
 # Utilidades Core de Seeding Compartidas (Elimina duplicación)
 from shared.utils.seeding import (
     assert_all_uuidv7,
     assert_no_duplicates,
-    get_seeding_active_years,
-    get_table_columns,
-    load_clean_excel_sheet,
-    validate_required_columns,
-)
-from shared.utils.seeding import (
     clean_text,
     compute_hierarchical_order,
     fold_for_comparison,
+    get_seeding_active_years,
+    get_table_columns,
+    load_clean_excel_sheet,
     new_uuidv7,
     truncate_text,
+    validate_required_columns,
 )
+from sqlalchemy import insert, select, update
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 logger = get_logger(__name__)
 
@@ -113,9 +111,9 @@ def load_loops_from_excel(
             "Variable",
             "Indicador",
             "Pregunta",
-            f"Pregunta {year}",
+            "pre",
             "Bucle",
-            f"Bucle {year}",
+            "card_template",
             "Orden_subpregunta_bucle",
             "Subpregunta_bucle",
         }
@@ -138,9 +136,9 @@ def load_loops_from_excel(
                 "variable": frame["Variable"],
                 "indicator": frame["Indicador"],
                 "parent_question": frame["Pregunta"],
-                "parent_text": frame[f"Pregunta {year}"],
+                "parent_text": frame["pre"],
                 "loop_question": frame["Bucle"],
-                "loop_text": frame[f"Bucle {year}"],
+                "loop_text": frame["card_template"],
                 "subquestion_order": frame["Orden_subpregunta_bucle"],
                 "subquestion_text": frame["Subpregunta_bucle"],
             }

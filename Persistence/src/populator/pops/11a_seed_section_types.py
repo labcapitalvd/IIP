@@ -6,6 +6,9 @@ el IIP utilizando los modelos declarativos del sistema y las utilidades comparti
 
 from __future__ import annotations
 
+import asyncio
+from typing import Any
+
 from shared.infrastructure import async_engine
 from shared.models import SectionType
 from shared.utils.logger import get_logger
@@ -64,11 +67,12 @@ SECTION_TYPES_DATA = [
 
 async def get_existing_section_type(
     conn: AsyncConnection, label: str
-) -> SectionType | None:
-    """Busca un tipo de sección existente por su etiqueta utilizando el modelo ORM."""
-    stmt = select(SectionType).where(SectionType.label == label).limit(1)
+) -> dict[str, Any] | None:
+    """Busca un tipo de sección existente por su etiqueta utilizando mapeos dict."""
+    stmt = select(SectionType.id.label("id")).where(SectionType.label == label).limit(1)
     result = await conn.execute(stmt)
-    return result.scalar_one_or_none()
+    row = result.mappings().first()
+    return dict(row) if row else None
 
 
 async def insert_section_type(conn: AsyncConnection, record: dict) -> None:
@@ -178,7 +182,7 @@ async def upgrade() -> None:
                 existing = await get_existing_section_type(conn, label)
 
                 if existing:
-                    existing_id = str(existing.id)
+                    existing_id = str(existing["id"])
 
                     # Lanzar error si la llave actual viola la directiva UUIDv7
                     if not is_uuidv7(existing_id):
@@ -226,3 +230,7 @@ async def upgrade() -> None:
             f"Seeding lifecycle failed for model table {SCHEMA_NAME}.{TABLE_NAME}: {e}"
         )
         raise
+
+
+if __name__ == "__main__":
+    asyncio.run(upgrade())
