@@ -8,7 +8,7 @@ from typing import Any, Mapping
 
 from shared.infrastructure import async_engine
 from shared.models import Actor, ActorSegment  # Models loaded cleanly
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils.seeding import (
     assert_all_uuidv7,
     assert_field_lengths,
@@ -24,7 +24,7 @@ from shared.utils.seeding import (
 )
 from sqlalchemy import insert, select, update
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 ENTITIES_FILE = Path(
     os.getenv(

@@ -3,10 +3,10 @@
 from shared.db import SessionSync
 from shared.enums import LogActionTypesEnum as Types
 from shared.models import LogActionType
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from sqlalchemy import select
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def upgrade() -> None:

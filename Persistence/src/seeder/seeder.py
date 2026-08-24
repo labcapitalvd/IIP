@@ -2,9 +2,9 @@ import importlib.util
 import os
 
 from shared.utils import format_banner, format_list
-from shared.utils.logger import configure_logging, get_logger
+from shared.utils.logger import configure_logging, getLogger
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def main():

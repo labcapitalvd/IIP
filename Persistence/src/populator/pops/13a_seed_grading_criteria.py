@@ -50,11 +50,11 @@ from uuid import UUID
 
 import pandas as pd
 from shared.infrastructure import async_engine
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from sqlalchemy import text
 from uuid_utils import uuid7
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",

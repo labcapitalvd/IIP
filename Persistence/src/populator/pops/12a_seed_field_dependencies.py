@@ -47,11 +47,11 @@ from typing import Any
 from uuid import UUID
 
 from shared.infrastructure import async_engine
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from sqlalchemy import text
 from uuid_utils import uuid7
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 ACTIVE_YEARS = (2021, 2023)
 EXPECTED_COUNTS_BY_YEAR = {

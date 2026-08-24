@@ -33,9 +33,9 @@ from uuid_utils import uuid7
 from shared.enums import SubmissionStatusesEnum
 from shared.infrastructure import async_engine
 from shared.models.targets import TargetTable
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # CONFIGURACIÓN DE RUTAS Y HERMANOS

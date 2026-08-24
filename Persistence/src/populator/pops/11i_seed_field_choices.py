@@ -24,7 +24,7 @@ from shared.models import (
     Question,
     Section,
 )
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils.seeding import (
     assert_all_uuidv7,
     assert_no_duplicates,
@@ -39,7 +39,7 @@ from shared.utils.seeding import (
 from sqlalchemy import insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-logger = get_get_logger = get_logger(__name__)
+logger = get_getLogger = getLogger(__name__)
 
 FILE_PATH = os.getenv(
     "IIP_STRUCTURE_FILE",

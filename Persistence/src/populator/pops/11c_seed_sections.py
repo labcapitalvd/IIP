@@ -20,7 +20,7 @@ from shared.infrastructure import async_engine
 
 # Importación de Modelos ORM Centralizados desde tu Módulo init
 from shared.models import Form, Section, SectionType
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 
 # Utilidades Core de Seeding Compartidas (Elimina duplicación)
 from shared.utils.seeding import (
@@ -40,7 +40,7 @@ from shared.utils.seeding import (
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # CONFIGURACIÓN ESPECÍFICA DE ÁMBITO

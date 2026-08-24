@@ -11,7 +11,7 @@ from typing import Any
 
 from shared.infrastructure import async_engine
 from shared.models import SectionType
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils.seeding import (
     assert_all_uuidv7,
     assert_field_lengths,
@@ -26,7 +26,7 @@ from shared.utils.seeding import (
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 # Schema metadata descriptors for schema boundary checks
 SCHEMA_NAME = "forms"
