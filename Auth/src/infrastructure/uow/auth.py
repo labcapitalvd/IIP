@@ -32,7 +32,7 @@ class AuthUoW(UnitOfWork):
         self.tokens = RefreshTokenRepository(self.session)
 
     def schedule_session_cache_sync(
-        self, jti: UUID, permission_map: dict[str, str], ttl_seconds: int = 3600
+        self, jti: str, permission_map: dict[str, str], ttl_seconds: int = 3600
     ) -> None:
         """Schedules Valkey dump hook post-commit."""
 
