@@ -75,6 +75,7 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
         q_col = "Pregunta" if "Pregunta" in temp_cols else "COD_PREGUNTA"
         sub_col = "Subpregunta" if "Subpregunta" in temp_cols else "COD_SUBPREGUNTA"
 
+        # PRIORIDAD 1: Buscar las columnas exactas de preguntas tradicionales (Tu Captura)
         f_code_col = next(
             (
                 c
@@ -86,13 +87,19 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
         f_lbl_col = next(
             (
                 c
-                for c in ["Nombre de la innovación", "Etiqueta", "DESCRIPCION_CAMPO"]
+                for c in [
+                    "field",
+                    "Nombre de la innovación",
+                    "Etiqueta",
+                    "DESCRIPCION_CAMPO",
+                ]
                 if c in temp_cols
             ),
             None,
         )
         f_desc_col = next(
-            (c for c in ["DESCRIPCION", "Enunciado"] if c in temp_cols), None
+            (c for c in ["desc_field", "DESCRIPCION", "Enunciado"] if c in temp_cols),
+            None,
         )
         f_type_col = next(
             (c for c in ["Tipo_dato", "TIPO_DATO", "Tipo de dato"] if c in temp_cols),
@@ -115,7 +122,6 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
                 continue
 
             subquestion = clean_text(row.get(sub_col)) if sub_col in temp_cols else None
-            field_code = clean_text(row.get(f_code_col)) if f_code_col else None
             field_label = clean_text(row.get(f_lbl_col)) if f_lbl_col else None
             field_description = clean_text(row.get(f_desc_col)) if f_desc_col else None
             raw_field_type = clean_text(row.get(f_type_col)) if f_type_col else ""
@@ -124,18 +130,43 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
                 subquestion if subquestion is not None else parent_question
             )
 
-            if field_code is None:
-                cleaned_q_num = "".join(
-                    filter(str.isdigit, target_question_label.split("."))
-                )
-                field_code = (
-                    f"VAL_Q{cleaned_q_num}_{row_idx}"
-                    if cleaned_q_num
-                    else f"RESP_{row_idx}"
+            display_order_counter[target_question_label] += 1
+            display_order = display_order_counter[target_question_label]
+
+            # -----------------------------------------------------------------
+            # LOGICA DE GENERACION DE CODIGO SEMANTICO: [AÑO]_FD_[PREGUNTA]
+            # -----------------------------------------------------------------
+            # 1. Aislar y limpiar el prefijo de la pregunta (ej: "Pregunta 11.1: texto" -> "Q11_1")
+            q_clean = str(target_question_label).split(":")[
+                0
+            ]  # Tomar solo el encabezado numérico antes de los dos puntos
+            q_clean = (
+                q_clean.replace("Pregunta", "Q").replace(".", "_").replace(" ", "")
+            )
+            # Asegurar remover caracteres extraños manteniendo la estructura alfanumérica limpia
+            q_clean = "".join(c for c in q_clean if c.isalnum() or c == "_").strip("_")
+
+            # 2. Determinar el sufijo del campo basado en el excel o usar MAIN/VAL secuencial como fallback
+            excel_suffix = clean_text(row.get(f_code_col)) if f_code_col else None
+            if not excel_suffix:
+                excel_suffix = "MAIN" if display_order == 1 else f"VAL_{display_order}"
+            else:
+                # Sanitizar el sufijo para que no repita el año o textos redundantes de otras hojas
+                excel_suffix = (
+                    str(excel_suffix)
+                    .replace(f"{year}_", "")
+                    .replace("FIELD_", "")
+                    .replace("code_field_", "")
+                    .strip("_")
                 )
 
+            # 3. Construcción del código final bajo la nomenclatura uniforme solicitada
+            field_code_semantic = f"{year}_FD_{q_clean}_{excel_suffix}".strip("_")
+
+            # FALLBACKS INTELIGENTES DE CAPAS VISUALES E INFORMATIVAS
             if field_label is None:
-                field_label = field_code
+                field_label = field_code_semantic
+
             if field_description is None:
                 field_description = field_label
 
@@ -156,21 +187,19 @@ def load_fields_for_years(excel: pd.ExcelFile, years: tuple[int, ...]) -> list[d
             else:
                 field_type_enum = FieldTypesEnum.TEXT
 
-            display_order_counter[target_question_label] += 1
-            display_order = display_order_counter[target_question_label]
-
             candidate = {
                 "year": year,
                 "parent_question": parent_question,
                 "target_question_label": target_question_label,
-                "code": field_code,
+                "code": field_code_semantic,
                 "label": field_label,
                 "description": field_description,
                 "display_order": display_order,
                 "field_type_code": field_type_enum.code,
             }
 
-            key = (target_question_label, field_code)
+            # La clave de unicidad interna del procesador ahora se apoya en el código semántico estructurado
+            key = (target_question_label, field_code_semantic)
             if key not in sheet_fields:
                 sheet_fields[key] = candidate
 
