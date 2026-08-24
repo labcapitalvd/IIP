@@ -7,7 +7,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from shared.utils import (
     configure_logging,
-    get_logger,
+    getLogger,
     BaseDomainError,
     domain_exception_handler,
     universal_exception_handler,
@@ -29,7 +29,7 @@ COOKIES_SECURE = False if not PRODUCTION_MODE else True
 PUBLIC = os.getenv("PUBLIC_ORIGINS", "*")
 PRIVATE = os.environ["PRIVATE_ORIGINS"]
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 if not PRODUCTION_MODE:
     PUBLIC_ORIGINS = ["*"]

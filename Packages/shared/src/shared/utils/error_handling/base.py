@@ -3,10 +3,10 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 class BaseDomainError(Exception):

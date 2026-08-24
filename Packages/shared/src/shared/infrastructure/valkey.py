@@ -1,13 +1,13 @@
 # Packages/shared/src/shared/infra/valkey.py
 import os
 import valkey.asyncio as aiovalkey
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils import format_banner, format_list
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
-VALKEY_USER = os.getenv("VALKEY_USER", "valkey_user")
-VALKEY_DB = os.getenv("VALKEY_DB", "app_cache")
+VALKEY_USER = os.getenv("VALKEY_USER", "default")
+VALKEY_DB = os.getenv("VALKEY_DB", "0")
 VALKEY_HOST = os.getenv(
     "VALKEY_HOST", "cache"
 )  # Defaulting to a valkey container service name
@@ -34,7 +34,7 @@ env_key = os.getenv("VALKEY_PASSWORD")
 
 # Ensure FERNET_PASSWORD is always bytes
 if env_key:
-    vk_pass = env_key.encode()
+    vk_pass = env_key
 else:
     vk_pass = load_valkey_key()
 

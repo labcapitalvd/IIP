@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from shared.utils import BaseDomainError, configure_logging, get_logger, domain_exception_handler, universal_exception_handler
+from shared.utils import BaseDomainError, configure_logging, getLogger, domain_exception_handler, universal_exception_handler
 
 from routers.auth import router as router_auth
 from routers.files import router as router_files
@@ -21,7 +21,7 @@ COOKIES_SECURE = False if not PRODUCTION_MODE else True
 PUBLIC = os.getenv("PUBLIC_ORIGINS", "*")
 PRIVATE = os.environ["PRIVATE_ORIGINS"]
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 if not PRODUCTION_MODE:
     PUBLIC_ORIGINS = ["*"]

@@ -19,6 +19,10 @@ class UserRepository(BaseRepository[User]):
 
     model = User
 
+    @staticmethod
+    def _to_uuid(val: UUID | str) -> UUID:
+        return UUID(val) if isinstance(val, str) else val
+
     async def get_by_username(self, username: str) -> User | None:
         stmt = select(User).where(User.username == username)
         result = await self.session.execute(stmt)
@@ -29,11 +33,11 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_with_auth_context(self, id: UUID) -> User | None:
+    async def get_with_auth_context(self, id: UUID | str) -> User | None:
         """Fetch user with fully eagerly loaded RBAC, ReBAC, and Tier models."""
         stmt = (
             select(User)
-            .where(User.id == id)
+            .where(User.id == self._to_uuid(id))
             .options(
                 selectinload(User.tier),
                 # Global RBAC

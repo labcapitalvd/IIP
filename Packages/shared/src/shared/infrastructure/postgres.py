@@ -3,10 +3,10 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils import format_banner, format_list
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres_user")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "app_db")
@@ -36,7 +36,7 @@ env_key = os.getenv("POSTGRES_PASSWORD")
 
 # Ensure FERNET_PASSWORD is always bytes
 if env_key:
-    pg_pass = env_key.encode()
+    pg_pass = env_key
 else:
     pg_pass = load_postgres_key()
 

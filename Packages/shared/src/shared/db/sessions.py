@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 
 from shared.infrastructure.postgres import async_engine, sync_engine
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 SessionSync = sessionmaker(
     bind=sync_engine,

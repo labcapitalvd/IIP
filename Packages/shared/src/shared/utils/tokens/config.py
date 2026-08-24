@@ -3,9 +3,9 @@ import os
 from joserfc import jws
 from joserfc.jwk import OKPKey
 
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 JWT_EXPIRE_MINUTES_ACCESS = int(os.getenv("JWT_EXPIRE_MINUTES_ACCESS", "15"))
 JWT_EXPIRE_MINUTES_REFRESH = int(os.getenv("JWT_EXPIRE_MINUTES_REFRESH", "10080"))

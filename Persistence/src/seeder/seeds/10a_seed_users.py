@@ -8,11 +8,11 @@ from decimal import Decimal
 from shared.db import SessionSync
 from shared.models import User, UserTier
 from shared.utils import hash_password
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from sqlalchemy import select
 from uuid_utils import uuid7
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 USERS_FILE = "/run/secrets/users_file"
 
 

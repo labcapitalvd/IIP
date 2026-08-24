@@ -32,7 +32,7 @@ class AuthUoW(UnitOfWork):
         self.tokens = RefreshTokenRepository(self.session)
 
     def schedule_session_cache_sync(
-        self, jti: UUID, permission_map: dict[str, str], ttl_seconds: int = 3600
+        self, jti: str, permission_map: dict[str, str], ttl_seconds: int = 3600
     ) -> None:
         """Schedules Valkey dump hook post-commit."""
 
@@ -45,7 +45,7 @@ class AuthUoW(UnitOfWork):
 
         self.add_post_commit_hook(valkey_write_operation)
 
-    def invalidate_session_cache(self, jti: UUID) -> None:
+    def invalidate_session_cache(self, jti: str) -> None:
         """Schedule session deletion from Valkey post-commit."""
 
         async def valkey_delete_operation() -> None:

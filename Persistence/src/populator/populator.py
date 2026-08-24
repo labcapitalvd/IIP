@@ -8,9 +8,9 @@ from typing import Any, List, Type, TypeVar
 import httpx
 from pydantic import BaseModel
 from shared.utils import format_banner, format_list
-from shared.utils.logger import configure_logging, get_logger
+from shared.utils.logger import configure_logging, getLogger
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 # Load configuration from environment
 

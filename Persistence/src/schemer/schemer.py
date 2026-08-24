@@ -3,11 +3,11 @@ import inspect
 from shared.db import SessionSync, TableInfo
 from shared.models.targets import TargetTable
 from shared.utils import format_banner, format_list
-from shared.utils.logger import configure_logging, get_logger
+from shared.utils.logger import configure_logging, getLogger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def get_all_schemas():

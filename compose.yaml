@@ -46,14 +46,20 @@ services:
   cache:
     container_name: app_cache
     image: docker.io/valkey/valkey:alpine
+    env_file: ./.env
     restart: unless-stopped
-    command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}"] # or mount secret
+    command: >
+      sh -c "valkey-server 
+      --requirepass \"$$VALKEY_PASSWORD\" 
+      --user default on \"\>$$VALKEY_PASSWORD\" ~* +@all 
+      --user \"$${VALKEY_USER:-valkey_user}\" on \"\>$$VALKEY_PASSWORD\" ~* +@all"
     ports:
-      - "6379:6379" # Eliminar luego para no exponer a host.
+      - "6379:6379"
     networks:
       - app_cache_net
     healthcheck:
-      test: ["CMD-SHELL", "valkey-cli -a \"$VALKEY_PASSWORD\" ping | grep -q PONG"]
+      test:
+        ["CMD-SHELL", 'valkey-cli -a "$$VALKEY_PASSWORD" ping | grep -q PONG']
       interval: 5s
       timeout: 3s
       retries: 5

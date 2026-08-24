@@ -1,12 +1,12 @@
 """Poblado de roles globales (SystemRole) y niveles de acceso (ResourceRole)"""
 
 from shared.db import SessionSync
-from shared.enums import ResourceRolesEnum, SystemRolesEnum
-from shared.models import ResourceRole, SystemRole
-from shared.utils.logger import get_logger
+from shared.enums import SystemRolesEnum
+from shared.models import SystemRole
+from shared.utils.logger import getLogger
 from sqlalchemy import select
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
 def upgrade() -> None:
@@ -15,31 +15,9 @@ def upgrade() -> None:
 
     with SessionSync() as session:
         # Fetch existing codes for both tables in 2 single queries
-        existing_resource_roles = set(session.scalars(select(ResourceRole.code)).all())
         existing_system_roles = set(session.scalars(select(SystemRole.code)).all())
 
-        new_resource_roles: list[ResourceRole] = []
         new_system_roles: list[SystemRole] = []
-
-        # =====================================================================
-        # 1. Poblado de ResourceRole (ReBAC: owner, editor, evaluator, etc.)
-        # =====================================================================
-        for level_enum in ResourceRolesEnum:
-            if level_enum.code in existing_resource_roles:
-                logger.debug(f"ResourceRole '{level_enum.code}' already exists")
-                skipped_count += 1
-                continue
-
-            new_resource_roles.append(
-                ResourceRole(
-                    code=level_enum.code,
-                    label=level_enum.label,
-                    description=level_enum.description,
-                )
-            )
-            logger.debug(f"Queued '{level_enum.code}' for ResourceRole")
-            added_count += 1
-
         # =====================================================================
         # 2. Poblado de SystemRole (RBAC Global: admin, grader, etc.)
         # =====================================================================
@@ -59,10 +37,8 @@ def upgrade() -> None:
             logger.debug(f"Queued '{role_enum.code}' for SystemRole")
             added_count += 1
 
-        # Bulk insert all new records across both models
-        all_new_records = new_resource_roles + new_system_roles
-        if all_new_records:
-            session.add_all(all_new_records)
+        if new_system_roles:
+            session.add_all(new_system_roles)
             session.commit()
 
     logger.debug(f"Roles seed complete: {added_count} added, {skipped_count} skipped.")

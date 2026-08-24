@@ -5,11 +5,11 @@ from shared.db import Base
 from shared.infrastructure import SYNC_URL, sync_engine
 from shared.models import __all__ as model_names
 from shared.utils import format_banner, format_list
-from shared.utils.logger import configure_logging, get_logger
+from shared.utils.logger import configure_logging, getLogger
 
 # Initialize global logging configuration
 configure_logging()
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 logger.info(format_banner("ALEMBIC MIGRATIONS"))
 logger.info(format_list("Loaded Models", model_names))

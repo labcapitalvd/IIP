@@ -17,7 +17,7 @@ from pathlib import Path
 
 from shared.infrastructure import async_engine
 from shared.models import ActorSegment  # Modelo importado correctamente
-from shared.utils.logger import get_logger
+from shared.utils.logger import getLogger
 from shared.utils.seeding import (
     assert_field_lengths,
     clean_text,
@@ -31,7 +31,7 @@ from shared.utils.seeding import (
 )
 from sqlalchemy import insert, select, update
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 ENTITIES_FILE = Path(
     os.getenv(
