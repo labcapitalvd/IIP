@@ -4,6 +4,7 @@ from shared.db import UnitOfWork
 from shared.infrastructure import valkey_client
 
 from ..repositories import (
+    ActorRepository,
     RefreshTokenRepository,
     ResourceRoleRepository,
     SystemRoleRepository,
@@ -18,6 +19,7 @@ class AuthUoW(UnitOfWork):
     resource_roles: ResourceRoleRepository
     tiers: TierRepository
     tokens: RefreshTokenRepository
+    actors: ActorRepository
 
     def _init_repositories(self) -> None:
         if self.session is None:
@@ -30,6 +32,7 @@ class AuthUoW(UnitOfWork):
         self.resource_roles = ResourceRoleRepository(self.session)
         self.tiers = TierRepository(self.session)
         self.tokens = RefreshTokenRepository(self.session)
+        self.actors = ActorRepository(self.session)
 
     def schedule_session_cache_sync(
         self, jti: str, permission_map: dict[str, str], ttl_seconds: int = 3600

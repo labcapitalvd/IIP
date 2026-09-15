@@ -1,11 +1,13 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 
-from services.application import AuthAppService
-from schemas.auth import RequestRegister, RequestLogin
+from application import AuthAppService
+from schemas.auth import RequestRegister, RequestLogin, ResponseMe
 
 
 from shared.schemas import ResponseAuthSchema, ResponseMessageSchema
-from shared.utils import SessionContext
+from shared.utils import AccessContext, SessionContext, get_claims
 
 router = APIRouter(tags=["Autenticación"], prefix="/auth")
 
@@ -29,8 +31,26 @@ async def register(
         form.username,
         form.email,
         form.password.get_secret_value(),
+        actor_id=form.actor_id,
+        contact_person=form.contact_person,
+        phone=form.phone,
     )
     return ResponseMessageSchema(message="ok")
+
+
+@router.get(
+    "/me",
+    response_model=ResponseMe,
+    response_model_exclude_none=True,
+    operation_id="get_current_user",
+)
+async def get_me(
+    ctx: AccessContext = Depends(),
+    service: AuthAppService = Depends(get_auth_service),
+):
+    """Returns the authenticated user's profile, resolved fresh from the database."""
+    claims = get_claims(token=ctx.access_token)
+    return await service.get_me(user_id=UUID(claims["sub"]))
 
 
 @router.post(
