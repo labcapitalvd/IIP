@@ -1,63 +1,51 @@
-from typing import Any, List, Sequence
-from uuid import UUID
-
-from fastapi import APIRouter, Body, Depends, Path
-from shared.schemas import ResponseMessageSchema, ActorSegmentSchema, ActorSchema
+from fastapi import APIRouter, Depends, status
 from shared.utils import AccessContext, get_claims
 
-from application import FormDesignAppService
+from application import FormAppService
+from schemas.forms import CreateFormRequest, ResponseFormCreate
+
+router = APIRouter(tags=["Forms"], prefix="/forms")
 
 
-router_forms = APIRouter(tags=["Forms"], prefix="/forms")
+def get_form_service() -> FormAppService:
+    return FormAppService()
 
 
-def get_form_design_service() -> FormDesignAppService:
-    return FormDesignAppService()
-
-
-@router_forms.get(
-    path="/all",
-    response_model=Sequence[ActorSchema],
+@router.post(
+    "",
+    response_model=ResponseFormCreate,
     response_model_exclude_none=True,
-    operation_id="get_entities",
+    operation_id="create_form",
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear un nuevo formulario",
+    description="""
+    Crea un nuevo formulario con su estructura jerárquica completa en una sola
+    petición, reflejando el esquema relacional de `forms.*`.
+
+    ## Estructura del Formulario
+    - **Form**: el contenedor principal (`code`, `label`, `description`)
+      - **Sections**: secciones del formulario, se pueden anidar vía `children`
+        - **Questions**: preguntas dentro de cada sección
+          - **CardTemplate**: obligatoria en toda pregunta (una sola)
+            - **FieldGroups**: grupos de campos de la tarjeta
+              - **Fields**: campos individuales (requieren `field_type_id` válido)
+                - **FieldChoices**: opciones, solo relevante para campos de selección
+
+    ## Restricciones
+    - `code` del formulario debe ser único en el sistema.
+    - `code` debe ser único dentro de su contenedor directo (sección dentro del
+      formulario, pregunta dentro de la sección, grupo dentro de la tarjeta,
+      campo dentro del grupo, opción dentro del campo).
+    - Se requiere al menos una sección.
+    - Cada `field.field_type_id` debe existir en `reference.field_types`.
+    - `section.section_type_id`, si se envía, debe existir en `reference.section_types`.
+    """,
 )
-async def get_actors(
+async def create_form(
+    form_data: CreateFormRequest,
     ctx: AccessContext = Depends(),
-    service: FormDesignAppService = Depends(dependency=get_form_design_service),
+    service: FormAppService = Depends(get_form_service),
 ):
-    user_id = get_claims(token=ctx.access_token)
-    response = await service.get_all_actors()
-    return response
-
-
-@router_forms.get(
-    path="/{actor_id}",
-    response_model=ActorSchema,
-    response_model_exclude_none=True,
-    operation_id="get_entity",
-)
-async def get_actor(
-    actor_id: UUID = Path(),
-    ctx: AccessContext = Depends(),
-    service: FormDesignAppService = Depends(dependency=get_form_design_service),
-):
-    user_id = get_claims(token=ctx.access_token)
-    response = await service.get_one_actor(id=actor_id)
-    return response
-
-
-@router_forms.post(
-    "/new",
-    response_model=ResponseMessageSchema,
-    response_model_exclude_none=True,
-    operation_id="create_actor",
-)
-async def create_actor(
-    actor: ActorSchema,
-    ctx: AccessContext = Depends(),
-    service: FormDesignAppService = Depends(get_form_design_service),
-):
-    user_id = get_claims(ctx.access_token)
-    await service.create_actor(data=actor)
-    return ResponseMessageSchema(message="ok")
-
+    """Crea un formulario completo. Requiere un access token válido."""
+    get_claims(token=ctx.access_token)
+    return await service.create_form(form_data=form_data)

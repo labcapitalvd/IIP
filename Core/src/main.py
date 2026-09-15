@@ -17,7 +17,7 @@ from shared.utils import (
 from routers.actors import router_actors
 from routers.actors import router_actor_segments
 from routers.submissions import router as router_submissions
-# from routers.forms import router as router_forms
+from routers.forms import router as router_forms
 
 configure_logging()
 
@@ -159,7 +159,7 @@ logger.info(f"Node app allow_credentials: {COOKIES_SECURE}")
 ##############################################################################################
 # Montaje de frontend en la aplicación principal
 ##############################################################################################
-public_routers = [router_actors, router_actor_segments, router_submissions]
+public_routers = [router_actors, router_actor_segments, router_submissions, router_forms]
 
 private_routers = []
 

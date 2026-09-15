@@ -32,8 +32,8 @@ class FieldRepository(BaseRepository[Field]):
 
 class FormRepository(BaseRepository[Form]):
     model = Form 
-    async def get_by_code(self, code: int) -> Form | None:
-        """Obtiene un formulario por su año (que es único)."""
+    async def get_by_code(self, code: str) -> Form | None:
+        """Obtiene un formulario por su código (que es único)."""
         stmt = select(Form).where(Form.code == code)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

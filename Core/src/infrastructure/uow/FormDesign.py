@@ -4,9 +4,11 @@ from ..repositories import (
     FieldChoiceRepository,
     FieldGroupRepository,
     FieldRepository,
+    FieldTypeRepository,
     FormRepository,
     QuestionRepository,
     SectionRepository,
+    SectionTypeRepository,
 )
 
 
@@ -18,8 +20,10 @@ class FormDesignUoW(UnitOfWork):
 
     forms: FormRepository
     sections: SectionRepository
+    section_types: SectionTypeRepository
     questions: QuestionRepository
     fields: FieldRepository
+    field_types: FieldTypeRepository
     field_groups: FieldGroupRepository
     field_choices: FieldChoiceRepository
     card_templates: CardTemplateRepository
@@ -29,8 +33,10 @@ class FormDesignUoW(UnitOfWork):
 
         self.forms = FormRepository(self.session)
         self.sections = SectionRepository(self.session)
+        self.section_types = SectionTypeRepository(self.session)
         self.questions = QuestionRepository(self.session)
         self.fields = FieldRepository(self.session)
+        self.field_types = FieldTypeRepository(self.session)
         self.field_groups = FieldGroupRepository(self.session)
         self.field_choices = FieldChoiceRepository(self.session)
         self.card_templates = CardTemplateRepository(self.session)
