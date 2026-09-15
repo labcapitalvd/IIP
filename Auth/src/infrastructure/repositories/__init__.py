@@ -1,7 +1,12 @@
 from .files import FileRepository
 from .tiers import TierRepository
 from .tokens import RefreshTokenRepository
-from .users import UserRepository, SystemRoleRepository, ResourceRoleRepository
+from .users import (
+    ActorRepository,
+    ResourceRoleRepository,
+    SystemRoleRepository,
+    UserRepository,
+)
 
 __all__ = [
     "FileRepository",
@@ -10,4 +15,5 @@ __all__ = [
     "UserRepository",
     "SystemRoleRepository",
     "ResourceRoleRepository",
+    "ActorRepository",
 ]

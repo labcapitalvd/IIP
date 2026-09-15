@@ -77,7 +77,17 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
     downloadAnchor.remove();
   };
 
+  const confirmDuplicateSyncIfNeeded = (form: IIPForm): boolean => {
+    if (!config.useRealBackend || !form.is_synced_to_backend) return true;
+    return confirm(
+      `"${form.label}" ya fue enviado antes al backend real. El backend todavía no tiene PUT /forms (solo POST), ` +
+        `así que sincronizar de nuevo NO actualiza el formulario existente: crea uno NUEVO y duplicado en el servidor. ` +
+        `¿Desea continuar de todas formas?`
+    );
+  };
+
   const handlePostToBackend = async () => {
+    if (!confirmDuplicateSyncIfNeeded(activeForm)) return;
     setIsPosting(true);
     setPostResult(null);
     try {
@@ -107,13 +117,18 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
   };
 
   const handleSaveFormFromBuilder = async (form: IIPForm) => {
+    if (!confirmDuplicateSyncIfNeeded(form)) return;
     await saveFormDefinition(form);
     setActiveFormById(form.id);
   };
 
-  const handleDeleteForm = async (formId: string, formTitle: string) => {
-    if (confirm(`¿Está seguro de eliminar el formulario "${formTitle}"?`)) {
-      await deleteForm(formId);
+  const handleDeleteForm = async (form: IIPForm) => {
+    const extraWarning =
+      config.useRealBackend && form.is_synced_to_backend
+        ? ' Este formulario ya fue enviado al backend real y el backend no tiene DELETE /forms: seguirá existiendo allí, solo desaparece de esta lista local.'
+        : '';
+    if (confirm(`¿Está seguro de eliminar el formulario "${form.label}"?${extraWarning}`)) {
+      await deleteForm(form.id);
     }
   };
 
@@ -228,6 +243,23 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
 
                   <h4 className="font-bold text-slate-900 text-sm leading-snug">{form.label}</h4>
                   <p className="text-xs text-slate-500 line-clamp-2">{form.description}</p>
+
+                  {config.useRealBackend && (
+                    <span
+                      className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        form.is_synced_to_backend
+                          ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                          : 'bg-slate-50 text-slate-400 border border-slate-200'
+                      }`}
+                      title={
+                        form.is_synced_to_backend
+                          ? 'Ya existe en el backend real (POST /forms). Editar lo vuelve a enviar y crea un duplicado, no lo actualiza.'
+                          : 'Todavía no se ha enviado al backend real.'
+                      }
+                    >
+                      {form.is_synced_to_backend ? '● Sincronizado con backend' : '○ Solo local'}
+                    </span>
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
@@ -277,7 +309,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteForm(form.id, form.label);
+                          handleDeleteForm(form);
                         }}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                         title="Eliminar formulario"
@@ -304,6 +336,21 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
               <span className="font-mono">{activeForm.code}</span>
               <span>•</span>
               <span>Versión {activeForm.version}</span>
+              {config.useRealBackend && (
+                <>
+                  <span>•</span>
+                  <span
+                    className={activeForm.is_synced_to_backend ? 'text-sky-400' : 'text-slate-500'}
+                    title={
+                      activeForm.is_synced_to_backend
+                        ? 'Ya existe en el backend real. No hay PUT /forms: volver a guardar crea un duplicado.'
+                        : 'Todavía no se ha enviado al backend real.'
+                    }
+                  >
+                    {activeForm.is_synced_to_backend ? '● Sincronizado con backend' : '○ Solo local'}
+                  </span>
+                </>
+              )}
             </div>
             <h3 className="text-lg sm:text-xl font-bold text-white">{activeForm.label}</h3>
           </div>

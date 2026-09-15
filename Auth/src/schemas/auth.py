@@ -1,9 +1,11 @@
-from pydantic import EmailStr, SecretStr, field_validator
+from pydantic import EmailStr, Field, SecretStr, field_validator
 from shared.schemas import (
+    UUID_STR,
     BaseSchema,
     UserEmailSchema,
     UsernameSchema,
     UserPasswordSchema,
+    UuidSchema,
 )
 from shared.utils import sanitize_text, sanitize_email
 
@@ -14,6 +16,23 @@ from shared.utils import sanitize_text, sanitize_email
 
 class RequestRegister(UsernameSchema, UserEmailSchema, UserPasswordSchema):
     """Request body for registering a new user."""
+
+    actor_id: str | None = Field(
+        default=None,
+        description="UUID of the Actor (distrital entity) this user belongs to, if any.",
+    )
+    contact_person: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="Full name of the contact person for this account.",
+    )
+    phone: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50,
+        description="Contact phone number.",
+    )
 
     @field_validator("username")
     @classmethod
@@ -52,3 +71,29 @@ class RefreshTokenBody(BaseSchema):
 ##############################################################################################
 # Responses
 ##############################################################################################
+
+
+class ResponseMeActorLink(BaseSchema):
+    """A single entity membership for the authenticated user (ReBAC)."""
+
+    actor_id: UUID_STR
+    actor_label: str
+    resource_role: str | None = Field(
+        default=None, description="ResourceRole code within this actor, if any."
+    )
+
+
+class ResponseMe(UuidSchema):
+    """Authenticated user's profile, resolved fresh from the database."""
+
+    username: str
+    email: str
+    is_active: bool
+    is_verified: bool
+    tier: str | None = Field(default=None, description="UserTier code.")
+    system_roles: list[str] = Field(
+        default_factory=list, description="Global RBAC SystemRole codes."
+    )
+    actor_links: list[ResponseMeActorLink] = Field(default_factory=list)
+    name: str | None = Field(default=None, description="Contact person's full name.")
+    phone: str | None = Field(default=None, description="Contact phone number.")

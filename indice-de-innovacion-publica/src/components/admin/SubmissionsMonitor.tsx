@@ -48,13 +48,17 @@ export const SubmissionsMonitor: React.FC = () => {
             <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
               Monitoreo y Auditoría de Evidencias
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-100 text-slate-600">
-              /public/submissions
+            <span
+              className="text-[10px] px-2 py-0.5 rounded font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+              title="El backend todavía no expone un endpoint para listar envíos (no hay GET /submissions). Esta tabla solo muestra radicaciones hechas en este navegador durante la sesión, más datos de ejemplo."
+            >
+              Vista local — sin GET /submissions en el backend
             </span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-0.5">Diagnósticos IIP Radicados</h2>
           <p className="text-xs text-slate-500">
-            Registro consolidado de envíos recibidos por parte de las entidades distritales.
+            Registro consolidado de envíos hechos desde este navegador. El backend aún no tiene un endpoint
+            para listar radicaciones existentes, así que esta tabla no refleja envíos hechos desde otros equipos.
           </p>
         </div>
 

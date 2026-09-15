@@ -11,9 +11,6 @@ import {
 
 interface HeaderProps {
   onOpenSettings: () => void;
-  onOpenLogs?: () => void;
-  onOpenAuthModal?: () => void;
-  onOpenDockerModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({

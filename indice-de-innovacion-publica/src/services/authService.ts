@@ -1,9 +1,41 @@
 import { apiClient } from './apiClient';
-import { AuthUser, LoginResponse, RegisterPayload } from '../types';
+import { AuthUser, LoginResponse, MeResponse, RegisterPayload } from '../types';
 import { DEMO_USERS } from '../data/mockData';
-import { decodeJwt } from '../utils/jwt';
+
+/**
+ * Maps the backend's /auth/me response into the shape the UI renders.
+ * This is the ONLY place a real AuthUser gets built — no localStorage
+ * profile database, no guessing from the JWT. The database (via auth.py)
+ * is the single source of truth for who a user is.
+ */
+export function mapMeToAuthUser(me: MeResponse): AuthUser {
+  const primaryActorLink = me.actor_links[0];
+  return {
+    id: me.id,
+    username: me.username,
+    email: me.email,
+    role: me.system_roles.includes('admin') ? 'admin' : 'entity',
+    actor_id: primaryActorLink?.actor_id,
+    actor_label: primaryActorLink?.actor_label,
+    is_active: me.is_active,
+    approval_status: 'approved',
+    contact_person: me.name || undefined,
+    phone: me.phone || undefined,
+  };
+}
 
 export const authService = {
+  /**
+   * GET /public/auth/me
+   */
+  async getMe(): Promise<MeResponse> {
+    const { data } = await apiClient.request<MeResponse>('auth', '/public/auth/me', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
   /**
    * POST /public/auth/login
    */
@@ -18,38 +50,10 @@ export const authService = {
       // Update tokens in client
       apiClient.setTokens(data.access_token, data.refresh_token);
 
-      // The access token is the only source of truth for "who logged in" —
-      // its claims are `sub` (user id) and `username` only. The backend has
-      // no /auth/me or role/actor endpoint yet, so role/actor_id can't come
-      // from the API. If a profile was previously seen locally (a demo user,
-      // or someone who registered from this browser) we enrich the display
-      // with it; otherwise we fall back to a generic entity profile.
-      const claims = decodeJwt(data.access_token);
-      const userId = claims?.sub || `usr-${Date.now()}`;
-      const resolvedUsername = claims?.username || username;
-
-      const localUsers: AuthUser[] = JSON.parse(localStorage.getItem('iip_all_users') || '[]');
-      const knownProfile = [...localUsers, ...DEMO_USERS].find(
-        (u) =>
-          u.username.toLowerCase() === resolvedUsername.toLowerCase() ||
-          u.email.toLowerCase() === resolvedUsername.toLowerCase()
-      );
-
-      const user: AuthUser = knownProfile
-        ? {
-            ...knownProfile,
-            id: userId,
-            username: resolvedUsername,
-            is_active: true,
-            approval_status: 'approved',
-          }
-        : {
-            id: userId,
-            username: resolvedUsername,
-            email: `${resolvedUsername}@entidad.gov.co`,
-            role: resolvedUsername.toLowerCase().includes('admin') ? 'admin' : 'entity',
-            is_active: true,
-          };
+      // Fetch the real profile from the backend right away — this is the
+      // only source of truth for role/actor/contact info.
+      const me = await this.getMe();
+      const user = mapMeToAuthUser(me);
 
       return { user, tokens: data };
     } catch (err: any) {

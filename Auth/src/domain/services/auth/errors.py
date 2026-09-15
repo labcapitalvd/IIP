@@ -26,3 +26,24 @@ class UserAlreadyExists(AuthError):
 
     status_code = 400
     message = "User already exists."
+
+
+class UserNotFound(AuthError):
+    """The authenticated user no longer exists."""
+
+    status_code = 404
+    message = "User not found."
+
+
+class DefaultRoleDoesntExist(AuthError):
+    """System configuration error."""
+
+    status_code = 500
+    message = "Default system role not found, cannot register user."
+
+
+class ActorNotFoundError(AuthError):
+    """The actor referenced at registration does not exist."""
+
+    status_code = 404
+    message = "The specified actor could not be found."

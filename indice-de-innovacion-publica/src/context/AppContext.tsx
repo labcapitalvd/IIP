@@ -239,16 +239,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [forms]);
 
   const saveFormDefinition = async (form: IIPForm) => {
+    let savedForm = form;
     if (config.useRealBackend) {
+      // El backend solo expone POST /forms (crear). No hay PUT: cada llamada aquí
+      // crea un registro nuevo en el servidor, nunca actualiza uno existente.
       await coreService.createForm(form);
+      savedForm = { ...form, is_synced_to_backend: true };
     }
-    setActiveForm(form);
+    setActiveForm(savedForm);
     setForms((prev) => {
-      const exists = prev.some((f) => f.id === form.id);
+      const exists = prev.some((f) => f.id === savedForm.id);
       if (exists) {
-        return prev.map((f) => (f.id === form.id ? form : f));
+        return prev.map((f) => (f.id === savedForm.id ? savedForm : f));
       }
-      return [form, ...prev];
+      return [savedForm, ...prev];
     });
   };
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AuthUser, LoginResponse, RegisterPayload, UserRole } from '../types';
-import { authService } from '../services/authService';
+import { authService, mapMeToAuthUser } from '../services/authService';
 import { apiClient } from '../services/apiClient';
 import { DEMO_USERS } from '../data/mockData';
 import { isJwtExpired } from '../utils/jwt';
@@ -24,6 +24,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(() => {
+    // Real-backend mode never seeds a user from local storage — the backend
+    // (auth.py) is the only source of truth for who is logged in. The mount
+    // effect below re-derives it from GET /auth/me using whatever JWT is
+    // still in sessionStorage, if any.
+    if (apiClient.getConfig().useRealBackend) return null;
+
     const saved = sessionStorage.getItem('iip_current_user');
     if (saved) {
       try {
@@ -32,16 +38,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // fall through to the default below
       }
     }
-    // Only auto-login as the demo admin in mock mode. Against the real
-    // backend there is no session until a real JWT is issued by /auth/login.
-    return apiClient.getConfig().useRealBackend ? null : DEMO_USERS[0];
+    return DEMO_USERS[0]; // Mock mode: seamless demo preview.
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync user to session storage
+  // Mock mode only: persist the (fake) user across reloads. Real mode never
+  // writes a profile to storage — see the mount effect below.
   useEffect(() => {
+    if (apiClient.getConfig().useRealBackend) return;
+
     if (user) {
       sessionStorage.setItem('iip_current_user', JSON.stringify(user));
     } else {
@@ -49,27 +56,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
-  // On mount, if we restored a session against the real backend, make sure
-  // the stored access token is still valid. If it expired while the tab was
-  // closed, try one silent refresh before giving up and logging out — this
-  // is the only way "restore session on reload" can work with JWTs.
+  // On mount, against the real backend, "restoring a session" means asking
+  // the backend who we are — never trusting a locally cached profile. If the
+  // stored access token expired while the tab was closed, try one silent
+  // refresh first; if that also fails (or there's no token at all), the user
+  // simply stays logged out.
   useEffect(() => {
-    if (!apiClient.getConfig().useRealBackend || !user) return;
+    if (!apiClient.getConfig().useRealBackend) return;
 
-    const { accessToken, refreshToken } = apiClient.getTokens();
+    const restoreSession = async () => {
+      const { accessToken, refreshToken } = apiClient.getTokens();
+      if (!accessToken && !refreshToken) return;
 
-    if (accessToken && !isJwtExpired(accessToken)) return;
+      try {
+        if (!accessToken || isJwtExpired(accessToken)) {
+          if (!refreshToken) throw new Error('no refresh token');
+          await authService.reauth();
+        }
+        const me = await authService.getMe();
+        setUser(mapMeToAuthUser(me));
+      } catch {
+        setUser(null);
+        apiClient.clearTokens();
+      }
+    };
 
-    if (!refreshToken) {
-      setUser(null);
-      apiClient.clearTokens();
-      return;
-    }
-
-    authService.reauth().catch(() => {
-      setUser(null);
-      apiClient.clearTokens();
-    });
+    restoreSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -450,6 +450,7 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({
         ...sec,
         order_index: sIdx + 1,
       })),
+      is_synced_to_backend: initialForm?.is_synced_to_backend ?? false,
     };
 
     try {

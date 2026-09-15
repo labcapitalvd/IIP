@@ -83,6 +83,27 @@ export interface RegisterPayload {
   phone?: string;
 }
 
+// GET /public/auth/me — the backend's own view of "who is logged in",
+// resolved from the DB every time. This replaces any locally cached profile.
+export interface MeActorLink {
+  actor_id: string;
+  actor_label: string;
+  resource_role: string | null;
+}
+
+export interface MeResponse {
+  id: string;
+  username: string;
+  email: string;
+  is_active: boolean;
+  is_verified: boolean;
+  tier: string | null;
+  system_roles: string[];
+  actor_links: MeActorLink[];
+  name: string | null;
+  phone: string | null;
+}
+
 export interface ApiErrorResponse {
   status: 'error';
   code: string;
@@ -204,6 +225,12 @@ export interface IIPForm {
   version: string;
   is_active: boolean;
   sections: FormSection[];
+  /**
+   * true una vez que este formulario ya fue enviado con éxito vía POST /forms al backend real.
+   * El backend no expone PUT /forms todavía: volver a guardar un formulario con este flag en true
+   * crea un registro NUEVO y duplicado en el servidor en vez de actualizar el existente.
+   */
+  is_synced_to_backend?: boolean;
 }
 
 // Submission Payload Types (matching POST /submissions/forms/{form_id})
