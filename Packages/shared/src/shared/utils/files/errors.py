@@ -1,11 +1,16 @@
 class FileError(Exception):
-    """Base error for FileDisk."""
+    """Base error for file utilities and filesystem operations."""
 
 
 class FileNameError(FileError):
-    """Bad filename or path"""
+    """Bad, empty, or path-traversal filename."""
+
+
+class FileExtensionError(FileError):
+    """Missing, unsupported, or invalid file extension."""
 
 
 class FileOSError(FileError):
-    """General OS error"""
+    """Underlying filesystem or operating system I/O error."""
+
 
