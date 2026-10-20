@@ -21,3 +21,11 @@ username = "innoveai"
 email = "ai@example.com"
 tier = "admin"
 password = "averysafeanotherpass"
+
+[[users]]
+# Administrador de la plataforma (panel de administración)
+username = "admin.iip"
+email = "admin@admin.com"
+tier = "admin"
+password = "Admin123"
+system_roles = ["admin"]

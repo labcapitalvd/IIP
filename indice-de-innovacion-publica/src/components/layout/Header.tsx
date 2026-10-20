@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import {
-  ShieldCheck,
-  Building2,
   Settings,
   LogOut,
   ChevronDown,
@@ -16,9 +14,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
 }) => {
-  const { user, role, switchRole, switchEntity, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { actors } = useApp();
-  const [showEntityDropdown, setShowEntityDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const activeActor = actors.find((a) => a.id === user?.actor_id) || actors[0];
@@ -75,86 +72,6 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Center Actions: Role Switcher & Entity Switcher */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* High-Contrast Role Switcher */}
-            <div className="bg-slate-950 p-1 rounded-2xl flex items-center border border-slate-800 text-xs shadow-inner">
-              <button
-                type="button"
-                onClick={() => switchRole('admin')}
-                className={`px-3 sm:px-4 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                  role === 'admin'
-                    ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <ShieldCheck className={`w-3.5 h-3.5 ${role === 'admin' ? 'text-slate-950' : 'text-amber-500'}`} />
-                <span className="hidden sm:inline">Administración</span>
-                <span className="sm:hidden">Admin</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => switchRole('entity')}
-                className={`px-3 sm:px-4 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                  role === 'entity'
-                    ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Building2 className={`w-3.5 h-3.5 ${role === 'entity' ? 'text-slate-950' : 'text-amber-500'}`} />
-                <span className="hidden sm:inline">Entidades</span>
-                <span className="sm:hidden">Entidad</span>
-              </button>
-            </div>
-
-            {/* Quick Entity Switcher (When in entity mode) */}
-            {role === 'entity' && (
-              <div className="relative hidden lg:block">
-                <button
-                  type="button"
-                  onClick={() => setShowEntityDropdown(!showEntityDropdown)}
-                  className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-xs font-semibold text-slate-200 flex items-center gap-2 transition-colors max-w-[220px]"
-                >
-                  <Building2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="truncate text-left">{activeActor?.label || 'Seleccionar Entidad'}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-auto" />
-                </button>
-
-                {showEntityDropdown && (
-                  <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in">
-                    <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-amber-400 border-b border-slate-800">
-                      Entidades Distritales
-                    </div>
-                    <div className="max-h-64 overflow-y-auto py-1 space-y-1">
-                      {actors.map((actor) => (
-                        <button
-                          key={actor.id}
-                          onClick={() => {
-                            switchEntity(actor.id, actor.label);
-                            setShowEntityDropdown(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
-                            actor.id === activeActor?.id
-                              ? 'bg-amber-500/10 text-amber-300 font-bold border border-amber-500/30'
-                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                          }`}
-                        >
-                          <span className="truncate">{actor.label}</span>
-                          {actor.actor_segment?.label && (
-                            <span className="text-[10px] text-slate-500 shrink-0 ml-2">
-                              {actor.actor_segment.label}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Right Tools: Settings & User Profile */}
           <div className="flex items-center gap-2 shrink-0">
             {/* Settings */}
@@ -191,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="font-bold text-xs text-white">{user?.username}</div>
                     <div className="text-[11px] text-slate-400 truncate">{user?.email}</div>
                     <div className="mt-2 text-[10px] px-2 py-0.5 rounded bg-slate-800 text-amber-400 font-semibold inline-block">
-                      {role === 'admin' ? 'Rol: Administrador Veeduría' : `Entidad: ${activeActor?.label}`}
+                      {`Entidad: ${activeActor?.label ?? user?.actor_label ?? '—'}`}
                     </div>
                   </div>
 

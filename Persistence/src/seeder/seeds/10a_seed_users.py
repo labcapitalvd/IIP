@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from shared.db import SessionSync
-from shared.models import User, UserTier
+from shared.models import SystemRole, User, UserSystemRoleLink, UserTier
 from shared.utils import hash_password
 from shared.utils.logger import getLogger
 from sqlalchemy import select
@@ -87,6 +87,39 @@ def upgrade() -> None:
         # Bulk insert all new users
         if new_users:
             session.add_all(new_users)
+            session.commit()
+
+        # 4. Assign global SystemRoles declared in the toml (`system_roles = [...]`)
+        role_map = {r.code: r.id for r in session.scalars(select(SystemRole)).all()}
+        users_by_email = {
+            u.email: u
+            for u in session.scalars(
+                select(User).where(User.email.in_(incoming_emails))
+            ).all()
+        }
+        existing_links = {
+            (str(l.user_id), str(l.system_role_id))
+            for l in session.scalars(
+                select(UserSystemRoleLink).where(
+                    UserSystemRoleLink.user_id.in_([u.id for u in users_by_email.values()])
+                )
+            ).all()
+        }
+        new_links: list[UserSystemRoleLink] = []
+        for u in incoming_users:
+            user = users_by_email.get(u.get("email"))
+            if user is None:
+                continue
+            for role_code in u.get("system_roles", []):
+                role_id = role_map.get(role_code)
+                if role_id is None:
+                    raise RuntimeError(f"SystemRole '{role_code}' not found in DB")
+                if (str(user.id), str(role_id)) in existing_links:
+                    continue
+                new_links.append(UserSystemRoleLink(user_id=user.id, system_role_id=role_id))
+                logger.debug(f"Queued role '{role_code}' for '{user.username}'")
+        if new_links:
+            session.add_all(new_links)
             session.commit()
 
     logger.debug(f"User seed complete: {added_count} added, {skipped_count} skipped.")

@@ -189,6 +189,7 @@ class Form(Base):
     code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
+    updated_at: Mapped[datetime] = column_updated_at()
 
     sections: Mapped[List["Section"]] = relationship("Section", back_populates="form")
 
@@ -268,6 +269,7 @@ class Section(Base):
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
     helper: Mapped[str] = column_long_text(nullable=True)
+    icon: Mapped[str | None] = column_short_text(length=50, nullable=True)
     display_order: Mapped[int] = column_integer(default=0)
 
     form: Mapped["Form"] = relationship("Form", back_populates="sections")

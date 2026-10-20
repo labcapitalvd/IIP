@@ -12,15 +12,16 @@ import {
   HttpLog,
   IIPForm,
 } from '../types';
-import {
-  INITIAL_ACTORS,
-  INITIAL_ACTOR_SEGMENTS,
-  INITIAL_SUBMISSIONS,
-  IIP_DEFAULT_FORM,
-  INITIAL_ALL_FORMS,
-  INITIAL_ASSIGNMENTS,
-  DEMO_USERS,
-} from '../data/mockData';
+import { IIP_DEFAULT_FORM } from '../data/defaultForm';
+import { useAuth } from './AuthContext';
+import { migrateForm, normalizeCodes } from '../utils/formTree';
+
+export class FormHasSubmissionsError extends Error {
+  constructor() {
+    super('Este formulario ya tiene respuestas, por lo que no se puede modificar.');
+    this.name = 'FormHasSubmissionsError';
+  }
+}
 import { apiClient } from '../services/apiClient';
 import { coreService } from '../services/coreService';
 
@@ -46,7 +47,7 @@ interface AppContextType {
   deleteSegment: (id: string) => Promise<void>;
   // Forms Management (Admin creates forms)
   setActiveFormById: (formId: string) => void;
-  saveFormDefinition: (form: IIPForm) => Promise<void>;
+  saveFormDefinition: (form: IIPForm) => Promise<IIPForm>;
   createForm: (form: IIPForm) => Promise<void>;
   updateForm: (form: IIPForm) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
@@ -81,7 +82,6 @@ interface AppContextType {
   // Submissions
   addSubmission: (submission: EntitySubmission) => void;
   updateSubmissionStatus: (id: string, status: EntitySubmission['status']) => void;
-  resetAllMockData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -90,39 +90,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [config, setConfig] = useState<ApiConfig>(() => apiClient.getConfig());
   const [logs, setLogs] = useState<HttpLog[]>(() => apiClient.getLogs());
 
-  const [actors, setActors] = useState<Actor[]>(() => {
-    const saved = localStorage.getItem('iip_mock_actors');
-    return saved ? JSON.parse(saved) : INITIAL_ACTORS;
-  });
+  const { user } = useAuth();
 
-  const [segments, setSegments] = useState<ActorSegment[]>(() => {
-    const saved = localStorage.getItem('iip_mock_segments');
-    return saved ? JSON.parse(saved) : INITIAL_ACTOR_SEGMENTS;
-  });
+  // Actors and segments live in the backend (core service); they are loaded
+  // after login by refreshData() and never cached locally.
+  const [actors, setActors] = useState<Actor[]>([]);
+  const [segments, setSegments] = useState<ActorSegment[]>([]);
 
   const [forms, setForms] = useState<IIPForm[]>(() => {
     const saved = localStorage.getItem('iip_all_forms');
-    return saved ? JSON.parse(saved) : INITIAL_ALL_FORMS;
+    return (saved ? (JSON.parse(saved) as IIPForm[]) : [IIP_DEFAULT_FORM]).map(migrateForm);
   });
 
   const [activeForm, setActiveForm] = useState<IIPForm>(() => {
     const saved = localStorage.getItem('iip_active_form');
-    return saved ? JSON.parse(saved) : IIP_DEFAULT_FORM;
+    return migrateForm(saved ? (JSON.parse(saved) as IIPForm) : IIP_DEFAULT_FORM);
   });
 
   const [users, setUsers] = useState<AuthUser[]>(() => {
     const saved = localStorage.getItem('iip_all_users');
-    return saved ? JSON.parse(saved) : DEMO_USERS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [assignments, setAssignments] = useState<FormAssignment[]>(() => {
     const saved = localStorage.getItem('iip_assignments');
-    return saved ? JSON.parse(saved) : INITIAL_ASSIGNMENTS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [submissions, setSubmissions] = useState<EntitySubmission[]>(() => {
     const saved = localStorage.getItem('iip_submissions');
-    return saved ? JSON.parse(saved) : INITIAL_SUBMISSIONS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -136,14 +133,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   // Save changes to localStorage
-  useEffect(() => {
-    localStorage.setItem('iip_mock_actors', JSON.stringify(actors));
-  }, [actors]);
-
-  useEffect(() => {
-    localStorage.setItem('iip_mock_segments', JSON.stringify(segments));
-  }, [segments]);
-
   useEffect(() => {
     localStorage.setItem('iip_all_forms', JSON.stringify(forms));
   }, [forms]);
@@ -176,18 +165,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      if (config.useRealBackend) {
-        const [fetchedActors, fetchedSegments] = await Promise.all([
-          coreService.getActors().catch(() => actors),
-          coreService.getSegments().catch(() => segments),
-        ]);
-        setActors(fetchedActors);
-        setSegments(fetchedSegments);
-      }
+      const [fetchedActors, fetchedSegments] = await Promise.all([
+        coreService.getActors().catch(() => [] as Actor[]),
+        coreService.getSegments().catch(() => [] as ActorSegment[]),
+      ]);
+      setActors(fetchedActors);
+      setSegments(fetchedSegments);
     } finally {
       setIsLoadingData(false);
     }
-  }, [config.useRealBackend, actors, segments]);
+  }, []);
+
+  // Load backend data once there is an authenticated session.
+  useEffect(() => {
+    if (user) refreshData();
+    else {
+      setActors([]);
+      setSegments([]);
+    }
+  }, [user?.id, refreshData]);
 
   const createActor = async (payload: ActorCreatePayload): Promise<Actor> => {
     const res = await coreService.createActor(payload);
@@ -238,22 +234,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [forms]);
 
-  const saveFormDefinition = async (form: IIPForm) => {
-    let savedForm = form;
-    if (config.useRealBackend) {
-      // El backend solo expone POST /forms (crear). No hay PUT: cada llamada aquí
-      // crea un registro nuevo en el servidor, nunca actualiza uno existente.
-      await coreService.createForm(form);
-      savedForm = { ...form, is_synced_to_backend: true };
+  /**
+   * Guarda en el backend: PUT si el formulario ya existe allí (por código), POST si no.
+   * Un formulario con respuestas no se puede modificar (409 FORM_HAS_SUBMISSIONS_ERROR).
+   */
+  const saveFormDefinition = async (form: IIPForm): Promise<IIPForm> => {
+    const normalized = normalizeCodes(form);
+    const existing = await coreService.getFormStatus(normalized.code);
+    let updatedAt: string | undefined;
+    if (existing && !form.is_synced_to_backend) {
+      // Formulario nuevo (local) cuyo código ya existe en el servidor: no se sobrescribe en silencio.
+      throw new Error(
+        `Ya existe en el servidor un formulario con el código "${normalized.code}". Use otro código para este formulario.`
+      );
     }
-    setActiveForm(savedForm);
-    setForms((prev) => {
-      const exists = prev.some((f) => f.id === savedForm.id);
-      if (exists) {
-        return prev.map((f) => (f.id === savedForm.id ? savedForm : f));
+    if (existing) {
+      if (existing.has_submissions) throw new FormHasSubmissionsError();
+      try {
+        updatedAt = (await coreService.updateForm(existing.id, normalized)).updated_at;
+      } catch (err: any) {
+        throw err?.data?.code === 'FORM_HAS_SUBMISSIONS_ERROR' ? new FormHasSubmissionsError() : err;
       }
-      return [savedForm, ...prev];
-    });
+    } else {
+      updatedAt = (await coreService.createForm(normalized)).updated_at;
+    }
+    const savedForm: IIPForm = {
+      ...normalized,
+      is_synced_to_backend: true,
+      updated_at: updatedAt ?? new Date().toISOString(),
+    };
+    const nextForms = forms.some((f) => f.id === savedForm.id)
+      ? forms.map((f) => (f.id === savedForm.id ? savedForm : f))
+      : [savedForm, ...forms];
+    // Persistir ya mismo: tras guardar la pantalla se recarga y no debe perderse nada.
+    localStorage.setItem('iip_all_forms', JSON.stringify(nextForms));
+    localStorage.setItem('iip_active_form', JSON.stringify(savedForm));
+    setActiveForm(savedForm);
+    setForms(nextForms);
+    return savedForm;
   };
 
   const createForm = async (form: IIPForm) => {
@@ -478,24 +496,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
   }, []);
 
-  const resetAllMockData = useCallback(() => {
-    localStorage.removeItem('iip_mock_actors');
-    localStorage.removeItem('iip_mock_segments');
-    localStorage.removeItem('iip_all_forms');
-    localStorage.removeItem('iip_active_form');
-    localStorage.removeItem('iip_all_users');
-    localStorage.removeItem('iip_assignments');
-    localStorage.removeItem('iip_submissions');
-
-    setActors(INITIAL_ACTORS);
-    setSegments(INITIAL_ACTOR_SEGMENTS);
-    setForms(INITIAL_ALL_FORMS);
-    setActiveForm(IIP_DEFAULT_FORM);
-    setUsers(DEMO_USERS);
-    setAssignments(INITIAL_ASSIGNMENTS);
-    setSubmissions(INITIAL_SUBMISSIONS);
-  }, []);
-
   return (
     <AppContext.Provider
       value={{
@@ -532,7 +532,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         completeAssignmentSubmission,
         addSubmission,
         updateSubmissionStatus,
-        resetAllMockData,
       }}
     >
       {children}

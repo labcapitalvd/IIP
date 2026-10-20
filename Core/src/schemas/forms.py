@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Optional, List
 from annotated_types import Len
 from pydantic import Field
@@ -46,10 +47,27 @@ class CreateFieldRequest(BaseSchema):
         default=None, max_length=4096, description="Descripción del campo"
     )
     required: bool = Field(default=True, description="Si el campo es requerido")
-    field_type_id: str = Field(
-        ..., description="UUID del tipo de campo (tabla reference.field_types)"
+    field_type_id: str | None = Field(
+        default=None,
+        description="UUID del tipo de campo (tabla reference.field_types). "
+        "Alternativa: `field_type_code`.",
+    )
+    field_type_code: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Código del tipo de campo (boolean, text, numeric, date, "
+        "single_choice, multi_choice, file). Alternativa a `field_type_id`.",
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
+    allowed_file_type_codes: list[str] = Field(
+        default_factory=list,
+        description="Solo para campos `file`: códigos de reference.file_types permitidos",
+    )
+    max_file_size: int | None = Field(
+        default=None,
+        gt=0,
+        description="Solo para campos `file`: tamaño máximo en bytes (<= máximo de cada tipo)",
+    )
     field_choices: list["CreateFieldChoiceRequest"] = Field(
         default_factory=list,
         description="Opciones del campo (solo aplica a tipos de selección)",
@@ -100,6 +118,20 @@ class CreateCardTemplateRequest(BaseSchema):
     )
 
 
+class QuestionDependencyRequest(BaseSchema):
+    """Condición para mostrar una pregunta (típicamente una pregunta bucle)."""
+
+    question_code: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Código de la pregunta Sí/No (misma sección) de la que depende",
+    )
+    expected_value: bool = Field(
+        default=True, description="Valor de la pregunta padre que habilita esta pregunta"
+    )
+
+
 class CreateQuestionRequest(BaseSchema):
     """Modelo para crear preguntas dentro de secciones (tabla `forms.questions`)."""
 
@@ -119,6 +151,11 @@ class CreateQuestionRequest(BaseSchema):
         description="Si la pregunta captura tarjetas repetibles (usa card_template.field_groups en bucle)",
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
+    depends_on: "QuestionDependencyRequest | None" = Field(
+        default=None,
+        description="Si se envía, la pregunta solo se muestra cuando la pregunta padre "
+        "tiene el valor esperado (p. ej. bucle 1.1 depende de 1 = Sí)",
+    )
     card_template: "CreateCardTemplateRequest" = Field(
         ..., description="Plantilla de tarjeta de la pregunta (obligatoria)"
     )
@@ -140,6 +177,15 @@ class CreateSectionRequest(BaseSchema):
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
     section_type_id: str | None = Field(
         None, description="UUID del tipo de sección (tabla reference.section_types)"
+    )
+    section_type_code: str | None = Field(
+        None,
+        max_length=50,
+        description="Código del tipo de sección (V = Variable, I = Indicador). "
+        "Alternativa a `section_type_id`.",
+    )
+    icon: str | None = Field(
+        None, max_length=50, description="Nombre del ícono de la sección"
     )
     questions: list["CreateQuestionRequest"] = Field(
         default_factory=list, description="Preguntas de la sección"
@@ -174,8 +220,30 @@ class CreateFormRequest(BaseSchema):
 ##############################################################################################
 
 
+class ResponseFileType(BaseSchema):
+    """Tipo de archivo que un campo `file` puede aceptar."""
+
+    code: str
+    label: str
+    extension: str
+    mime_type: str
+    category: str
+    max_size: int = Field(..., description="Tamaño máximo permitido por el tipo, en bytes")
+
+
+class ResponseFormStatus(UuidSchema):
+    """Estado de un formulario ya creado en el backend."""
+
+    code: str
+    label: str
+    updated_at: datetime
+    has_submissions: bool = Field(..., description="True si ya existen respuestas")
+
+
 class ResponseFormCreate(UuidSchema):
-    """Modelo de respuesta para la creación exitosa de un formulario."""
+    """Modelo de respuesta para la creación/actualización de un formulario."""
+
+    updated_at: datetime | None = Field(default=None, description="Última actualización")
 
     code: str = Field(..., description="Código del formulario")
     label: str = Field(..., description="Nombre del formulario")
