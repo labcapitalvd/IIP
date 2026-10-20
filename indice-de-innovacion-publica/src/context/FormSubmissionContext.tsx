@@ -1,3 +1,4 @@
+import { flattenForEntity } from '../utils/formTree';
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   CardEntryAnswer,
@@ -49,7 +50,7 @@ const FormSubmissionContext = createContext<FormSubmissionContextType | undefine
 
 export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
-    activeForm,
+    activeForm: rawActiveForm,
     addSubmission,
     actors,
     segments,
@@ -57,6 +58,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     completeAssignmentSubmission,
   } = useApp();
   const { user } = useAuth();
+  // El portal de entidades aún usa el diseño anterior: Variable → preguntas planas.
+  const activeForm = useMemo(() => flattenForEntity(rawActiveForm), [rawActiveForm]);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -464,7 +467,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     try {
       const payload = compileSubmissionPayload();
 
-      // Dispatch to real core service or mock
+      // Dispatch to the core service
       await coreService.submitForm(activeForm.id, payload);
 
       const targetActor = actors.find((a) => a.id === user?.actor_id) || actors[0];

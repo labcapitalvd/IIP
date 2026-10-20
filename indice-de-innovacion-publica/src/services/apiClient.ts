@@ -2,12 +2,11 @@ import { ApiConfig, HttpLog } from '../types';
 
 // Default configuration based on prompt specifications
 export const DEFAULT_CONFIG: ApiConfig = {
-  // The backend's nginx only terminates TLS (self-signed cert in dev) on these
-  // ports — there is no plaintext HTTP listener, so this must be https://.
-  authBaseUrl: 'https://localhost:4293',
-  coreBaseUrl: 'https://localhost:4294',
-  platform: 'mobile', // 'mobile' is recommended in dev because PRODUCTION_MODE=false uses allow_origins=["*"] and allow_credentials=False
-  useRealBackend: false, // Default to mock for instant frontend testing, togglable to real backend
+  // Same-origin paths: the frontend's nginx (and Vite in dev) proxies them to
+  // the Auth and Core services, so the browser never talks to them directly.
+  authBaseUrl: '/api/auth',
+  coreBaseUrl: '/api/core',
+  platform: 'web', // Browsers must use 'web' (refresh token in httpOnly cookie); the backend rejects 'mobile' requests carrying an Origin header
   saveTokensInStorage: true,
 };
 
@@ -29,6 +28,13 @@ class ApiClient {
     } else {
       this.config = { ...DEFAULT_CONFIG };
     }
+
+    // Drop stale absolute URLs saved by older versions (direct https://localhost:428x).
+    if (/^https?:\/\/(localhost|127\.0\.0\.1):428[89]/.test(this.config.authBaseUrl)) this.config.authBaseUrl = DEFAULT_CONFIG.authBaseUrl;
+    if (/^https?:\/\/(localhost|127\.0\.0\.1):428[89]/.test(this.config.coreBaseUrl)) this.config.coreBaseUrl = DEFAULT_CONFIG.coreBaseUrl;
+
+    // A saved 'mobile' config from older versions is always rejected by the backend in browsers.
+    this.config.platform = 'web';
 
     if (this.config.saveTokensInStorage) {
       this.accessToken = sessionStorage.getItem('iip_access_token');
@@ -93,6 +99,34 @@ class ApiClient {
     this.logListeners.forEach((l) => l(this.logs));
   }
 
+  private refreshing: Promise<boolean> | null = null;
+
+  /** POST /public/auth/reauth (cookie en web, X-Refresh-Token en mobile). Un solo intento a la vez. */
+  private refreshSession(): Promise<boolean> {
+    if (!this.refreshing) {
+      this.refreshing = (async () => {
+        try {
+          const headers: Record<string, string> = { 'X-Platform': this.config.platform };
+          if (this.config.platform === 'mobile' && this.refreshToken) headers['X-Refresh-Token'] = this.refreshToken;
+          const res = await fetch(`${this.config.authBaseUrl}/public/auth/reauth`, {
+            method: 'POST',
+            headers,
+            credentials: this.config.platform === 'web' ? 'include' : 'omit',
+          });
+          if (!res.ok) return false;
+          const data = await res.json();
+          this.setTokens(data.access_token, data.refresh_token ?? this.refreshToken);
+          return true;
+        } catch {
+          return false;
+        } finally {
+          this.refreshing = null;
+        }
+      })();
+    }
+    return this.refreshing;
+  }
+
   /**
    * Request dispatcher
    */
@@ -105,6 +139,8 @@ class ApiClient {
       headers?: Record<string, string>;
       requiresAuth?: boolean;
       isAuthAction?: 'login' | 'reauth' | 'logout' | 'register' | null;
+      /** interno: ya se reintentó tras renovar el token */
+      _retried?: boolean;
     } = {}
   ): Promise<{ data: T; status: number; headers: Headers }> {
     const method = options.method || 'GET';
@@ -132,24 +168,6 @@ class ApiClient {
       this.refreshToken
     ) {
       headers['X-Refresh-Token'] = this.refreshToken;
-    }
-
-    // If Real Backend is disabled, throw error to let service layer fall back to mock
-    if (!this.config.useRealBackend) {
-      const mockLog: HttpLog = {
-        id: `mock-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        timestamp: new Date().toISOString(),
-        method,
-        url,
-        headers,
-        body: options.body,
-        status: 200,
-        response: { note: 'Mock mode active. Dispatched to local state.' },
-        durationMs: 40,
-        mode: 'mock',
-      };
-      this.addLog(mockLog);
-      throw new Error('MOCK_MODE_ACTIVE');
     }
 
     try {
@@ -192,7 +210,6 @@ class ApiClient {
         status: res.status,
         response: responseData,
         durationMs,
-        mode: 'real',
       };
       this.addLog(log);
 
@@ -209,7 +226,10 @@ class ApiClient {
       if (!res.ok) {
         throw {
           status: res.status,
-          message: responseData?.message || `Error ${res.status}: ${res.statusText}`,
+          message:
+            responseData?.message ||
+            (typeof responseData?.detail === 'string' ? responseData.detail : null) ||
+            `Error ${res.status}: ${res.statusText}`,
           data: responseData,
         };
       }
@@ -220,8 +240,6 @@ class ApiClient {
         headers: res.headers,
       };
     } catch (err: any) {
-      if (err.message === 'MOCK_MODE_ACTIVE') throw err;
-
       const durationMs = Date.now() - startTime;
       const errorLog: HttpLog = {
         id: `err-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -233,9 +251,15 @@ class ApiClient {
         status: err.status || 0,
         response: err.data || { error: err.message || 'Error de conexión con el backend' },
         durationMs,
-        mode: 'real',
       };
       this.addLog(errorLog);
+
+      // Access token vencido (dura 30 min): renovarlo con el refresh token y reintentar una vez.
+      if (err.status === 401 && options.requiresAuth && !options.isAuthAction && !options._retried) {
+        if (await this.refreshSession()) {
+          return this.request<T>(service, path, { ...options, _retried: true });
+        }
+      }
       throw err;
     }
   }

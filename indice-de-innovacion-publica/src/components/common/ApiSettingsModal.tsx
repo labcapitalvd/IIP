@@ -30,13 +30,12 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   onOpenLogs,
   onOpenDocker,
 }) => {
-  const { config, updateConfig, resetAllMockData } = useApp();
+  const { config, updateConfig } = useApp();
   const { reauth, isAuthenticated } = useAuth();
 
   const [authUrl, setAuthUrl] = useState(config.authBaseUrl);
   const [coreUrl, setCoreUrl] = useState(config.coreBaseUrl);
   const [platform, setPlatform] = useState(config.platform);
-  const [useRealBackend, setUseRealBackend] = useState(config.useRealBackend);
   const [isReauthing, setIsReauthing] = useState(false);
   const [reauthMsg, setReauthMsg] = useState<{ text: string; success: boolean } | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -48,7 +47,6 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
       authBaseUrl: authUrl.trim(),
       coreBaseUrl: coreUrl.trim(),
       platform,
-      useRealBackend,
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
@@ -96,43 +94,6 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm">
-          {/* Mode Selector */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="font-medium text-slate-900 block">Modo de Operación</span>
-                <span className="text-xs text-slate-500">
-                  Alternar entre datos locales enriquecidos y llamadas HTTP a los microservicios FastAPI.
-                </span>
-              </div>
-              <button
-                onClick={() => setUseRealBackend(!useRealBackend)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  useRealBackend ? 'bg-indigo-600' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    useRealBackend ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 pt-1 text-xs">
-              <span
-                className={`px-2.5 py-1 rounded-md font-medium flex items-center gap-1.5 ${
-                  useRealBackend
-                    ? 'bg-indigo-100 text-indigo-800'
-                    : 'bg-emerald-100 text-emerald-800'
-                }`}
-              >
-                <Database className="w-3.5 h-3.5" />
-                {useRealBackend ? 'Modo Backend Real (FastAPI Activo)' : 'Modo Local (Datos de Prueba Mock Activos)'}
-              </span>
-            </div>
-          </div>
-
           {/* Endpoints Form */}
           <div className="space-y-4">
             <h4 className="font-medium text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider text-slate-500">
@@ -264,18 +225,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
 
           {/* Diagnostics and Reset */}
           <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-            <button
-              onClick={() => {
-                if (confirm('¿Restablecer todos los datos de prueba a los valores iniciales predeterminados?')) {
-                  resetAllMockData();
-                  alert('Datos restablecidos.');
-                }
-              }}
-              className="text-xs text-slate-500 hover:text-rose-600 flex items-center gap-1.5 py-1"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Restablecer Datos Locales de Prueba
-            </button>
+            <span />
 
             <div className="flex items-center gap-3">
               {onOpenDocker && (

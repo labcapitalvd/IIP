@@ -23,14 +23,10 @@ export const HttpLogsDrawer: React.FC<HttpLogsDrawerProps> = ({ isOpen, onClose 
   const { logs, clearLogs, config } = useApp();
   const [selectedLog, setSelectedLog] = useState<HttpLog | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<'all' | 'real' | 'mock'>('all');
 
   if (!isOpen) return null;
 
-  const filteredLogs = logs.filter((log) => {
-    if (filterMode === 'all') return true;
-    return log.mode === filterMode;
-  });
+  const filteredLogs = logs;
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -78,36 +74,7 @@ export const HttpLogsDrawer: React.FC<HttpLogsDrawerProps> = ({ isOpen, onClose 
 
         {/* Filters */}
         <div className="px-5 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-400 font-medium">Filtrar:</span>
-            <div className="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800">
-              <button
-                onClick={() => setFilterMode('all')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  filterMode === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Todos ({logs.length})
-              </button>
-              <button
-                onClick={() => setFilterMode('real')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  filterMode === 'real' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                FastAPI Real ({logs.filter((l) => l.mode === 'real').length})
-              </button>
-              <button
-                onClick={() => setFilterMode('mock')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  filterMode === 'mock' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Mock Local ({logs.filter((l) => l.mode === 'mock').length})
-              </button>
-            </div>
-          </div>
+          <div className="text-slate-400 font-medium">Peticiones ({logs.length})</div>
 
           <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
             <span>Auth: {config.authBaseUrl}</span>
@@ -159,15 +126,6 @@ export const HttpLogsDrawer: React.FC<HttpLogsDrawerProps> = ({ isOpen, onClose 
                           }`}
                         >
                           {log.status === 0 ? 'ERR' : log.status}
-                        </span>
-                        <span
-                          className={`text-[9px] px-1 py-0.2 rounded font-mono ${
-                            log.mode === 'real'
-                              ? 'bg-purple-900/60 text-purple-300'
-                              : 'bg-slate-800 text-slate-400'
-                          }`}
-                        >
-                          {log.mode}
                         </span>
                       </div>
                       <span className="text-[10px] text-slate-500 flex items-center gap-1 font-mono">

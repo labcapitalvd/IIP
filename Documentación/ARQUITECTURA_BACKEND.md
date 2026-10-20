@@ -20,7 +20,7 @@ flowchart TB
     end
 
     subgraph Edge["Borde — Nginx (TLS)"]
-        NGX["nginx\nlisten 4293 / 4294 (ssl)"]
+        NGX["nginx\nlisten 4288 / 4289 (ssl)"]
     end
 
     subgraph Servicios["Servicios de aplicación (FastAPI)"]
@@ -39,8 +39,8 @@ flowchart TB
 
     WEB -->|HTTPS| NGX
     MOB -->|HTTPS| NGX
-    NGX -->|":4293"| AUTH
-    NGX -->|":4294"| CORE
+    NGX -->|":4288"| AUTH
+    NGX -->|":4289"| CORE
 
     AUTH <-->|asyncpg / psycopg| PG
     CORE <-->|asyncpg / psycopg| PG
@@ -51,7 +51,7 @@ flowchart TB
 
 Puntos clave del diseño:
 
-- **Dos puntos de entrada HTTP independientes** (`auth` en el puerto `4293`, `core` en el puerto `4294`), cada uno detrás de Nginx con terminación TLS usando un certificado compartido (`Secrets/cert.crt` / `cert.key`).
+- **Dos puntos de entrada HTTP independientes** (`auth` en el puerto `4288`, `core` en el puerto `4289`), cada uno detrás de Nginx con terminación TLS usando un certificado compartido (`Secrets/cert.crt` / `cert.key`).
 - Cada servicio FastAPI expone **tres apps montadas**: `api` (raíz, healthcheck), `api/private` (pensada para consumo desde el propio frontend/Node, con `TrustedHostMiddleware`) y `api/public` (pensada para integraciones externas, CORS configurable vía `PUBLIC_ORIGINS`).
 - El servicio `persister` **no corre como daemon**: su `Dockerfile` no define `CMD` y `compose.yaml` no le asigna `command:`. Se invoca puntualmente vía `docker compose run --rm persister ...` desde `Scripts/launcher.sh` (ver §7). Esto es intencional: es un runner de tareas de mantenimiento (migrar, sembrar datos, extraer plantillas, respaldar), no un proceso de larga duración.
 - **Sin API Gateway/BFF** propio: Nginx solo hace *reverse proxy* TLS 1:1 a cada servicio; no hay agregación de rutas entre `auth` y `core`.
@@ -60,8 +60,8 @@ Puntos clave del diseño:
 
 | Servicio | Rol | Puerto interno | Depende de |
 |---|---|---|---|
-| `Auth` | Identidad, emisión/validación de tokens JWT, sesiones, (adjuntos de archivos — deshabilitado) | `PORT_AUTH` (4293 en `.env` local) | `db`, `cache` |
-| `Core` | Dominio de negocio: actores/entidades evaluadas, diseño de formularios, envíos (submissions), calificación, resultados | `PORT_CORE` (4294 en `.env` local) | `db`, `cache`, `auth` (arranque secuencial) |
+| `Auth` | Identidad, emisión/validación de tokens JWT, sesiones, (adjuntos de archivos — deshabilitado) | `PORT_AUTH` (4288 en `.env` local) | `db`, `cache` |
+| `Core` | Dominio de negocio: actores/entidades evaluadas, diseño de formularios, envíos (submissions), calificación, resultados | `PORT_CORE` (4289 en `.env` local) | `db`, `cache`, `auth` (arranque secuencial) |
 | `Persistence` (`persister`) | Creación de esquemas (`schemer`), migraciones (`alembic`/`migrator`), datos de referencia (`seeder`), datos estructurales de formularios (`populator`), utilidades de extracción/backup | — (job puntual) | `db` |
 | `Packages/shared` | Librería interna (no un servicio): motor de BD (SQLAlchemy async/sync), modelos ORM, enums de dominio, esquemas Pydantic base, JWT, hashing (Argon2/bcrypt), cifrado Fernet, logging | — | — |
 

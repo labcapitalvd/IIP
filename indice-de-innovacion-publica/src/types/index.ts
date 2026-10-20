@@ -167,11 +167,14 @@ export interface FormField {
   label: string;
   description?: string | null;
   field_type_id: string;
-  field_type_code: 'boolean' | 'text' | 'numeric' | 'date' | 'singlechoice';
+  field_type_code: 'boolean' | 'text' | 'numeric' | 'date' | 'singlechoice' | 'multichoice' | 'file';
   is_required: boolean;
   placeholder?: string;
   help_text?: string;
   unit?: string;
+  /** Campos `file`: códigos de tipos de archivo permitidos y tamaño máximo en bytes. */
+  allowed_file_types?: string[];
+  max_file_size?: number;
   min_value?: number;
   max_value?: number;
   choices?: FieldChoice[];
@@ -196,12 +199,31 @@ export interface CardTemplate {
   field_groups: FieldGroup[];
 }
 
+/**
+ * Tipo de pregunta en el diseñador:
+ * - text / numeric / single_choice / multi_choice / boolean: pregunta simple (un campo).
+ * - loop: pregunta bucle (tarjetas repetibles). Se habilita según la respuesta Sí/No
+ *   de otra pregunta del mismo indicador (`depends_on`).
+ */
+export type QuestionKind = 'text' | 'numeric' | 'single_choice' | 'multi_choice' | 'boolean' | 'file' | 'loop';
+
+export interface QuestionDependency {
+  /** id de la pregunta Sí/No de la que depende (mismo indicador). */
+  question_id: string;
+  /** Valor de esa pregunta que habilita el bucle (Sí = true). */
+  value: boolean;
+}
+
 export interface FormQuestion {
   id: string;
   code: string;
   label: string;
   description?: string | null;
+  help_text?: string;
   order_index?: number;
+  question_kind?: QuestionKind;
+  is_required?: boolean;
+  depends_on?: QuestionDependency | null;
   card_template: CardTemplate;
 }
 
@@ -210,8 +232,10 @@ export interface FormSection {
   code: string;
   label: string;
   description?: string | null;
+  help_text?: string;
   order_index: number;
   icon_name?: string;
+  /** En una Variable (sección raíz): sus Indicadores. */
   children?: FormSection[];
   questions?: FormQuestion[];
 }
@@ -231,6 +255,25 @@ export interface IIPForm {
    * crea un registro NUEVO y duplicado en el servidor en vez de actualizar el existente.
    */
   is_synced_to_backend?: boolean;
+  /** Última actualización confirmada por el backend (ISO 8601). */
+  updated_at?: string | null;
+}
+
+export interface FileTypeInfo {
+  code: string;
+  label: string;
+  extension: string;
+  mime_type: string;
+  category: string;
+  max_size: number;
+}
+
+export interface FormStatus {
+  id: string;
+  code: string;
+  label: string;
+  updated_at: string;
+  has_submissions: boolean;
 }
 
 // Submission Payload Types (matching POST /submissions/forms/{form_id})
@@ -308,7 +351,6 @@ export interface ApiConfig {
   authBaseUrl: string;
   coreBaseUrl: string;
   platform: PlatformHeader;
-  useRealBackend: boolean;
   saveTokensInStorage: boolean;
 }
 
@@ -322,5 +364,4 @@ export interface HttpLog {
   status: number;
   response: any;
   durationMs: number;
-  mode: 'real' | 'mock';
 }

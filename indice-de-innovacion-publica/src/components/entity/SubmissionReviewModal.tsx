@@ -31,7 +31,7 @@ export const SubmissionReviewModal: React.FC<SubmissionReviewModalProps> = ({
 }) => {
   const { activeForm, answers, cardEntries, compileSubmissionPayload, submitForm, isSubmitting } =
     useFormSubmission();
-  const { config, actors } = useApp();
+  const { actors } = useApp();
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'visual' | 'json'>('visual');

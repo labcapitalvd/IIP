@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import Cookie, Depends, Header, Request, Response
+from fastapi import Cookie, Depends, Header, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from joserfc import jwt
 from joserfc.errors import (
@@ -143,7 +143,12 @@ def get_claims(token: str) -> dict:
         TokenSignatureError,
         TokenTypeError,
     ) as e:
-        raise ValueError(e)
+        # Token inválido o vencido: es un 401 (el cliente puede renovarlo), no un 500.
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired access token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
 
 class AccessContext:
@@ -171,7 +176,11 @@ class AccessContext:
     @property
     def access_token(self) -> str:
         if not self._raw_token or not self._raw_token.credentials:
-            raise TokenEmptyError("Missing token in Authorization header")
+            raise HTTPException(
+                status_code=401,
+                detail="Missing token in Authorization header",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         return self._raw_token.credentials
 
 

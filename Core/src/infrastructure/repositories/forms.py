@@ -6,6 +6,7 @@ from shared.models import (
     Field,
     FieldChoice,
     FieldGroup,
+    FileType,
     Form,
     Question,
     Section,
@@ -30,6 +31,18 @@ class FieldRepository(BaseRepository[Field]):
     model = Field 
 
 
+class FileTypeRepository(BaseRepository[FileType]):
+    model = FileType
+
+    async def list_all(self) -> list[FileType]:
+        result = await self.session.execute(select(FileType).order_by(FileType.category, FileType.label))
+        return list(result.scalars().all())
+
+    async def get_by_codes(self, codes: list[str]) -> list[FileType]:
+        result = await self.session.execute(select(FileType).where(FileType.code.in_(codes)))
+        return list(result.scalars().all())
+
+
 class FormRepository(BaseRepository[Form]):
     model = Form 
     async def get_by_code(self, code: str) -> Form | None:
@@ -49,3 +62,8 @@ class SectionRepository(BaseRepository[Section]):
 
 class SectionTypeRepository(BaseRepository[SectionType]):
     model = SectionType
+
+    async def get_by_code(self, code: str) -> SectionType | None:
+        stmt = select(SectionType).where(SectionType.code == code)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

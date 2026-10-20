@@ -12,6 +12,11 @@ export default defineConfig(() => {
       },
     },
     server: {
+      // Same-origin API proxy for `npm run dev` (mirrors the production nginx).
+      proxy: {
+        '/api/auth': { target: 'https://localhost:4288', secure: false, changeOrigin: true, rewrite: (p: string) => p.replace(/^\/api\/auth/, '') },
+        '/api/core': { target: 'https://localhost:4289', secure: false, changeOrigin: true, rewrite: (p: string) => p.replace(/^\/api\/core/, '') },
+      },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

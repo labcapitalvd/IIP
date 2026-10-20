@@ -11,15 +11,15 @@ services:
     container_name: iip-veeduria-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "4287:4287"
     environment:
       - NODE_ENV=production
-      - VITE_AUTH_API_URL=http://localhost:4293
-      - VITE_CORE_API_URL=http://localhost:4294
+      - VITE_AUTH_API_URL=http://localhost:4288
+      - VITE_CORE_API_URL=http://localhost:4289
     networks:
       - iip-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4287/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,7 +32,7 @@ services:
   #   image: python:3.11-slim
   #   container_name: iip-auth-service
   #   ports:
-  #     - "4293:4293"
+  #     - "4288:4288"
   #   networks:
   #     - iip-network
   #
@@ -40,7 +40,7 @@ services:
   #   image: python:3.11-slim
   #   container_name: iip-core-service
   #   ports:
-  #     - "4294:4294"
+  #     - "4289:4289"
   #   networks:
   #     - iip-network
 

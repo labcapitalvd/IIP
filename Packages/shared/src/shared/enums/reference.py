@@ -143,6 +143,16 @@ class RuleTypesEnum(Enum):
         "Maximum Numeric Value",
         "Enforces a ceiling for numeric entries.",
     )
+    FILE_TYPES = (
+        "file_types",
+        "Allowed File Types",
+        "Comma-separated FileType codes accepted by a file field.",
+    )
+    MAX_FILE_SIZE = (
+        "max_file_size",
+        "Maximum File Size",
+        "Maximum size in bytes of a file uploaded to a file field.",
+    )
 
     def __init__(self, code: str, label: str, description: str):
         self._code = code
