@@ -18,7 +18,7 @@ import {
 
 export const LoginView: React.FC = () => {
   const { login, register, isLoading, error, clearError } = useAuth();
-  const { actors, config } = useApp();
+  const { actors } = useApp();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -113,20 +113,6 @@ export const LoginView: React.FC = () => {
       setRegPhone('');
     } catch (err: any) {
       // Handled via context or error message
-    }
-  };
-
-  const handleQuickDemoLogin = async (username: string, roleType: 'admin' | 'entity') => {
-    clearError();
-    setFormError(null);
-    try {
-      if (roleType === 'admin') {
-        await login(username, 'admin1234');
-      } else {
-        await login(username, '12345678');
-      }
-    } catch {
-      // error handled
     }
   };
 
@@ -225,21 +211,12 @@ export const LoginView: React.FC = () => {
               <p className="text-emerald-200/90 leading-relaxed text-[11px]">
                 El usuario <strong className="text-white font-mono">{registrationSuccess.username}</strong> ha sido registrado para <strong>{registrationSuccess.actorLabel}</strong>.
               </p>
-              {config.useRealBackend ? (
-                <div className="flex items-center gap-1.5 p-2 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-300 text-[11px]">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    <strong>Cuenta activa.</strong> Ya puede iniciar sesión con su usuario y contraseña.
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 p-2 bg-amber-950/40 border border-amber-500/30 rounded-xl text-amber-300 text-[11px]">
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    <strong>Estado: Pendiente.</strong> Podrá ingresar una vez la entidad o el administrador le otorgue el permiso de acceso.
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 p-2 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-300 text-[11px]">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  <strong>Cuenta activa.</strong> Ya puede iniciar sesión con su usuario y contraseña.
+                </span>
+              </div>
             </div>
           )}
 
@@ -266,7 +243,7 @@ export const LoginView: React.FC = () => {
                     required
                     value={loginUsername}
                     onChange={(e) => setLoginUsername(e.target.value)}
-                    placeholder="Ej. admin.veeduria o sdp.innovacion"
+                    placeholder="Usuario o correo electrónico"
                     className="w-full pl-9 pr-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
                   />
                 </div>
@@ -301,62 +278,16 @@ export const LoginView: React.FC = () => {
                   </>
                 )}
               </button>
-
-              {/* Quick Demo Access — mock-mode only. Against the real backend
-                  these demo credentials don't correspond to real seeded
-                  users, so surfacing them here would just produce confusing
-                  InvalidCredentials errors. */}
-              {!config.useRealBackend && (
-              <div className="pt-3 border-t border-slate-800/80 space-y-2">
-                <div className="text-[11px] font-semibold text-slate-400 text-center">
-                  Acceso Rápido de Prueba (Demostración)
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemoLogin('admin.veeduria', 'admin')}
-                    className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-[11px] text-left transition-colors flex items-center gap-2"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <div>
-                      <div className="font-bold text-slate-200">Admin General</div>
-                      <div className="text-[9px] text-slate-400">Veeduría Distrital</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemoLogin('sdp.innovacion', 'entity')}
-                    className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-[11px] text-left transition-colors flex items-center gap-2"
-                  >
-                    <Building2 className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                    <div>
-                      <div className="font-bold text-slate-200">Entidad Distrital</div>
-                      <div className="text-[9px] text-slate-400">Planeación (SDP)</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-              )}
             </form>
           ) : (
             /* REGISTRATION FORM (Auto-registro de usuarios de entidades con aprobación requerida) */
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-              {config.useRealBackend ? (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-[11px] text-emerald-300 flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
-                  <div className="leading-relaxed">
-                    <strong>Registro directo:</strong> Su cuenta queda activa de inmediato, sin verificación por correo ni aprobación adicional.
-                  </div>
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-[11px] text-emerald-300 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                <div className="leading-relaxed">
+                  <strong>Registro directo:</strong> Su cuenta queda activa de inmediato, sin verificación por correo ni aprobación adicional.
                 </div>
-              ) : (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-300 flex items-start gap-2">
-                  <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-                  <div className="leading-relaxed">
-                    <strong>Política de Autorización:</strong> Al registrarse, su usuario quedará en estado <strong>Pendiente</strong>. No podrá ingresar hasta que la entidad seleccionada valide y apruebe su cuenta.
-                  </div>
-                </div>
-              )}
+              </div>
 
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-300">
@@ -471,7 +402,7 @@ export const LoginView: React.FC = () => {
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
-                    <span>{config.useRealBackend ? 'Registrar Cuenta' : 'Registrar Cuenta (Pendiente de Aprobación)'}</span>
+                    <span>Registrar Cuenta</span>
                   </>
                 )}
               </button>

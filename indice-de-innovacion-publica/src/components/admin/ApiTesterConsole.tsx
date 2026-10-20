@@ -189,17 +189,6 @@ export const ApiTesterConsole: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span
-            className={`text-xs px-3 py-1.5 rounded-xl font-semibold border ${
-              config.useRealBackend
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-amber-50 text-amber-700 border-amber-200'
-            }`}
-          >
-            Modo: {config.useRealBackend ? 'Backend Real Conectado' : 'Simulador / Mock UI'}
-          </span>
-        </div>
       </div>
 
       {/* Presets Bar */}

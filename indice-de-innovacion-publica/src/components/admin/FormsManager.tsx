@@ -41,7 +41,6 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
     saveFormDefinition,
     deleteForm,
     duplicateForm,
-    config,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'visual' | 'json'>('visual');
@@ -78,7 +77,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
   };
 
   const confirmDuplicateSyncIfNeeded = (form: IIPForm): boolean => {
-    if (!config.useRealBackend || !form.is_synced_to_backend) return true;
+    if (!form.is_synced_to_backend) return true;
     return confirm(
       `"${form.label}" ya fue enviado antes al backend real. El backend todavía no tiene PUT /forms (solo POST), ` +
         `así que sincronizar de nuevo NO actualiza el formulario existente: crea uno NUEVO y duplicado en el servidor. ` +
@@ -124,7 +123,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
 
   const handleDeleteForm = async (form: IIPForm) => {
     const extraWarning =
-      config.useRealBackend && form.is_synced_to_backend
+      form.is_synced_to_backend
         ? ' Este formulario ya fue enviado al backend real y el backend no tiene DELETE /forms: seguirá existiendo allí, solo desaparece de esta lista local.'
         : '';
     if (confirm(`¿Está seguro de eliminar el formulario "${form.label}"?${extraWarning}`)) {
@@ -244,7 +243,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                   <h4 className="font-bold text-slate-900 text-sm leading-snug">{form.label}</h4>
                   <p className="text-xs text-slate-500 line-clamp-2">{form.description}</p>
 
-                  {config.useRealBackend && (
+                  {(
                     <span
                       className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                         form.is_synced_to_backend
@@ -336,7 +335,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
               <span className="font-mono">{activeForm.code}</span>
               <span>•</span>
               <span>Versión {activeForm.version}</span>
-              {config.useRealBackend && (
+              {(
                 <>
                   <span>•</span>
                   <span

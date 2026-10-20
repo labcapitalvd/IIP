@@ -308,7 +308,6 @@ export interface ApiConfig {
   authBaseUrl: string;
   coreBaseUrl: string;
   platform: PlatformHeader;
-  useRealBackend: boolean;
   saveTokensInStorage: boolean;
 }
 
@@ -322,5 +321,4 @@ export interface HttpLog {
   status: number;
   response: any;
   durationMs: number;
-  mode: 'real' | 'mock';
 }

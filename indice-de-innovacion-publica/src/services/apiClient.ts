@@ -4,10 +4,9 @@ import { ApiConfig, HttpLog } from '../types';
 export const DEFAULT_CONFIG: ApiConfig = {
   // The backend's nginx only terminates TLS (self-signed cert in dev) on these
   // ports — there is no plaintext HTTP listener, so this must be https://.
-  authBaseUrl: 'https://localhost:4293',
-  coreBaseUrl: 'https://localhost:4294',
+  authBaseUrl: 'https://localhost:4288',
+  coreBaseUrl: 'https://localhost:4289',
   platform: 'mobile', // 'mobile' is recommended in dev because PRODUCTION_MODE=false uses allow_origins=["*"] and allow_credentials=False
-  useRealBackend: false, // Default to mock for instant frontend testing, togglable to real backend
   saveTokensInStorage: true,
 };
 
@@ -134,24 +133,6 @@ class ApiClient {
       headers['X-Refresh-Token'] = this.refreshToken;
     }
 
-    // If Real Backend is disabled, throw error to let service layer fall back to mock
-    if (!this.config.useRealBackend) {
-      const mockLog: HttpLog = {
-        id: `mock-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        timestamp: new Date().toISOString(),
-        method,
-        url,
-        headers,
-        body: options.body,
-        status: 200,
-        response: { note: 'Mock mode active. Dispatched to local state.' },
-        durationMs: 40,
-        mode: 'mock',
-      };
-      this.addLog(mockLog);
-      throw new Error('MOCK_MODE_ACTIVE');
-    }
-
     try {
       const fetchOptions: RequestInit = {
         method,
@@ -192,7 +173,6 @@ class ApiClient {
         status: res.status,
         response: responseData,
         durationMs,
-        mode: 'real',
       };
       this.addLog(log);
 
@@ -220,8 +200,6 @@ class ApiClient {
         headers: res.headers,
       };
     } catch (err: any) {
-      if (err.message === 'MOCK_MODE_ACTIVE') throw err;
-
       const durationMs = Date.now() - startTime;
       const errorLog: HttpLog = {
         id: `err-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -233,7 +211,6 @@ class ApiClient {
         status: err.status || 0,
         response: err.data || { error: err.message || 'Error de conexión con el backend' },
         durationMs,
-        mode: 'real',
       };
       this.addLog(errorLog);
       throw err;

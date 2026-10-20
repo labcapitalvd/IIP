@@ -464,7 +464,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     try {
       const payload = compileSubmissionPayload();
 
-      // Dispatch to real core service or mock
+      // Dispatch to the core service
       await coreService.submitForm(activeForm.id, payload);
 
       const targetActor = actors.find((a) => a.id === user?.actor_id) || actors[0];

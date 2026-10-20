@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
 import {
   Building2,
   Plus,
   Trash2,
   Search,
   Filter,
-  UserCheck,
   X,
   CheckCircle2,
   AlertCircle,
@@ -16,13 +14,8 @@ import {
 } from 'lucide-react';
 import { Actor, ActorCreatePayload } from '../../types';
 
-interface ActorsManagerProps {
-  onImpersonateEntity?: (actor: Actor) => void;
-}
-
-export const ActorsManager: React.FC<ActorsManagerProps> = ({ onImpersonateEntity }) => {
+export const ActorsManager: React.FC = () => {
   const { actors, segments, createActor, deleteActor } = useApp();
-  const { switchRole, switchEntity } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSegmentFilter, setSelectedSegmentFilter] = useState<string>('all');
@@ -92,12 +85,6 @@ export const ActorsManager: React.FC<ActorsManagerProps> = ({ onImpersonateEntit
         alert(err?.message || 'Error al eliminar');
       }
     }
-  };
-
-  const handleImpersonate = (actor: Actor) => {
-    switchRole('entity');
-    switchEntity(actor.id, actor.label);
-    if (onImpersonateEntity) onImpersonateEntity(actor);
   };
 
   return (
@@ -199,15 +186,7 @@ export const ActorsManager: React.FC<ActorsManagerProps> = ({ onImpersonateEntit
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => handleImpersonate(actor)}
-                  className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 text-indigo-700 hover:text-indigo-900 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                  title="Diligenciar diagnóstico como esta entidad"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Diligenciar IIP</span>
-                </button>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
 
                 <button
                   onClick={() => handleDelete(actor.id, actor.label)}
