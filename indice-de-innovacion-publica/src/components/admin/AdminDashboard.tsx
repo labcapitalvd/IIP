@@ -148,7 +148,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
           <div className="text-base font-bold text-slate-900 truncate">{activeForm.code}</div>
           <p className="text-xs text-slate-500 mt-1 flex items-center justify-between">
-            <span>{activeForm.sections.length} Dimensiones</span>
+            <span>{activeForm.sections.length} Variables</span>
             <span className="text-indigo-600 font-semibold text-[11px]">POST /forms</span>
           </p>
         </div>

@@ -4,9 +4,12 @@ import {
   ActorCreatePayload,
   ActorSegment,
   ActorSegmentCreatePayload,
+  FileTypeInfo,
+  FormStatus,
   IIPForm,
   SubmissionItem,
 } from '../types';
+import { toCreateFormRequest } from '../utils/formTree';
 
 export const coreService = {
   // --- ACTORES (/public/actors) ---
@@ -109,10 +112,46 @@ export const coreService = {
    * POST /public/forms
    * Sends the full nested JSON structure: form -> sections (recursive) -> questions -> card_template -> field_groups -> fields -> field_choices
    */
-  async createForm(formData: Partial<IIPForm>): Promise<{ id: string; code: string; label: string; description: string | null }> {
+  async createForm(formData: IIPForm): Promise<{ id: string; code: string; label: string; description: string | null; updated_at?: string }> {
     const { data } = await apiClient.request('core', '/public/forms', {
       method: 'POST',
-      body: formData,
+      body: toCreateFormRequest(formData as IIPForm),
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /**
+   * PUT /public/forms/{form_id}
+   * Reemplaza la estructura. El backend responde 409 FORM_HAS_SUBMISSIONS_ERROR si ya tiene respuestas.
+   */
+  async updateForm(formId: string, formData: IIPForm): Promise<{ id: string; code: string; updated_at?: string }> {
+    const { data } = await apiClient.request('core', `/public/forms/${formId}`, {
+      method: 'PUT',
+      body: toCreateFormRequest(formData),
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** GET /public/forms/lookup/{code} — null si el formulario aún no existe en el backend. */
+  async getFormStatus(code: string): Promise<FormStatus | null> {
+    try {
+      const { data } = await apiClient.request<FormStatus>('core', `/public/forms/lookup/${encodeURIComponent(code)}`, {
+        method: 'GET',
+        requiresAuth: true,
+      });
+      return data;
+    } catch (err: any) {
+      if (err?.status === 404) return null;
+      throw err;
+    }
+  },
+
+  /** GET /public/forms/file-types */
+  async getFileTypes(): Promise<FileTypeInfo[]> {
+    const { data } = await apiClient.request<FileTypeInfo[]>('core', '/public/forms/file-types', {
+      method: 'GET',
       requiresAuth: true,
     });
     return data;

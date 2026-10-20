@@ -9,6 +9,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   role: UserRole | null;
   isLoading: boolean;
+  /** true mientras se verifica la sesión guardada (evita mostrar el login por error). */
+  isInitializing: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
@@ -16,6 +18,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   clearError: () => void;
 }
+
+let restoring: Promise<void> | null = null;
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -26,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // On mount, "restoring a session" means asking
@@ -35,12 +40,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // simply stays logged out.
   useEffect(() => {
     const restoreSession = async () => {
-      const { accessToken, refreshToken } = apiClient.getTokens();
-      if (!accessToken && !refreshToken) return;
-
+      // El refresh token rota (un solo uso): nunca lanzar dos restauraciones a la vez (StrictMode en dev).
+      if (restoring) return restoring;
+      restoring = (async () => {
       try {
+        const { accessToken } = apiClient.getTokens();
+        // En web el refresh token vive en una cookie httpOnly: aunque el access token ya no
+        // esté (pestaña nueva) o haya vencido, se intenta renovar en silencio.
         if (!accessToken || isJwtExpired(accessToken)) {
-          if (!refreshToken) throw new Error('no refresh token');
           await authService.reauth();
         }
         const me = await authService.getMe();
@@ -48,7 +55,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {
         setUser(null);
         apiClient.clearTokens();
+      } finally {
+        setIsInitializing(false);
+        restoring = null;
       }
+      })();
+      return restoring;
     };
 
     restoreSession();
@@ -123,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         role: user ? user.role : null,
         isLoading,
+        isInitializing,
         error,
         login,
         register,

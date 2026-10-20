@@ -24,7 +24,14 @@ PRIVATE = os.environ["PRIVATE_ORIGINS"]
 logger = getLogger(__name__)
 
 if not PRODUCTION_MODE:
-    PUBLIC_ORIGINS = ["*"]
+    # Browsers must use X-Platform: web (httpOnly refresh cookie), which needs
+    # credentialed CORS and therefore explicit origins (never "*").
+    PUBLIC_ORIGINS = [
+        "http://localhost:4287",
+        "http://127.0.0.1:4287",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
     PUBLIC_METHODS = ["*"]
     PUBLIC_HEADERS = ["*"]
 
@@ -132,7 +139,7 @@ api_private.add_middleware(
 api_public.add_middleware(
     CORSMiddleware,
     allow_origins=PUBLIC_ORIGINS,
-    allow_credentials=COOKIES_SECURE,
+    allow_credentials=True,
     allow_methods=PUBLIC_METHODS,
     allow_headers=PUBLIC_HEADERS,
     max_age=86400,

@@ -4,6 +4,7 @@ from .forms import (
     FieldChoiceRepository,
     FieldGroupRepository,
     FieldRepository,
+    FileTypeRepository,
     FormRepository,
     QuestionRepository,
     SectionRepository,

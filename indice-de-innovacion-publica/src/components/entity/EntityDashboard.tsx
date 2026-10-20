@@ -1,3 +1,4 @@
+import { flattenForEntity } from '../../utils/formTree';
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -48,6 +49,7 @@ export const EntityDashboard: React.FC<EntityDashboardProps> = ({
   const assignedForm = activeAssignment
     ? forms.find((f) => f.id === activeAssignment.form_id) || activeForm
     : activeForm;
+  const assignedFormFlat = flattenForEntity(assignedForm);
 
   // Submissions for this entity
   const entitySubmissions = submissions.filter((s) => s.actor_id === currentActor?.id);
@@ -207,11 +209,11 @@ export const EntityDashboard: React.FC<EntityDashboardProps> = ({
         {/* Form Dimensions Overview Grid */}
         <div className="space-y-3 pt-2">
           <div className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Dimensiones de Evaluación del Formulario Asignado ({assignedForm.sections.length})
+            Dimensiones de Evaluación del Formulario Asignado ({assignedFormFlat.sections.length})
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {assignedForm.sections.map((sec, idx) => {
+            {assignedFormFlat.sections.map((sec, idx) => {
               const qCount = sec.questions?.length || 0;
 
               return (

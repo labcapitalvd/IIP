@@ -25,9 +25,13 @@ import {
   Sliders,
   CheckCircle,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { IIPForm } from '../../types';
 import { FormBuilderModal } from './FormBuilderModal';
+import { coreService } from '../../services/coreService';
+import { FormTreeView } from './FormTreeView';
+import { countIndicators, countQuestions } from '../../utils/formTree';
 
 interface FormsManagerProps {
   onGoToAssign?: (formId: string) => void;
@@ -48,6 +52,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
     [activeForm.sections[0]?.id || '']: true,
   });
   const [copied, setCopied] = useState(false);
+  const [isCheckingEdit, setIsCheckingEdit] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [postResult, setPostResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -76,24 +81,14 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
     downloadAnchor.remove();
   };
 
-  const confirmDuplicateSyncIfNeeded = (form: IIPForm): boolean => {
-    if (!form.is_synced_to_backend) return true;
-    return confirm(
-      `"${form.label}" ya fue enviado antes al backend real. El backend todavía no tiene PUT /forms (solo POST), ` +
-        `así que sincronizar de nuevo NO actualiza el formulario existente: crea uno NUEVO y duplicado en el servidor. ` +
-        `¿Desea continuar de todas formas?`
-    );
-  };
-
   const handlePostToBackend = async () => {
-    if (!confirmDuplicateSyncIfNeeded(activeForm)) return;
     setIsPosting(true);
     setPostResult(null);
     try {
       await saveFormDefinition(activeForm);
       setPostResult({
         success: true,
-        message: `Formulario "${activeForm.label}" registrado y sincronizado exitosamente mediante POST /forms.`,
+        message: `Formulario "${activeForm.label}" guardado y sincronizado con el servidor.`,
       });
     } catch (err: any) {
       setPostResult({
@@ -110,15 +105,35 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
     setShowBuilderModal(true);
   };
 
-  const handleOpenEditModal = (form: IIPForm) => {
-    setEditingForm(form);
+  const handleOpenEditModal = async (form: IIPForm) => {
+    if (isCheckingEdit) return;
+    // Un formulario con respuestas no se puede alterar: se avisa y no se abre el editor.
+    let toEdit = form;
+    if (form.is_synced_to_backend) {
+      setIsCheckingEdit(true);
+      try {
+        const status = await coreService.getFormStatus(form.code);
+        if (status?.has_submissions) {
+          alert('Este formulario ya tiene respuestas, por lo que no se puede modificar.');
+          return;
+        }
+        // La fecha mostrada en el editor es la última confirmada por el servidor.
+        if (status) toEdit = { ...form, updated_at: status.updated_at };
+      } catch (err: any) {
+        alert(err?.message || 'No se pudo verificar si el formulario tiene respuestas.');
+        return;
+      } finally {
+        setIsCheckingEdit(false);
+      }
+    }
+    setEditingForm(toEdit);
     setShowBuilderModal(true);
   };
 
-  const handleSaveFormFromBuilder = async (form: IIPForm) => {
-    if (!confirmDuplicateSyncIfNeeded(form)) return;
-    await saveFormDefinition(form);
-    setActiveFormById(form.id);
+  const handleSaveFormFromBuilder = async (form: IIPForm): Promise<IIPForm> => {
+    const saved = await saveFormDefinition(form);
+    setActiveFormById(saved.id);
+    return saved;
   };
 
   const handleDeleteForm = async (form: IIPForm) => {
@@ -133,6 +148,12 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {isCheckingEdit && (
+        <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 cursor-wait">
+          <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+          <p className="text-sm font-bold text-slate-800">Cargando la última versión del formulario…</p>
+        </div>
+      )}
       {/* Header with LabCapital Brand & Primary Action */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
         <div>
@@ -141,7 +162,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
               Administración • LabCapital
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-100 text-slate-600">
-              POST /forms
+              POST / PUT /forms
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
@@ -206,10 +227,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {forms.map((form) => {
             const isSelected = form.id === activeForm.id;
-            const totalQuestions = form.sections.reduce(
-              (acc, s) => acc + (s.questions?.length || 0),
-              0
-            );
+            const totalQuestions = countQuestions(form);
 
             return (
               <div
@@ -252,8 +270,8 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                       }`}
                       title={
                         form.is_synced_to_backend
-                          ? 'Ya existe en el backend real (POST /forms). Editar lo vuelve a enviar y crea un duplicado, no lo actualiza.'
-                          : 'Todavía no se ha enviado al backend real.'
+                          ? 'Ya existe en el servidor. Al guardar se actualiza (PUT) mientras no tenga respuestas.'
+                          : 'Todavía no se ha enviado al servidor.'
                       }
                     >
                       {form.is_synced_to_backend ? '● Sincronizado con backend' : '○ Solo local'}
@@ -265,7 +283,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                   <div className="space-y-0.5">
                     <div className="font-semibold text-slate-900">Vigencia {form.year}</div>
                     <div className="text-[11px] text-slate-400">
-                      {form.sections.length} dimensiones • {totalQuestions} criterios
+                      {form.sections.length} variables • {countIndicators(form)} indicadores • {totalQuestions} preguntas
                     </div>
                   </div>
 
@@ -342,8 +360,8 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                     className={activeForm.is_synced_to_backend ? 'text-sky-400' : 'text-slate-500'}
                     title={
                       activeForm.is_synced_to_backend
-                        ? 'Ya existe en el backend real. No hay PUT /forms: volver a guardar crea un duplicado.'
-                        : 'Todavía no se ha enviado al backend real.'
+                        ? 'Ya existe en el servidor. Al guardar se actualiza (PUT) mientras no tenga respuestas.'
+                        : 'Todavía no se ha enviado al servidor.'
                     }
                   >
                     {activeForm.is_synced_to_backend ? '● Sincronizado con backend' : '○ Solo local'}
@@ -386,7 +404,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
             }`}
           >
             <Layers className="w-4 h-4 text-amber-500" />
-            <span>Explorador Visual de Dimensiones y Preguntas</span>
+            <span>Explorador de Variables, Indicadores y Preguntas</span>
           </button>
           <button
             onClick={() => setActiveTab('json')}
@@ -397,7 +415,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
             }`}
           >
             <Code2 className="w-4 h-4 text-amber-500" />
-            <span>Esquema JSON Completo (POST /forms)</span>
+            <span>Esquema JSON (POST/PUT /forms)</span>
           </button>
         </div>
 
@@ -405,150 +423,14 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
         <div className="p-6">
           {activeTab === 'visual' ? (
             <div className="space-y-4">
-              {activeForm.sections.map((sec, sIdx) => {
-                const isExpanded = expandedSections[sec.id];
-
-                return (
-                  <div
-                    key={sec.id}
-                    className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs"
-                  >
-                    {/* Dimension Section Header */}
-                    <div
-                      onClick={() => toggleSection(sec.id)}
-                      className="p-4 bg-slate-50 hover:bg-slate-100/80 cursor-pointer flex items-center justify-between transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center font-bold text-xs shadow-xs">
-                          {sIdx + 1}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-slate-500">
-                              {sec.code}
-                            </span>
-                            <span className="text-[10px] text-slate-400">•</span>
-                            <span className="text-[10px] text-slate-500">
-                              {sec.questions?.length || 0} Criterios
-                            </span>
-                          </div>
-                          <h4 className="font-bold text-slate-900 text-sm">{sec.label}</h4>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isExpanded ? (
-                          <ChevronDown className="w-4 h-4 text-slate-400" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-slate-400" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Section Body */}
-                    {isExpanded && (
-                      <div className="p-5 space-y-4 border-t border-slate-200">
-                        {sec.description && (
-                          <p className="text-xs text-slate-600 italic bg-amber-50/50 p-3 rounded-xl border border-amber-100">
-                            {sec.description}
-                          </p>
-                        )}
-
-                        <div className="space-y-4 pl-2 sm:pl-4">
-                          {sec.questions?.map((q, qIdx) => (
-                            <div
-                              key={q.id}
-                              className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-3"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <span className="text-[10px] font-mono text-amber-700 font-bold uppercase">
-                                    {q.code}
-                                  </span>
-                                  <h5 className="font-bold text-xs text-slate-900 mt-0.5">
-                                    {q.label}
-                                  </h5>
-                                  {q.description && (
-                                    <p className="text-[11px] text-slate-500 mt-0.5">
-                                      {q.description}
-                                    </p>
-                                  )}
-                                </div>
-                                <span className="text-[10px] px-2 py-0.5 bg-white border border-slate-200 text-slate-600 rounded font-semibold shrink-0">
-                                  Plantilla: {q.card_template.code}
-                                </span>
-                              </div>
-
-                              {/* Field Groups */}
-                              <div className="space-y-3 pt-2">
-                                {q.card_template.field_groups.map((fg) => (
-                                  <div key={fg.id} className="space-y-2">
-                                    <div className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                                      {fg.label} ({fg.fields.length} campos)
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                                      {fg.fields.map((f) => (
-                                        <div
-                                          key={f.id}
-                                          className="p-3 bg-white rounded-xl border border-slate-200 text-xs space-y-1.5"
-                                        >
-                                          <div className="flex items-start justify-between gap-2">
-                                            <span className="font-semibold text-slate-800 leading-snug">
-                                              {f.label}
-                                            </span>
-                                            <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded shrink-0">
-                                              {f.field_type_code}
-                                            </span>
-                                          </div>
-
-                                          {f.help_text && (
-                                            <p className="text-[11px] text-slate-500">
-                                              {f.help_text}
-                                            </p>
-                                          )}
-
-                                          {f.choices && f.choices.length > 0 && (
-                                            <div className="pt-1.5 space-y-1 border-t border-slate-100">
-                                              <div className="text-[10px] font-semibold text-slate-400">
-                                                Opciones de ponderación:
-                                              </div>
-                                              <div className="flex flex-wrap gap-1">
-                                                {f.choices.map((ch) => (
-                                                  <span
-                                                    key={ch.id}
-                                                    className="px-2 py-0.5 bg-slate-50 text-slate-700 border border-slate-200 rounded text-[10px]"
-                                                  >
-                                                    {ch.label}{' '}
-                                                    <strong className="text-amber-600">
-                                                      ({ch.score_weight} pts)
-                                                    </strong>
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              <FormTreeView form={activeForm} />
             </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-slate-900 text-white p-3.5 rounded-t-2xl">
                 <div className="flex items-center gap-2 text-xs">
                   <FileCode className="w-4 h-4 text-amber-400" />
-                  <span className="font-mono">Payload JSON • POST /forms</span>
+                  <span className="font-mono">Payload JSON • POST/PUT /forms</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

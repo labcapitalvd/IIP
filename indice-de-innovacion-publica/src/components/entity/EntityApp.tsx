@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ROUTES, navigate } from '../../utils/router';
 import { Header } from '../layout/Header';
 import { ApiSettingsModal } from '../common/ApiSettingsModal';
 import { EntityDashboard } from './EntityDashboard';
@@ -7,10 +8,14 @@ import { SubmissionsHistoryView } from './SubmissionsHistoryView';
 import { EntityProfileView } from './EntityProfileView';
 import { BarChart3, FileSignature, Clock, User } from 'lucide-react';
 
-export const EntityApp: React.FC = () => {
-  const [entityTab, setEntityTab] = useState<'diagnostic' | 'dashboard' | 'history' | 'profile'>(
-    'diagnostic'
-  );
+type EntityTab = 'diagnostic' | 'dashboard' | 'history' | 'profile';
+
+export const entityTabFromPath = (pathname: string): EntityTab | null =>
+  (Object.keys(ROUTES.entity) as EntityTab[]).find((k) => ROUTES.entity[k] === pathname) ?? null;
+
+export const EntityApp: React.FC<{ pathname: string }> = ({ pathname }) => {
+  const entityTab = entityTabFromPath(pathname) ?? 'diagnostic';
+  const setEntityTab = (t: EntityTab) => navigate(ROUTES.entity[t]);
 
   // Modals state
   const [showApiSettings, setShowApiSettings] = useState(false);

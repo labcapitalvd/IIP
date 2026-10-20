@@ -3,10 +3,13 @@ from ..repositories import (
     CardTemplateRepository,
     FieldChoiceRepository,
     FieldGroupRepository,
+    FileTypeRepository,
     FieldRepository,
     FieldTypeRepository,
     FormRepository,
     QuestionRepository,
+    RelationalOperatorRepository,
+    RuleTypeRepository,
     SectionRepository,
     SectionTypeRepository,
 )
@@ -27,6 +30,9 @@ class FormDesignUoW(UnitOfWork):
     field_groups: FieldGroupRepository
     field_choices: FieldChoiceRepository
     card_templates: CardTemplateRepository
+    relational_operators: RelationalOperatorRepository
+    rule_types: RuleTypeRepository
+    file_types: FileTypeRepository
 
     def _init_repositories(self) -> None:
         assert self.session is not None
@@ -40,3 +46,6 @@ class FormDesignUoW(UnitOfWork):
         self.field_groups = FieldGroupRepository(self.session)
         self.field_choices = FieldChoiceRepository(self.session)
         self.card_templates = CardTemplateRepository(self.session)
+        self.relational_operators = RelationalOperatorRepository(self.session)
+        self.rule_types = RuleTypeRepository(self.session)
+        self.file_types = FileTypeRepository(self.session)

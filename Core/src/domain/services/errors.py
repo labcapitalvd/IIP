@@ -62,6 +62,31 @@ class SectionTypeNotFoundError(FormError):
     message = "The specified section type could not be found."
 
 
+class FormHasSubmissionsError(FormError):
+    status_code = 409
+    message = "The form already has submissions and can no longer be modified."
+
+
+class InvalidFileFieldError(FormError):
+    status_code = 422
+    message = "File fields need valid allowed file types and a maximum size within their limits."
+
+
+class InvalidFieldTypeReferenceError(FormError):
+    status_code = 422
+    message = "Each field needs `field_type_id` or `field_type_code`."
+
+
+class QuestionDependencyError(FormError):
+    status_code = 422
+    message = "The question dependency refers to a question that does not exist or is not a Yes/No question."
+
+
+class RelationalOperatorNotFoundError(FormError):
+    status_code = 500
+    message = "The 'eq' relational operator is not seeded."
+
+
 class FormStructureConflictError(FormError):
     status_code = 409  # Conflict
     message = "Duplicate codes were found within the submitted form structure."

@@ -14,6 +14,14 @@ import {
 } from '../types';
 import { IIP_DEFAULT_FORM } from '../data/defaultForm';
 import { useAuth } from './AuthContext';
+import { migrateForm, normalizeCodes } from '../utils/formTree';
+
+export class FormHasSubmissionsError extends Error {
+  constructor() {
+    super('Este formulario ya tiene respuestas, por lo que no se puede modificar.');
+    this.name = 'FormHasSubmissionsError';
+  }
+}
 import { apiClient } from '../services/apiClient';
 import { coreService } from '../services/coreService';
 
@@ -39,7 +47,7 @@ interface AppContextType {
   deleteSegment: (id: string) => Promise<void>;
   // Forms Management (Admin creates forms)
   setActiveFormById: (formId: string) => void;
-  saveFormDefinition: (form: IIPForm) => Promise<void>;
+  saveFormDefinition: (form: IIPForm) => Promise<IIPForm>;
   createForm: (form: IIPForm) => Promise<void>;
   updateForm: (form: IIPForm) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
@@ -91,12 +99,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [forms, setForms] = useState<IIPForm[]>(() => {
     const saved = localStorage.getItem('iip_all_forms');
-    return saved ? JSON.parse(saved) : [IIP_DEFAULT_FORM];
+    return (saved ? (JSON.parse(saved) as IIPForm[]) : [IIP_DEFAULT_FORM]).map(migrateForm);
   });
 
   const [activeForm, setActiveForm] = useState<IIPForm>(() => {
     const saved = localStorage.getItem('iip_active_form');
-    return saved ? JSON.parse(saved) : IIP_DEFAULT_FORM;
+    return migrateForm(saved ? (JSON.parse(saved) as IIPForm) : IIP_DEFAULT_FORM);
   });
 
   const [users, setUsers] = useState<AuthUser[]>(() => {
@@ -226,19 +234,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [forms]);
 
-  const saveFormDefinition = async (form: IIPForm) => {
-    // El backend solo expone POST /forms (crear). No hay PUT: cada llamada aquí
-    // crea un registro nuevo en el servidor, nunca actualiza uno existente.
-    await coreService.createForm(form);
-    const savedForm = { ...form, is_synced_to_backend: true };
-    setActiveForm(savedForm);
-    setForms((prev) => {
-      const exists = prev.some((f) => f.id === savedForm.id);
-      if (exists) {
-        return prev.map((f) => (f.id === savedForm.id ? savedForm : f));
+  /**
+   * Guarda en el backend: PUT si el formulario ya existe allí (por código), POST si no.
+   * Un formulario con respuestas no se puede modificar (409 FORM_HAS_SUBMISSIONS_ERROR).
+   */
+  const saveFormDefinition = async (form: IIPForm): Promise<IIPForm> => {
+    const normalized = normalizeCodes(form);
+    const existing = await coreService.getFormStatus(normalized.code);
+    let updatedAt: string | undefined;
+    if (existing && !form.is_synced_to_backend) {
+      // Formulario nuevo (local) cuyo código ya existe en el servidor: no se sobrescribe en silencio.
+      throw new Error(
+        `Ya existe en el servidor un formulario con el código "${normalized.code}". Use otro código para este formulario.`
+      );
+    }
+    if (existing) {
+      if (existing.has_submissions) throw new FormHasSubmissionsError();
+      try {
+        updatedAt = (await coreService.updateForm(existing.id, normalized)).updated_at;
+      } catch (err: any) {
+        throw err?.data?.code === 'FORM_HAS_SUBMISSIONS_ERROR' ? new FormHasSubmissionsError() : err;
       }
-      return [savedForm, ...prev];
-    });
+    } else {
+      updatedAt = (await coreService.createForm(normalized)).updated_at;
+    }
+    const savedForm: IIPForm = {
+      ...normalized,
+      is_synced_to_backend: true,
+      updated_at: updatedAt ?? new Date().toISOString(),
+    };
+    const nextForms = forms.some((f) => f.id === savedForm.id)
+      ? forms.map((f) => (f.id === savedForm.id ? savedForm : f))
+      : [savedForm, ...forms];
+    // Persistir ya mismo: tras guardar la pantalla se recarga y no debe perderse nada.
+    localStorage.setItem('iip_all_forms', JSON.stringify(nextForms));
+    localStorage.setItem('iip_active_form', JSON.stringify(savedForm));
+    setActiveForm(savedForm);
+    setForms(nextForms);
+    return savedForm;
   };
 
   const createForm = async (form: IIPForm) => {

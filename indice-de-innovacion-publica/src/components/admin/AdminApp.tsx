@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { ROUTES, navigate } from '../../utils/router';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { FormsManager } from './FormsManager';
@@ -6,6 +7,7 @@ import { EntityUsersManager } from './EntityUsersManager';
 import { FormAssignmentsManager } from './FormAssignmentsManager';
 import { SubmissionsMonitor } from './SubmissionsMonitor';
 import { ActorsManager } from './ActorsManager';
+import { ParametersManager } from './ParametersManager';
 import {
   Building2,
   FileCheck2,
@@ -14,9 +16,10 @@ import {
   Users,
   LogOut,
   ShieldCheck,
+  SlidersHorizontal,
 } from 'lucide-react';
 
-type AdminTab = 'forms' | 'users' | 'assignments' | 'submissions' | 'actors';
+type AdminTab = keyof typeof ROUTES.admin;
 
 const NAV: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: 'forms', label: 'Formularios', icon: FileText },
@@ -24,16 +27,24 @@ const NAV: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: 'assignments', label: 'Asignaciones', icon: FileCheck2 },
   { id: 'submissions', label: 'Monitor de radicados', icon: BarChart3 },
   { id: 'actors', label: 'Entidades y sectores', icon: Building2 },
+  { id: 'parameters', label: 'Parámetros', icon: SlidersHorizontal },
 ];
+
+/** Pestaña activa según la URL (/admin/formularios, /admin/asignaciones…). */
+export const adminTabFromPath = (pathname: string): AdminTab | null =>
+  (Object.keys(ROUTES.admin) as AdminTab[]).find(
+    (k) => pathname === ROUTES.admin[k] || pathname.startsWith(`${ROUTES.admin[k]}/`)
+  ) ?? null;
 
 /**
  * Panel de administración (rol `admin`). Layout propio con barra lateral,
  * independiente del portal de entidades.
  */
-export const AdminApp: React.FC = () => {
+export const AdminApp: React.FC<{ pathname: string }> = ({ pathname }) => {
   const { user, logout } = useAuth();
   const { setActiveFormById } = useApp();
-  const [tab, setTab] = useState<AdminTab>('forms');
+  const tab = adminTabFromPath(pathname) ?? 'forms';
+  const setTab = (t: AdminTab) => navigate(ROUTES.admin[t]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased flex flex-col md:flex-row">
@@ -51,9 +62,13 @@ export const AdminApp: React.FC = () => {
 
         <nav className="flex md:flex-col gap-1 p-3 overflow-x-auto md:overflow-visible md:flex-1">
           {NAV.map(({ id, label, icon: Icon }) => (
-            <button
+            <a
               key={id}
-              onClick={() => setTab(id)}
+              href={ROUTES.admin[id]}
+              onClick={(e) => {
+                e.preventDefault();
+                setTab(id);
+              }}
               className={`px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 whitespace-nowrap transition-colors text-left ${
                 tab === id
                   ? 'bg-amber-500 text-slate-950'
@@ -62,7 +77,7 @@ export const AdminApp: React.FC = () => {
             >
               <Icon className="w-4 h-4 shrink-0" />
               <span>{label}</span>
-            </button>
+            </a>
           ))}
         </nav>
 
@@ -97,6 +112,7 @@ export const AdminApp: React.FC = () => {
         {tab === 'assignments' && <FormAssignmentsManager />}
         {tab === 'submissions' && <SubmissionsMonitor />}
         {tab === 'actors' && <ActorsManager />}
+        {tab === 'parameters' && <ParametersManager pathname={pathname} />}
       </main>
     </div>
   );

@@ -1,6 +1,13 @@
 from domain import FormService
 from infrastructure.uow import FormDesignUoW
-from schemas.forms import CreateFormRequest, ResponseFormCreate
+from uuid import UUID
+
+from schemas.forms import (
+    CreateFormRequest,
+    ResponseFileType,
+    ResponseFormCreate,
+    ResponseFormStatus,
+)
 
 
 class FormAppService:
@@ -35,4 +42,44 @@ class FormAppService:
                 code=form.code,
                 label=form.label,
                 description=form.description,
+                updated_at=form.updated_at,
             )
+
+    async def update_form(self, form_id: UUID, form_data: CreateFormRequest) -> ResponseFormCreate:
+        """Reemplaza la estructura de un formulario sin respuestas."""
+        async with FormDesignUoW() as uow:
+            form = await self.form_service.update_form(
+                uow=uow, form_id=form_id, form_data=form_data
+            )
+            return ResponseFormCreate(
+                id=form.id,
+                code=form.code,
+                label=form.label,
+                description=form.description,
+                updated_at=form.updated_at,
+            )
+
+    async def get_form_status(self, code: str) -> ResponseFormStatus:
+        async with FormDesignUoW() as uow:
+            form, has_submissions = await self.form_service.get_status(uow=uow, code=code)
+            return ResponseFormStatus(
+                id=form.id,
+                code=form.code,
+                label=form.label,
+                updated_at=form.updated_at,
+                has_submissions=has_submissions,
+            )
+
+    async def list_file_types(self) -> list[ResponseFileType]:
+        async with FormDesignUoW() as uow:
+            return [
+                ResponseFileType(
+                    code=t.code,
+                    label=t.label,
+                    extension=t.extension,
+                    mime_type=t.mime_type,
+                    category=t.category,
+                    max_size=int(t.max_size),
+                )
+                for t in await self.form_service.list_file_types(uow)
+            ]
