@@ -4,6 +4,7 @@ import {
   ActorCreatePayload,
   ActorSegment,
   ActorSegmentCreatePayload,
+  EntityAssignment,
   FileTypeInfo,
   FormStatus,
   IIPForm,
@@ -12,6 +13,20 @@ import {
 import { toCreateFormRequest } from '../utils/formTree';
 
 export const coreService = {
+  // --- ASIGNACIONES (/public/forms/assignments) ---
+
+  /**
+   * GET /public/forms/assignments/me
+   * Formularios asignados al usuario autenticado, con el avance de su entidad.
+   */
+  async getMyAssignments(): Promise<EntityAssignment[]> {
+    const { data } = await apiClient.request<EntityAssignment[]>('core', '/public/forms/assignments/me', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
   // --- ACTORES (/public/actors) ---
 
   /**

@@ -90,3 +90,12 @@ class RelationalOperatorNotFoundError(FormError):
 class FormStructureConflictError(FormError):
     status_code = 409  # Conflict
     message = "Duplicate codes were found within the submitted form structure."
+
+class AssignmentForbiddenError(FormError):
+    status_code = 403
+    message = "Only an administrator can assign forms."
+
+
+class AssignmentTargetNotFoundError(FormError):
+    status_code = 404
+    message = "The user or the form to assign could not be found."

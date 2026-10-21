@@ -53,6 +53,23 @@ export interface FormAssignment {
   notes?: string;
 }
 
+/** Formulario asignado al usuario autenticado (GET /public/forms/assignments/me). */
+export interface EntityAssignment {
+  id: string;
+  form_id: string;
+  form_code: string;
+  form_label: string;
+  form_description?: string;
+  actor_id?: string;
+  actor_label?: string;
+  assigned_at: string;
+  due_date?: string;
+  notes?: string;
+  status: 'pending' | 'in_progress' | 'submitted';
+  completion_percentage: number;
+  submission_id?: string;
+}
+
 export interface CreateEntityUserPayload {
   username: string;
   email: string;
