@@ -42,6 +42,7 @@ class TargetTable(CoreTargetTable):
     ACTOR_SEGMENTS = TableInfo("actor_segments", "actors")
     ACTORS = TableInfo("actors", "actors")
     LINK_USER_ACTOR = TableInfo("user_actor_links", "links")
+    USER_FORM_ASSIGNMENTS = TableInfo("user_form_assignments", "links")
 
     # --- Reference Schema (Extended) ---
     FIELD_TYPES = TableInfo("field_types", "reference")
