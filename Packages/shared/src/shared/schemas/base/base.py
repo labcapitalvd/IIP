@@ -74,7 +74,7 @@ class UuidSchema(BaseSchema):
     """Modelo para representar un UUID."""
 
     id: UUID_STR | None = Field(
-        default=...,
+        default=None,
         title="UUID del objeto.",
         description="el UUID en v4 o v7 de un objeto en la db",
     )
