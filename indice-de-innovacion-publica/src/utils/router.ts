@@ -41,6 +41,7 @@ export function useLocation(): Location & { navigate: typeof navigate } {
 /** Rutas de la aplicación. */
 export const ROUTES = {
   login: '/login',
+  loginEntity: '/login/entidad',
   admin: {
     forms: '/admin/formularios',
     users: '/admin/usuarios-entidades',
@@ -50,6 +51,10 @@ export const ROUTES = {
     parameters: '/admin/parametros',
   },
   entity: {
+    forms: '/entidad/formularios',
+    progress: '/entidad/proceso',
+    account: '/entidad/perfil',
+    assignedEntity: '/entidad/mi-entidad',
     diagnostic: '/entidad/diagnostico',
     dashboard: '/entidad/panel',
     history: '/entidad/historial',
@@ -58,4 +63,4 @@ export const ROUTES = {
 } as const;
 
 export const homeFor = (role: 'admin' | 'entity') =>
-  role === 'admin' ? ROUTES.admin.forms : ROUTES.entity.diagnostic;
+  role === 'admin' ? ROUTES.admin.forms : ROUTES.entity.forms;
