@@ -1,43 +1,41 @@
 services:
   nginx:
     container_name: app_nginx
-    image: docker.io/nginx:stable-alpine
-    env_file: ./.env
+    image: nginx:stable-alpine
     restart: unless-stopped
     depends_on:
-      - auth
-      - core
+      - frontend
+    ports:
+      - "4290:443"
+    volumes:
+      - ./Secrets/nginx.conf:/etc/nginx/nginx.conf:ro
     secrets:
       - https_public
       - https_private
     networks:
       - app_nginx
-    ports:
-      - "${PORT_AUTH:-8000}:${PORT_AUTH:-8000}"
-      - "${PORT_CORE:-8001}:${PORT_CORE:-8001}"
-    volumes:
-      - "./Secrets/nginx.conf:/etc/nginx/nginx.conf:ro"
 
   db:
     container_name: app_db
     image: docker.io/postgres:18
     env_file: ./.env
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
-      POSTGRES_DB: ${POSTGRES_DB:-app_db}
-    ports:
-      - "5432:5432" # Eliminar luego para no exponer a host.
+      POSTGRES_USER: ${POSTGRES_USER:-iip_user}
+      POSTGRES_DB: ${POSTGRES_DB:-iip}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    restart: unless-stopped
     networks:
       - app_db_net
     volumes:
-      - "postgresql:/var/lib/postgresql"
-      - "./Persistence/src/backups:/backups"
+      - postgresql:/var/lib/postgresql
+      - ./Persistence/src/backups:/backups
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U $${POSTGRES_USER:-postgres_user} -d $${POSTGRES_DB:-app_db}",
+          "pg_isready -U $${POSTGRES_USER:-iip_user} -d $${POSTGRES_DB:-iip}"
         ]
       interval: 5s
       timeout: 3s
@@ -48,18 +46,24 @@ services:
     image: docker.io/valkey/valkey:alpine
     env_file: ./.env
     restart: unless-stopped
+    secrets:
+      - valkey_password
     command: >
-      sh -c "valkey-server 
-      --requirepass \"$$VALKEY_PASSWORD\" 
-      --user default on \"\>$$VALKEY_PASSWORD\" ~* +@all 
-      --user \"$${VALKEY_USER:-valkey_user}\" on \"\>$$VALKEY_PASSWORD\" ~* +@all"
-    ports:
-      - "6379:6379"
+      sh -c '
+        VALKEY_PASSWORD="$$(cat /run/secrets/valkey_password)";
+        exec valkey-server
+        --requirepass "$$VALKEY_PASSWORD"
+        --user default on ">$$VALKEY_PASSWORD" ~* +@all
+        --user "$${VALKEY_USER:-valkey_user}" on ">$$VALKEY_PASSWORD" ~* +@all
+      '
     networks:
       - app_cache_net
     healthcheck:
       test:
-        ["CMD-SHELL", 'valkey-cli -a "$$VALKEY_PASSWORD" ping | grep -q PONG']
+        [
+          "CMD-SHELL",
+          'valkey-cli -a "$$(cat /run/secrets/valkey_password)" --user default ping | grep -q PONG'
+        ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -157,8 +161,6 @@ services:
     depends_on:
       - auth
       - core
-    ports:
-      - "4287:4287"
     networks:
       - app_nginx
 
@@ -177,28 +179,39 @@ networks:
 
 volumes:
   postgresql:
-    name: pg
+    name: stats_vol_pg
+    external: true
 
 secrets:
   postgres_password:
-    file: ./Secrets/postgres_password
+    file: /Secrets/postgres_password
+
   valkey_password:
-    file: ./Secrets/valkey_password
+    file: /Secrets/valkey_password
+
   fernet_password:
-    file: ./Secrets/fernet_password
+    file: /Secrets/fernet_password
+
   github_token_commons:
-    file: ./Secrets/github_token_commons
+    file: /Secrets/github_token_commons
+
   github_token_iip:
-    file: ./Secrets/github_token_iip
+    file: /Secrets/github_token_iip
+
   github_token_seeds:
-    file: ./Secrets/github_token_seeds
+    file: /Secrets/github_token_seeds
+
   jwt_public_key:
-    file: ./Secrets/jwt_public.pem
+    file: /Secrets/jwt_public.pem
+
   jwt_private_key:
-    file: ./Secrets/jwt_private.pem
+    file: /Secrets/jwt_private.pem
+
   users_file:
-    file: ./Secrets/users.toml
+    file: /Secrets/users.toml
+
   https_public:
-    file: ./Secrets/cert.crt
+    file: /Secrets/vd-cert.crt
+
   https_private:
-    file: ./Secrets/cert.key
+    file: /Secrets/vd-cert.key
