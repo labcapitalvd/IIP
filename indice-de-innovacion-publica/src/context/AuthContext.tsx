@@ -12,7 +12,7 @@ interface AuthContextType {
   /** true mientras se verifica la sesión guardada (evita mostrar el login por error). */
   isInitializing: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, requiredRole?: 'admin' | 'entity') => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   reauth: () => Promise<void>;
   logout: () => Promise<void>;
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearError = () => setError(null);
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string, requiredRole?: 'admin' | 'entity') => {
     setIsLoading(true);
     setError(null);
     try {
@@ -79,6 +79,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // The backend is the only source of truth: POST /public/auth/login
       // (username or email) returns a real JWT, or fails with the API error.
       const { user: loggedUser } = await authService.login(cleanUser, cleanPass);
+      if (requiredRole && loggedUser.role !== requiredRole) {
+        // Cuenta válida pero de otro tipo: no se deja la sesión abierta en esta pantalla.
+        await authService.logout();
+        throw new Error(
+          requiredRole === 'entity'
+            ? 'Esta pantalla es solo para entidades. Los administradores ingresan por /login.'
+            : 'Esta pantalla es solo para administradores.',
+        );
+      }
       setUser(loggedUser);
     } catch (err: any) {
       const message = err?.message || 'Error al iniciar sesión. Verifique sus credenciales.';

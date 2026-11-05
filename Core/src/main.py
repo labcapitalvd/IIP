@@ -18,6 +18,7 @@ from routers.actors import router_actors
 from routers.actors import router_actor_segments
 from routers.submissions import router as router_submissions
 from routers.forms import router as router_forms
+from routers.assignments import router as router_assignments
 from routers.parameters import router as router_parameters
 
 configure_logging()
@@ -167,7 +168,7 @@ logger.info(f"Node app allow_credentials: {COOKIES_SECURE}")
 ##############################################################################################
 # Montaje de frontend en la aplicación principal
 ##############################################################################################
-public_routers = [router_actors, router_actor_segments, router_submissions, router_forms, router_parameters]
+public_routers = [router_actors, router_actor_segments, router_submissions, router_assignments, router_forms, router_parameters]
 
 private_routers = []
 

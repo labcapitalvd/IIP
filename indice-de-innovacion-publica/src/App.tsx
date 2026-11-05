@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { FormSubmissionProvider } from './context/FormSubmissionContext';
 import { LoginView } from './components/auth/LoginView';
+import { EntityLoginView } from './components/auth/EntityLoginView';
 import { AdminApp, adminTabFromPath } from './components/admin/AdminApp';
 import { EntityApp, entityTabFromPath } from './components/entity/EntityApp';
 import { ROUTES, homeFor, navigate, useLocation } from './utils/router';
@@ -22,7 +23,8 @@ const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
 
 /**
  * Rutas:
- *   /login                      → inicio de sesión
+ *   /login                      → inicio de sesión (administradores y registro)
+ *   /login/entidad              → inicio de sesión único para entidades
  *   /admin/formularios | usuarios-entidades | asignaciones | monitor-radicados | entidades
  *   /entidad/diagnostico | panel | historial | ficha
  * Sin sesión, cualquier ruta protegida redirige a /login?next=<ruta> y vuelve a ella al entrar.
@@ -39,15 +41,16 @@ const MainContent: React.FC = () => {
     if (isInitializing) return; // aún se verifica la sesión: no decidir nada todavía
 
     if (!user) {
-      if (pathname !== ROUTES.login) {
+      if (pathname !== ROUTES.login && pathname !== ROUTES.loginEntity) {
         const next = pathname !== '/' ? `?next=${encodeURIComponent(pathname + search)}` : '';
-        navigate(`${ROUTES.login}${next}`, { replace: true });
+        const loginRoute = isEntityPath ? ROUTES.loginEntity : ROUTES.login;
+        navigate(`${loginRoute}${next}`, { replace: true });
       }
       return;
     }
 
     // Con sesión: /login, / o rutas desconocidas llevan al inicio del rol; cada rol solo ve lo suyo.
-    if (pathname === ROUTES.login) {
+    if (pathname === ROUTES.login || pathname === ROUTES.loginEntity) {
       const next = new URLSearchParams(search).get('next');
       const allowed = next && next.startsWith(role === 'admin' ? '/admin' : '/entidad');
       navigate(allowed ? next! : homeFor(role!), { replace: true });
@@ -63,7 +66,11 @@ const MainContent: React.FC = () => {
   // Mientras se verifica la sesión guardada nunca se muestra el login.
   if (isInitializing) return <FullScreenLoader text="Verificando sesión…" />;
 
-  if (!user) return pathname === ROUTES.login ? <LoginView /> : <FullScreenLoader text="Redirigiendo…" />;
+  if (!user) {
+    if (pathname === ROUTES.login) return <LoginView />;
+    if (pathname === ROUTES.loginEntity) return <EntityLoginView />;
+    return <FullScreenLoader text="Redirigiendo…" />;
+  }
 
   if (role === 'admin' && isAdminPath && validTab) return <AdminApp pathname={pathname} />;
   if (role === 'entity' && isEntityPath && validTab) return <EntityApp pathname={pathname} />;

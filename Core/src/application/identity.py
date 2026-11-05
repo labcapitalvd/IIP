@@ -29,6 +29,7 @@ class IdentityAppService:
     async def create_actor(self, data: ActorSchemaFK) -> ActorSchemaRel:
         async with IdentityUoW() as uow:
             a: Actor = await self.actor_service.create_actor(uow=uow, actor_data=data)
+            await uow.session.flush()
             return ActorSchemaRel(
                 id=str(a.id),
                 label=a.label,

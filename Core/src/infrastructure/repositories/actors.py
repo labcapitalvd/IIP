@@ -25,6 +25,11 @@ class ActorRepository(BaseRepository[Actor]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_label(self, label: str) -> Actor | None:
+        stmt = select(Actor).where(Actor.label == label)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_all(self) -> Sequence[Actor]:
         stmt = (
             select(Actor).options(joinedload(Actor.actor_segment)).order_by(Actor.code)
@@ -49,6 +54,11 @@ class ActorSegmentRepository(BaseRepository[ActorSegment]):
             .options(selectinload(ActorSegment.actors))
             .where(ActorSegment.code == code)
         )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_label(self, label: str) -> ActorSegment | None:
+        stmt = select(ActorSegment).where(ActorSegment.label == label)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

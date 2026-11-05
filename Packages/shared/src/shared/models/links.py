@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy import Date, DateTime, Text, UniqueConstraint, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.db import Base, column_fk, column_updated_at
 
@@ -156,4 +157,31 @@ class MultiChoiceOptionLink(Base):
     )
     answer: Mapped["AnswerMultiChoice"] = relationship(
         "AnswerMultiChoice", back_populates="option_links"
+    )
+
+
+class UserFormAssignment(Base):
+    """
+    Formulario IIP asignado a un usuario de entidad ("Asignar Formulario IIP a Entidades").
+
+    La entidad se resuelve por el `UserActorLink` del usuario; aquí solo se guarda
+    quién debe diligenciar qué formulario y hasta cuándo.
+    """
+
+    __tablename__ = TargetTable.USER_FORM_ASSIGNMENTS.table
+    __table_args__ = (
+        UniqueConstraint("user_id", "form_id", name="uq_user_form_assignments_user_form"),
+        {"schema": TargetTable.USER_FORM_ASSIGNMENTS.schema},
+    )
+
+    user_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.USERS.fq_name}.id", ondelete="CASCADE"
+    )
+    form_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.FORMS.fq_name}.id", ondelete="CASCADE"
+    )
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

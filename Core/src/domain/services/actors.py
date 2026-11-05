@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from shared.models import Actor, ActorSegment
+from shared.utils.seeding import generate_technical_slug
 from shared.schemas import (
     ActorSchemaFK,
     ActorSegmentSchema,
@@ -40,7 +41,11 @@ class ActorService:
 
         data_for_db = actor_data.model_dump(exclude={"id", "actor_segment_id"})
 
-        actor = Actor(actor_segment=segment, **data_for_db)
+        actor = Actor(
+            actor_segment=segment,
+            code=generate_technical_slug(actor_data.label),
+            **data_for_db,
+        )
 
         uow.actors.add(actor)
         return actor
@@ -76,7 +81,10 @@ class ActorService:
 
         data_for_db = actor_segment_data.model_dump(exclude={"id"})
 
-        actor_segment = ActorSegment(**data_for_db)
+        actor_segment = ActorSegment(
+            code=generate_technical_slug(actor_segment_data.label),
+            **data_for_db,
+        )
 
         uow.actor_segments.add(actor_segment)
         return actor_segment
