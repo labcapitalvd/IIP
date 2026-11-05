@@ -1,9 +1,17 @@
+from typing import Sequence
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path, status
 
 from application import AuthAppService
-from schemas.auth import RequestRegister, RequestRegisterAdmin, RequestLogin, ResponseMe
+from schemas.auth import (
+    RequestLogin,
+    RequestRegister,
+    RequestRegisterAdmin,
+    RequestUpdateUser,
+    ResponseMe,
+    ResponseUserListItem,
+)
 
 
 from shared.schemas import ResponseAuthSchema, ResponseMessageSchema
@@ -123,3 +131,51 @@ async def logout(
     await service.logout(client_refresh_token=ctx.refresh_token)
     ctx.unset_refresh_cookie()
     return ResponseMessageSchema(message="ok")
+
+
+@router.get(
+    "/users",
+    response_model=Sequence[ResponseUserListItem],
+    response_model_exclude_none=True,
+    operation_id="list_users",
+)
+async def list_users(
+    ctx: AccessContext = Depends(),
+    service: AuthAppService = Depends(get_auth_service),
+):
+    """Lists all user accounts. Administrators only (403 otherwise)."""
+    claims = get_claims(token=ctx.access_token)
+    return await service.list_users(requester_id=UUID(claims["sub"]))
+
+
+@router.put(
+    "/users/{user_id}",
+    response_model=ResponseMessageSchema,
+    response_model_exclude_none=True,
+    operation_id="update_user",
+)
+async def update_user(
+    body: RequestUpdateUser,
+    user_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: AuthAppService = Depends(get_auth_service),
+):
+    """Activates/deactivates a user or edits contact data. Administrators only."""
+    claims = get_claims(token=ctx.access_token)
+    await service.update_user(UUID(claims["sub"]), user_id, body)
+    return ResponseMessageSchema(message="ok")
+
+
+@router.delete(
+    "/users/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="delete_user",
+)
+async def delete_user(
+    user_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: AuthAppService = Depends(get_auth_service),
+):
+    """Deletes a user account. Administrators only; admins cannot delete themselves."""
+    claims = get_claims(token=ctx.access_token)
+    await service.delete_user(UUID(claims["sub"]), user_id)

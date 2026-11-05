@@ -83,6 +83,7 @@ interface AppContextType {
   // Submissions
   addSubmission: (submission: EntitySubmission) => void;
   loadSubmissionDetail: (id: string) => Promise<EntitySubmission>;
+  deleteSubmission: (id: string, force?: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -531,6 +532,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return detail;
   }, []);
 
+  /** Borra el radicado en el servidor; la asignación de esa entidad vuelve a quedar pendiente. */
+  const deleteSubmission = useCallback(
+    async (id: string, force = false) => {
+      await coreService.deleteSubmission(id, force);
+      setSubmissions((prev) => prev.filter((s) => s.id !== id));
+      await refreshAssignments();
+    },
+    [refreshAssignments]
+  );
+
   return (
     <AppContext.Provider
       value={{
@@ -567,6 +578,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         completeAssignmentSubmission,
         addSubmission,
         loadSubmissionDetail,
+        deleteSubmission,
       }}
     >
       {children}

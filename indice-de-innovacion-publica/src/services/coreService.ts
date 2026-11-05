@@ -370,6 +370,17 @@ export const coreService = {
     return data.map(mapSubmissionSummary);
   },
 
+  /**
+   * DELETE /public/submissions/{id} — borra el radicado y sus respuestas (solo admin).
+   * 409 SUBMISSION_HAS_GRADES_ERROR si ya tiene calificaciones, salvo `force`.
+   */
+  async deleteSubmission(id: string, force = false): Promise<void> {
+    await apiClient.request('core', `/public/submissions/${id}${force ? '?force=true' : ''}`, {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
+  },
+
   /** GET /public/submissions/{id} — radicado con sus respuestas legibles. */
   async getSubmission(id: string): Promise<EntitySubmission> {
     const { data } = await apiClient.request<SubmissionDetailApi>('core', `/public/submissions/${id}`, {
