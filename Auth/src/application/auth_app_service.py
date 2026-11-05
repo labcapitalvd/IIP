@@ -1,3 +1,5 @@
+import hmac
+import os
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -5,7 +7,9 @@ from uuid import UUID
 from domain import PermissionCompiler, TokenDomainService, UserDomainService
 from domain import (
     ActorNotFoundError,
+    AdminRegistrationDisabled,
     DefaultRoleDoesntExist,
+    InvalidAdminRegistrationKey,
     InvalidCredentials,
     TokenMalformed,
     UserInactive,
@@ -73,6 +77,50 @@ class AuthAppService:
                     phone=phone,
                     email_pro=email,
                 )
+
+            uow.users.add(user)
+            return user
+
+    async def register_admin(
+        self,
+        username: str,
+        email: str,
+        password: str,
+        registration_key: str,
+        contact_person: str | None = None,
+    ) -> User:
+        # Admin self-registration only exists where the operator opted in by
+        # setting ADMIN_REGISTRATION_KEY; without it the endpoint is closed.
+        expected_key = os.getenv("ADMIN_REGISTRATION_KEY", "")
+        if not expected_key:
+            raise AdminRegistrationDisabled()
+        if not hmac.compare_digest(registration_key.encode(), expected_key.encode()):
+            raise InvalidAdminRegistrationKey()
+
+        async with AuthUoW() as uow:
+            existing_user = await uow.users.get_by_username(
+                username
+            ) or await uow.users.get_by_email(email)
+            admin_tier = await uow.tiers.get_by_code("admin")
+
+            user = UserDomainService.register_user(
+                username=username,
+                email=email,
+                password=password,
+                existing_user=existing_user,
+                default_tier=admin_tier,
+            )
+            user.is_verified = True
+
+            admin_role = await uow.system_roles.get_by_code(
+                SystemRolesEnum.PLATFORM_ADMIN.code
+            )
+            if not admin_role:
+                raise DefaultRoleDoesntExist()
+            user.system_role_links.append(UserSystemRoleLink(system_role=admin_role))
+
+            if contact_person:
+                user.details = UserDetails(name=contact_person, email_pro=email)
 
             uow.users.add(user)
             return user

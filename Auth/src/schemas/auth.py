@@ -50,6 +50,33 @@ class RequestRegister(UsernameSchema, UserEmailSchema, UserPasswordSchema):
         return v
 
 
+class RequestRegisterAdmin(UsernameSchema, UserEmailSchema, UserPasswordSchema):
+    """Request body for registering a platform admin (gated by ADMIN_REGISTRATION_KEY)."""
+
+    registration_key: SecretStr = Field(
+        ...,
+        min_length=1,
+        max_length=256,
+        description="Must match the server's ADMIN_REGISTRATION_KEY.",
+    )
+    contact_person: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="Full name of the contact person for this account.",
+    )
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        return sanitize_text(v)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: EmailStr) -> str:
+        return sanitize_email(str(v))
+
+
 class RequestLogin(UsernameSchema, UserPasswordSchema):
     """Request body for logging in a user."""
 
