@@ -117,8 +117,8 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
           alert('Este formulario ya tiene respuestas, por lo que no se puede modificar.');
           return;
         }
-        // La fecha mostrada en el editor es la última confirmada por el servidor.
-        if (status) toEdit = { ...form, updated_at: status.updated_at };
+        // Se edita la última versión del servidor (pudo cambiar desde otro equipo).
+        if (status) toEdit = await coreService.getForm(status.id);
       } catch (err: any) {
         alert(err?.message || 'No se pudo verificar si el formulario tiene respuestas.');
         return;
@@ -137,12 +137,25 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
   };
 
   const handleDeleteForm = async (form: IIPForm) => {
-    const extraWarning =
-      form.is_synced_to_backend
-        ? ' Este formulario ya fue enviado al backend real y el backend no tiene DELETE /forms: seguirá existiendo allí, solo desaparece de esta lista local.'
-        : '';
+    const extraWarning = form.is_synced_to_backend
+      ? ' Se eliminará del servidor junto con sus asignaciones. Esta acción no se puede deshacer.'
+      : '';
     if (confirm(`¿Está seguro de eliminar el formulario "${form.label}"?${extraWarning}`)) {
-      await deleteForm(form.id);
+      try {
+        await deleteForm(form.id);
+      } catch (err: any) {
+        alert(err?.message || 'No se pudo eliminar el formulario.');
+      }
+    }
+  };
+
+  const handleDuplicateForm = async (form: IIPForm) => {
+    try {
+      await duplicateForm(form.id);
+    } catch (err: any) {
+      alert(
+        `${err?.message || 'No se pudo guardar la copia en el servidor.'} La copia quedó como borrador local: edítela y guárdela.`
+      );
     }
   };
 
@@ -303,7 +316,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        duplicateForm(form.id);
+                        handleDuplicateForm(form);
                       }}
                       className="p-1.5 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
                       title="Duplicar formulario"

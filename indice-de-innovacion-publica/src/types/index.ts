@@ -276,9 +276,8 @@ export interface IIPForm {
   is_active: boolean;
   sections: FormSection[];
   /**
-   * true una vez que este formulario ya fue enviado con éxito vía POST /forms al backend real.
-   * El backend no expone PUT /forms todavía: volver a guardar un formulario con este flag en true
-   * crea un registro NUEVO y duplicado en el servidor en vez de actualizar el existente.
+   * true si el formulario viene del backend (su `id` es el UUID del servidor).
+   * false = borrador que solo existe en este navegador hasta su primer guardado.
    */
   is_synced_to_backend?: boolean;
   /** Última actualización confirmada por el backend (ISO 8601). */
@@ -300,6 +299,79 @@ export interface FormStatus {
   label: string;
   updated_at: string;
   has_submissions: boolean;
+}
+
+// GET /public/forms — una fila por formulario guardado en el backend.
+export interface FormSummary extends FormStatus {
+  description: string | null;
+  year: number | null;
+  version: string | null;
+  is_active: boolean;
+}
+
+// GET /public/forms/{form_id} — mismo árbol que el cuerpo de POST /forms, con ids.
+export interface FieldChoiceTree {
+  id: string;
+  code: string;
+  label: string;
+  description: string | null;
+  display_order: number;
+}
+
+export interface FieldTree {
+  id: string;
+  code: string;
+  label: string;
+  description: string | null;
+  required: boolean;
+  field_type_code: string;
+  display_order: number;
+  allowed_file_type_codes: string[];
+  max_file_size: number | null;
+  field_choices: FieldChoiceTree[];
+}
+
+export interface QuestionTree {
+  id: string;
+  code: string;
+  label: string;
+  description: string | null;
+  helper: string | null;
+  required: boolean;
+  is_loop: boolean;
+  display_order: number;
+  depends_on: { question_id: string; expected_value: boolean } | null;
+  card_template: {
+    id: string;
+    code: string;
+    label: string;
+    description: string | null;
+    field_groups: {
+      id: string;
+      code: string;
+      label: string;
+      description: string | null;
+      display_order: number;
+      fields: FieldTree[];
+    }[];
+  } | null;
+}
+
+export interface SectionTree {
+  id: string;
+  code: string;
+  label: string;
+  description: string | null;
+  helper: string | null;
+  display_order: number;
+  section_type_code: string | null;
+  icon: string | null;
+  questions: QuestionTree[];
+  children: SectionTree[];
+}
+
+export interface FormTree extends FormSummary {
+  sections: SectionTree[];
 }
 
 // Submission Payload Types (matching POST /submissions/forms/{form_id})

@@ -51,7 +51,7 @@ interface AppContextType {
   createForm: (form: IIPForm) => Promise<void>;
   updateForm: (form: IIPForm) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
-  duplicateForm: (id: string) => void;
+  duplicateForm: (id: string) => Promise<void>;
   // User Management (Admin creates users for entities)
   createEntityUser: (payload: CreateEntityUserPayload) => Promise<AuthUser>;
   updateEntityUser: (id: string, updates: Partial<AuthUser>) => void;
@@ -86,6 +86,20 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Legacy key: it used to hold every form; now only never-saved drafts.
+const FORM_DRAFTS_KEY = 'iip_all_forms';
+const ACTIVE_FORM_KEY = 'iip_active_form_id';
+
+const readFormDrafts = (): IIPForm[] => {
+  try {
+    const saved = localStorage.getItem(FORM_DRAFTS_KEY);
+    const parsed = saved ? (JSON.parse(saved) as IIPForm[]) : [];
+    return parsed.filter((f) => !f.is_synced_to_backend).map(migrateForm);
+  } catch {
+    return [];
+  }
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<ApiConfig>(() => apiClient.getConfig());
   const [logs, setLogs] = useState<HttpLog[]>(() => apiClient.getLogs());
@@ -97,15 +111,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [actors, setActors] = useState<Actor[]>([]);
   const [segments, setSegments] = useState<ActorSegment[]>([]);
 
-  const [forms, setForms] = useState<IIPForm[]>(() => {
-    const saved = localStorage.getItem('iip_all_forms');
-    return (saved ? (JSON.parse(saved) as IIPForm[]) : [IIP_DEFAULT_FORM]).map(migrateForm);
+  // Forms live in the backend and are loaded by refreshData(). Only drafts that
+  // were never saved to the server (is_synced_to_backend = false) stay in this
+  // browser, so a new form isn't lost before its first save.
+  const [forms, setForms] = useState<IIPForm[]>(readFormDrafts);
+
+  const [activeFormId, setActiveFormId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_FORM_KEY);
+    } catch {
+      return null;
+    }
   });
 
-  const [activeForm, setActiveForm] = useState<IIPForm>(() => {
-    const saved = localStorage.getItem('iip_active_form');
-    return migrateForm(saved ? (JSON.parse(saved) as IIPForm) : IIP_DEFAULT_FORM);
-  });
+  // Placeholder template only while the backend has no forms yet.
+  const activeForm = forms.find((f) => f.id === activeFormId) ?? forms[0] ?? IIP_DEFAULT_FORM;
 
   const [users, setUsers] = useState<AuthUser[]>(() => {
     const saved = localStorage.getItem('iip_all_users');
@@ -134,12 +154,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Save changes to localStorage
   useEffect(() => {
-    localStorage.setItem('iip_all_forms', JSON.stringify(forms));
+    try {
+      localStorage.setItem(
+        FORM_DRAFTS_KEY,
+        JSON.stringify(forms.filter((f) => !f.is_synced_to_backend))
+      );
+    } catch {
+      // Storage unavailable (private mode, quota): drafts just won't survive a reload.
+    }
   }, [forms]);
 
   useEffect(() => {
-    localStorage.setItem('iip_active_form', JSON.stringify(activeForm));
-  }, [activeForm]);
+    try {
+      if (activeFormId) localStorage.setItem(ACTIVE_FORM_KEY, activeFormId);
+    } catch {
+      // Remembering the selection is only a convenience.
+    }
+  }, [activeFormId]);
 
   useEffect(() => {
     localStorage.setItem('iip_all_users', JSON.stringify(users));
@@ -165,12 +196,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [fetchedActors, fetchedSegments] = await Promise.all([
+      const [fetchedActors, fetchedSegments, fetchedForms] = await Promise.all([
         coreService.getActors().catch(() => [] as Actor[]),
         coreService.getSegments().catch(() => [] as ActorSegment[]),
+        coreService
+          .listForms()
+          .then((list) => Promise.all(list.map((f) => coreService.getForm(f.id))))
+          .catch((err) => {
+            console.error('No se pudieron cargar los formularios del servidor:', err);
+            return null;
+          }),
       ]);
       setActors(fetchedActors);
       setSegments(fetchedSegments);
+      if (fetchedForms) {
+        const serverCodes = new Set(fetchedForms.map((f) => f.code));
+        setForms((prev) => [
+          ...fetchedForms,
+          ...prev.filter((f) => !f.is_synced_to_backend && !serverCodes.has(f.code)),
+        ]);
+      }
     } finally {
       setIsLoadingData(false);
     }
@@ -228,11 +273,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Forms Management
   const setActiveFormById = useCallback((formId: string) => {
-    const found = forms.find((f) => f.id === formId);
-    if (found) {
-      setActiveForm(found);
-    }
-  }, [forms]);
+    setActiveFormId(formId);
+  }, []);
 
   /**
    * Guarda en el backend: PUT si el formulario ya existe allí (por código), POST si no.
@@ -241,36 +283,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveFormDefinition = async (form: IIPForm): Promise<IIPForm> => {
     const normalized = normalizeCodes(form);
     const existing = await coreService.getFormStatus(normalized.code);
-    let updatedAt: string | undefined;
     if (existing && !form.is_synced_to_backend) {
       // Formulario nuevo (local) cuyo código ya existe en el servidor: no se sobrescribe en silencio.
       throw new Error(
         `Ya existe en el servidor un formulario con el código "${normalized.code}". Use otro código para este formulario.`
       );
     }
+    let savedId: string;
     if (existing) {
       if (existing.has_submissions) throw new FormHasSubmissionsError();
       try {
-        updatedAt = (await coreService.updateForm(existing.id, normalized)).updated_at;
+        savedId = (await coreService.updateForm(existing.id, normalized)).id;
       } catch (err: any) {
         throw err?.data?.code === 'FORM_HAS_SUBMISSIONS_ERROR' ? new FormHasSubmissionsError() : err;
       }
     } else {
-      updatedAt = (await coreService.createForm(normalized)).updated_at;
+      savedId = (await coreService.createForm(normalized)).id;
     }
-    const savedForm: IIPForm = {
-      ...normalized,
-      is_synced_to_backend: true,
-      updated_at: updatedAt ?? new Date().toISOString(),
-    };
-    const nextForms = forms.some((f) => f.id === savedForm.id)
-      ? forms.map((f) => (f.id === savedForm.id ? savedForm : f))
-      : [savedForm, ...forms];
-    // Persistir ya mismo: tras guardar la pantalla se recarga y no debe perderse nada.
-    localStorage.setItem('iip_all_forms', JSON.stringify(nextForms));
-    localStorage.setItem('iip_active_form', JSON.stringify(savedForm));
-    setActiveForm(savedForm);
-    setForms(nextForms);
+    // Re-read what the server stored: a PUT rebuilds the tree, so section,
+    // question and field ids change, and submissions must use the new ones.
+    const savedForm = await coreService.getForm(savedId);
+    setForms((prev) => [savedForm, ...prev.filter((f) => f.id !== form.id && f.id !== savedForm.id)]);
+    setActiveFormId(savedForm.id);
     return savedForm;
   };
 
@@ -283,30 +317,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteForm = async (id: string) => {
-    setForms((prev) => prev.filter((f) => f.id !== id));
-    if (activeForm.id === id) {
-      const remaining = forms.filter((f) => f.id !== id);
-      if (remaining.length > 0) {
-        setActiveForm(remaining[0]);
+    const target = forms.find((f) => f.id === id);
+    if (target?.is_synced_to_backend) {
+      try {
+        await coreService.deleteForm(id);
+      } catch (err: any) {
+        throw err?.data?.code === 'FORM_HAS_SUBMISSIONS_ERROR' ? new FormHasSubmissionsError() : err;
       }
     }
+    setForms((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const duplicateForm = useCallback((id: string) => {
+  /** Copia el formulario y la guarda en el servidor; si falla, queda como borrador local. */
+  const duplicateForm = async (id: string) => {
     const base = forms.find((f) => f.id === id);
     if (!base) return;
 
     const newForm: IIPForm = {
       ...JSON.parse(JSON.stringify(base)),
       id: `form-iip-${Date.now()}`,
-      code: `${base.code}_COPIA_${new Date().getFullYear()}`,
+      code: `${base.code}_COPIA_${new Date().getFullYear()}`.slice(0, 50),
       label: `${base.label} (Copia)`,
       version: `${base.version}.1`,
       is_active: false,
+      is_synced_to_backend: false,
+      updated_at: null,
     };
 
     setForms((prev) => [newForm, ...prev]);
-  }, [forms]);
+    await saveFormDefinition(newForm);
+  };
 
   // User Management for Entities
   const createEntityUser = async (payload: CreateEntityUserPayload): Promise<AuthUser> => {
