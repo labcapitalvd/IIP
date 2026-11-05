@@ -91,6 +91,11 @@ class FormStructureConflictError(FormError):
     status_code = 409  # Conflict
     message = "Duplicate codes were found within the submitted form structure."
 
+class FormForbiddenError(FormError):
+    status_code = 403
+    message = "Only an administrator can delete forms."
+
+
 class AssignmentForbiddenError(FormError):
     status_code = 403
     message = "Only an administrator can assign forms."

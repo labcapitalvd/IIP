@@ -11,7 +11,7 @@ from shared.db import (
     column_short_text,
     column_updated_at,
 )
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Index, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, relationship
 
 from .targets import TargetTable
@@ -189,6 +189,9 @@ class Form(Base):
     code: Mapped[str] = column_short_text(length=50, unique=True)
     label: Mapped[str] = column_short_text(length=255)
     description: Mapped[str | None] = column_long_text(nullable=True)
+    year: Mapped[int | None] = column_integer(nullable=True)
+    version: Mapped[str | None] = column_short_text(length=20, nullable=True)
+    is_active: Mapped[bool] = column_bool(default=True, server_default=text("true"))
     updated_at: Mapped[datetime] = column_updated_at()
 
     sections: Mapped[List["Section"]] = relationship("Section", back_populates="form")

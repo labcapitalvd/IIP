@@ -9,6 +9,8 @@ from schemas.forms import (
     ResponseFileType,
     ResponseFormCreate,
     ResponseFormStatus,
+    ResponseFormSummary,
+    ResponseFormTree,
 )
 
 router = APIRouter(tags=["Forms"], prefix="/forms")
@@ -86,6 +88,56 @@ async def get_form_status(
 ):
     get_claims(token=ctx.access_token)
     return await service.get_form_status(code=code)
+
+
+@router.get(
+    "",
+    response_model=list[ResponseFormSummary],
+    operation_id="list_forms",
+    summary="Lista de formularios",
+    description="Todos los formularios guardados en el backend, más recientes primero.",
+)
+async def list_forms(
+    ctx: AccessContext = Depends(),
+    service: FormAppService = Depends(get_form_service),
+):
+    get_claims(token=ctx.access_token)
+    return await service.list_forms()
+
+
+@router.get(
+    "/{form_id}",
+    response_model=ResponseFormTree,
+    operation_id="get_form",
+    summary="Formulario completo",
+    description="Árbol completo del formulario (mismo formato que la creación, con ids).",
+)
+async def get_form(
+    form_id: UUID = Path(...),
+    ctx: AccessContext = Depends(),
+    service: FormAppService = Depends(get_form_service),
+):
+    get_claims(token=ctx.access_token)
+    return await service.get_form(form_id=form_id)
+
+
+@router.delete(
+    "/{form_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="delete_form",
+    summary="Eliminar un formulario",
+    description="""
+    Solo administradores. Se rechaza con 409 `FORM_HAS_SUBMISSIONS_ERROR` si el
+    formulario ya tiene respuestas. Sus asignaciones se eliminan en cascada.
+    """,
+)
+async def delete_form(
+    form_id: UUID = Path(...),
+    ctx: AccessContext = Depends(),
+    service: FormAppService = Depends(get_form_service),
+):
+    claims = get_claims(token=ctx.access_token)
+    await service.delete_form(form_id=form_id, user_id=UUID(str(claims["sub"])))
 
 
 @router.put(

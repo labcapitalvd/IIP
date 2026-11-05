@@ -1,11 +1,15 @@
 import {
   CardTemplate,
   FieldChoice,
+  FieldTree,
   FormField,
   FormQuestion,
   FormSection,
+  FormTree,
   IIPForm,
   QuestionKind,
+  QuestionTree,
+  SectionTree,
 } from '../types';
 
 /**
@@ -320,8 +324,83 @@ export const toCreateFormRequest = (form: IIPForm) => {
     code: form.code,
     label: form.label,
     description: form.description,
+    year: form.year || null,
+    version: form.version || null,
+    is_active: form.is_active,
     sections: form.sections.map((v, i) => sectionReq(v, i, 'V')),
   };
+};
+
+const FIELD_TYPE_UI: Record<string, FormField['field_type_code']> = {
+  single_choice: 'singlechoice',
+  multi_choice: 'multichoice',
+};
+
+/** Árbol de GET /public/forms/{id} → IIPForm. Inverso de toCreateFormRequest. */
+export const fromFormTree = (tree: FormTree): IIPForm => {
+  const field = (f: FieldTree): FormField => {
+    const type = FIELD_TYPE_UI[f.field_type_code] ?? (f.field_type_code as FormField['field_type_code']);
+    return {
+      id: f.id,
+      code: f.code,
+      label: f.label,
+      field_type_id: `ft-${type}`,
+      field_type_code: type,
+      is_required: f.required,
+      help_text: f.description ?? undefined,
+      choices: isChoiceType(type) ? f.field_choices.map((c) => ({ id: c.id, code: c.code, label: c.label })) : undefined,
+      allowed_file_types: type === 'file' ? f.allowed_file_type_codes : undefined,
+      max_file_size: type === 'file' ? (f.max_file_size ?? DEFAULT_MAX_FILE_SIZE) : undefined,
+    };
+  };
+
+  const question = (q: QuestionTree, i: number): FormQuestion => {
+    const groups = q.card_template?.field_groups ?? [];
+    const firstType = groups[0]?.fields[0] ? field(groups[0].fields[0]).field_type_code : 'text';
+    return {
+      id: q.id,
+      code: q.code,
+      label: q.label,
+      description: q.description,
+      help_text: q.helper ?? '',
+      order_index: i + 1,
+      question_kind: q.is_loop ? 'loop' : fieldTypeToKind(firstType),
+      is_required: q.required,
+      depends_on: q.depends_on ? { question_id: q.depends_on.question_id, value: q.depends_on.expected_value } : null,
+      card_template: {
+        id: q.card_template?.id ?? uid('ct'),
+        code: q.card_template?.code ?? `CT_${q.code}`,
+        label: q.card_template?.label ?? q.label,
+        is_repeatable: q.is_loop,
+        field_groups: groups.map((g) => ({ id: g.id, code: g.code, label: g.label, fields: g.fields.map(field) })),
+      },
+    };
+  };
+
+  const section = (s: SectionTree, i: number): FormSection => ({
+    id: s.id,
+    code: s.code,
+    label: s.label,
+    description: s.description ?? '',
+    help_text: s.helper ?? '',
+    order_index: i + 1,
+    icon_name: s.icon ?? undefined,
+    questions: s.questions.map(question),
+    children: s.children.length ? s.children.map(section) : undefined,
+  });
+
+  return migrateForm({
+    id: tree.id,
+    code: tree.code,
+    label: tree.label,
+    description: tree.description,
+    year: tree.year ?? new Date(tree.updated_at).getFullYear(),
+    version: tree.version ?? '1.0',
+    is_active: tree.is_active,
+    sections: tree.sections.map(section),
+    is_synced_to_backend: true,
+    updated_at: tree.updated_at,
+  });
 };
 
 /**
