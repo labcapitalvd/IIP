@@ -17,10 +17,10 @@ import {
 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
-  const { login, register, isLoading, error, clearError } = useAuth();
+  const { login, register, registerAdmin, isLoading, error, clearError } = useAuth();
   const { actors } = useApp();
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'admin'>('login');
 
   // Login Form State
   const [loginUsername, setLoginUsername] = useState('');
@@ -33,6 +33,14 @@ export const LoginView: React.FC = () => {
   const [regActorId, setRegActorId] = useState(actors[0]?.id || 'act-001');
   const [regContactPerson, setRegContactPerson] = useState('');
   const [regPhone, setRegPhone] = useState('');
+
+  // Admin Register Form State
+  const [admUsername, setAdmUsername] = useState('');
+  const [admEmail, setAdmEmail] = useState('');
+  const [admPassword, setAdmPassword] = useState('');
+  const [admPasswordConfirm, setAdmPasswordConfirm] = useState('');
+  const [admContactPerson, setAdmContactPerson] = useState('');
+  const [admKey, setAdmKey] = useState('');
 
   const [registrationSuccess, setRegistrationSuccess] = useState<{
     username: string;
@@ -111,6 +119,68 @@ export const LoginView: React.FC = () => {
       setRegPassword('');
       setRegContactPerson('');
       setRegPhone('');
+    } catch (err: any) {
+      // Handled via context or error message
+    }
+  };
+
+  const handleAdminRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+    setFormError(null);
+    setRegistrationSuccess(null);
+
+    if (!admUsername.trim() || !admEmail.trim() || !admPassword || !admKey.trim()) {
+      setFormError('Por favor complete todos los campos obligatorios.');
+      return;
+    }
+
+    // Same Pydantic constraints as the regular registration form.
+    if (admUsername.trim().length < 4 || admUsername.trim().length > 128) {
+      setFormError('El usuario debe tener entre 4 y 128 caracteres.');
+      return;
+    }
+
+    if (admEmail.trim().length < 8 || admEmail.trim().length > 256) {
+      setFormError('Ingrese un correo electrónico válido.');
+      return;
+    }
+
+    if (admPassword.length < 8 || admPassword.length > 128) {
+      setFormError('La contraseña debe tener entre 8 y 128 caracteres.');
+      return;
+    }
+
+    if (admPassword !== admPasswordConfirm) {
+      setFormError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    try {
+      await registerAdmin({
+        username: admUsername.trim(),
+        email: admEmail.trim(),
+        password: admPassword,
+        registration_key: admKey.trim(),
+        contact_person: admContactPerson.trim() || undefined,
+      });
+
+      setRegistrationSuccess({
+        username: admUsername.trim(),
+        actorLabel: 'la administración de la plataforma',
+      });
+
+      // Jump straight to login with the new admin's username pre-filled
+      setLoginUsername(admUsername.trim());
+      setLoginPassword('');
+      setMode('login');
+
+      setAdmUsername('');
+      setAdmEmail('');
+      setAdmPassword('');
+      setAdmPasswordConfirm('');
+      setAdmContactPerson('');
+      setAdmKey('');
     } catch (err: any) {
       // Handled via context or error message
     }
@@ -199,6 +269,22 @@ export const LoginView: React.FC = () => {
             >
               Registrarse
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('admin');
+                clearError();
+                setFormError(null);
+                setRegistrationSuccess(null);
+              }}
+              className={`flex-1 py-2 rounded-xl font-bold transition-all text-center ${
+                mode === 'admin'
+                  ? 'bg-amber-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Administrador
+            </button>
           </div>
 
           {/* Success Banner after registration */}
@@ -278,6 +364,141 @@ export const LoginView: React.FC = () => {
                   </>
                 )}
               </button>
+            </form>
+          ) : mode === 'admin' ? (
+            /* ADMIN REGISTRATION FORM (protegido por la clave ADMIN_REGISTRATION_KEY del servidor) */
+            <form onSubmit={handleAdminRegisterSubmit} className="space-y-3.5">
+              <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-[11px] text-sky-300 flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-sky-400" />
+                <div className="leading-relaxed">
+                  <strong>Registro de administrador:</strong> Requiere la clave de registro configurada en el servidor. La cuenta queda activa con permisos de administrador de la plataforma.
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Usuario <span className="text-amber-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={admUsername}
+                      onChange={(e) => setAdmUsername(e.target.value)}
+                      placeholder="ej. admin.veeduria"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">Nombre</label>
+                  <input
+                    type="text"
+                    value={admContactPerson}
+                    onChange={(e) => setAdmContactPerson(e.target.value)}
+                    placeholder="Ej. Juan Pérez"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Correo Electrónico <span className="text-amber-400">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={admEmail}
+                    onChange={(e) => setAdmEmail(e.target.value)}
+                    placeholder="admin@veeduria.gov.co"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Contraseña <span className="text-amber-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      value={admPassword}
+                      onChange={(e) => setAdmPassword(e.target.value)}
+                      placeholder="Mínimo 8 caracteres"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Confirmar Contraseña <span className="text-amber-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      value={admPasswordConfirm}
+                      onChange={(e) => setAdmPasswordConfirm(e.target.value)}
+                      placeholder="Repita la contraseña"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Clave de Registro de Administrador <span className="text-amber-400">*</span>
+                </label>
+                <div className="relative">
+                  <ShieldCheck className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    value={admKey}
+                    onChange={(e) => setAdmKey(e.target.value)}
+                    placeholder="Clave entregada por el equipo técnico"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+              >
+                {isLoading ? (
+                  <span>Creando administrador...</span>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Registrar Administrador</span>
+                  </>
+                )}
+              </button>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-semibold"
+                >
+                  ¿Ya tiene una cuenta? Iniciar sesión
+                </button>
+              </div>
             </form>
           ) : (
             /* REGISTRATION FORM (Auto-registro de usuarios de entidades con aprobación requerida) */

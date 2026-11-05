@@ -60,6 +60,20 @@ class DefaultRoleDoesntExist(AuthError):
     message = "Default system role not found, cannot register user."
 
 
+class AdminRegistrationDisabled(AuthError):
+    """ADMIN_REGISTRATION_KEY is not configured, so admin self-registration is off."""
+
+    status_code = 403
+    message = "Admin registration is disabled."
+
+
+class InvalidAdminRegistrationKey(AuthError):
+    """The registration key sent doesn't match ADMIN_REGISTRATION_KEY."""
+
+    status_code = 403
+    message = "Invalid admin registration key."
+
+
 # -----------------------------------------------------------------------------
 # Token-Specific Domain Errors
 # -----------------------------------------------------------------------------

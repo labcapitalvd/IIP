@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from application import AuthAppService
-from schemas.auth import RequestRegister, RequestLogin, ResponseMe
+from schemas.auth import RequestRegister, RequestRegisterAdmin, RequestLogin, ResponseMe
 
 
 from shared.schemas import ResponseAuthSchema, ResponseMessageSchema
@@ -34,6 +34,27 @@ async def register(
         actor_id=form.actor_id,
         contact_person=form.contact_person,
         phone=form.phone,
+    )
+    return ResponseMessageSchema(message="ok")
+
+
+@router.post(
+    "/register-admin",
+    response_model=ResponseMessageSchema,
+    response_model_exclude_none=True,
+    operation_id="register_admin",
+)
+async def register_admin(
+        form: RequestRegisterAdmin,
+        service: AuthAppService = Depends(get_auth_service)
+        ):
+    """Registers a platform admin. Requires the server's ADMIN_REGISTRATION_KEY."""
+    await service.register_admin(
+        form.username,
+        form.email,
+        form.password.get_secret_value(),
+        registration_key=form.registration_key.get_secret_value(),
+        contact_person=form.contact_person,
     )
     return ResponseMessageSchema(message="ok")
 
