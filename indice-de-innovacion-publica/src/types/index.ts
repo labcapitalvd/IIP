@@ -250,6 +250,10 @@ export interface FormQuestion {
   question_kind?: QuestionKind;
   is_required?: boolean;
   depends_on?: QuestionDependency | null;
+  /** Peso en la calificación manual (puntos sobre 100 en todo el formulario). */
+  weight?: number;
+  /** Guía para el calificador: qué verificar para puntuar esta pregunta. */
+  grading_guide?: string;
   card_template: CardTemplate;
 }
 
@@ -261,7 +265,11 @@ export interface FormSection {
   help_text?: string;
   order_index: number;
   icon_name?: string;
-  /** En una Variable (sección raíz): sus Indicadores. */
+  /**
+   * Jerarquía: Componente (raíz) → Variable → Indicador → Preguntas.
+   * `children` son las Variables de un Componente o los Indicadores de una Variable;
+   * solo los Indicadores tienen `questions`.
+   */
   children?: FormSection[];
   questions?: FormQuestion[];
 }
@@ -340,6 +348,8 @@ export interface QuestionTree {
   required: boolean;
   is_loop: boolean;
   display_order: number;
+  weight?: number;
+  grading_guide?: string | null;
   depends_on: { question_id: string; expected_value: boolean } | null;
   card_template: {
     id: string;

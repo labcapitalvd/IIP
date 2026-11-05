@@ -262,6 +262,34 @@ Despliegue: `docker compose build base && docker compose build core frontend && 
 
 ---
 
+## 2026-11-05 — Jerarquía Componente → Variable → Indicador → Pregunta, con pesos
+
+La BD ya modelaba `forms.section_types` = `C` (Componente), `V` (Variable), `I` (Indicador) y `grading.criteria` (peso por pregunta), y el formulario 2019 está cargado así (4 C / 12 V / 27 I / 43 preguntas). Pero la app solo manejaba Variable → Indicador y **no guardaba el peso de las preguntas**.
+
+Backend (`Core`):
+- `CreateQuestionRequest.weight` (0–100, 2 decimales) y `grading_guide` (guía para el calificador). Se guardan como un `grading.criteria` por pregunta (`CRIT_<código>`, `weight`, `description` = guía, `max_score` 5 por defecto). `GET /forms/{id}` devuelve `weight` (suma de sus criterios) y `grading_guide` en cada pregunta.
+- Validación de jerarquía en crear y actualizar (`422 FORM_HIERARCHY_ERROR`): raíz = Componente, hijo de Componente = Variable, hijo de Variable = Indicador; solo los Indicadores tienen preguntas (≥1); Componentes y Variables necesitan ≥1 hijo; el tipo se fija por nivel (si el cliente manda `section_type_code`, debe coincidir; `section_type_id` ya no se acepta en formularios).
+- El `PUT` recrea las preguntas y, con ellas, sus criterios (los pesos viajan en el mismo cuerpo).
+- No requiere migración.
+
+Frontend:
+- `utils/formTree.ts`: tres niveles (`newComponent`, `getVariables`, `getIndicators`, conteos), códigos `C1`, `C1_V1`, `C1_V1_I1`, y utilidades de pesos (`sectionWeight`, `formWeight`, `scaleWeightsTo100`, `distributeWeightsEvenly`). `migrateForm` envuelve en un «Componente 1» los formularios de la forma anterior (Variable raíz) y migra la plantilla antigua; es idempotente.
+- Constructor (`FormBuilderModal`): árbol con 3 niveles (agregar/mover/eliminar componentes, variables e indicadores), cada nodo muestra la suma de sus pesos; cada pregunta tiene **peso** y **guía de calificación**; barra superior con el total y los botones «Escalar a 100» (mantiene proporciones) y «Repartir en partes iguales».
+- **Guardar exige que los pesos sumen exactamente 100** (con 2 decimales) y que cada peso esté en 0–100.
+- `FormTreeView` y `FormsManager` muestran los tres niveles, pesos y guías (la lista marca ⚠ si no suman 100).
+- Portal de entidades: `flattenForEntity` toma las Variables de todos los Componentes (sin cambios visibles para la entidad; no ve pesos ni guías en la práctica).
+
+Verificado: backend en local (rechaza raíz Variable, preguntas en un Componente, indicador con hijos, tipo declarado incorrecto y peso > 100; crea con 2 componentes y pesos, `PUT` cambia pesos, `GET` los devuelve); utilidades del frontend (19 comprobaciones: migración, escalado, validaciones, portal de entidad); y ida y vuelta real **frontend → `POST` → servidor → `GET` → `fromFormTree` → `toCreateFormRequest` idéntica**, con suma 100. `tsc --noEmit` limpio. **No probado con clics en el navegador.**
+
+Cuidado con datos existentes:
+- Formularios cargados por el populator: 2019 suma 99.99, 2021 suma 100, 2023 suma 292.88 (179 criterios para 39 preguntas, varios por pregunta) y 2025 suma 0. Al abrirlos en el constructor hay que usar «Escalar a 100» antes de guardar.
+- El constructor maneja **un criterio por pregunta**: si una pregunta tenía varios (2023), al guardar se reemplazan por uno solo con la suma de sus pesos y la primera guía.
+- `IIP_20_V1` (formulario de prueba con raíz Variable) se muestra envuelto en un Componente 1 y se guarda ya con la nueva jerarquía.
+
+Despliegue: `docker compose build base && docker compose build core frontend && docker compose up -d --no-deps core frontend`; sin migración.
+
+---
+
 ## Pendientes / gaps conocidos (no resueltos en esta sesión)
 
 Cosas encontradas durante la revisión que quedan documentadas para no perderlas de vista:
