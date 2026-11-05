@@ -136,3 +136,8 @@ class SubmissionAlreadySubmittedError(SubmissionError):
 class SubmissionInvalidError(SubmissionError):
     status_code = 422
     message = "The submitted answers do not match the form."
+
+
+class SubmissionNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The submission could not be found."

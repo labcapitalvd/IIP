@@ -21,6 +21,7 @@ from domain.services.errors import (
     AssignmentNotFoundError,
     AssignmentTargetNotFoundError,
 )
+from ._access import is_admin
 from schemas.assignments import (
     RequestAssignForm,
     ResponseAssignment,
@@ -36,17 +37,7 @@ class AssignmentAppService:
 
     @staticmethod
     async def _require_admin(session, requester_id: UUID) -> None:
-        is_admin = await session.scalar(
-            select(UserSystemRoleLink.id)
-            .join(UserSystemRoleLink.system_role)
-            .where(
-                UserSystemRoleLink.user_id == requester_id,
-                UserSystemRoleLink.system_role.has(
-                    code=SystemRolesEnum.PLATFORM_ADMIN.code
-                ),
-            )
-        )
-        if not is_admin:
+        if not await is_admin(session, requester_id):
             raise AssignmentForbiddenError()
 
     @staticmethod

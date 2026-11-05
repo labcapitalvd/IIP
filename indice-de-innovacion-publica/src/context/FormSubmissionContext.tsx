@@ -431,10 +431,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         actor_id: targetActor?.id || 'act-001',
         actor_label: targetActor?.label || user?.actor_label || 'Entidad Pública',
         actor_segment_label: targetSegment?.label || 'Nivel Central',
-        submitted_by: user?.username || 'usuario.entidad',
         submitted_at: new Date().toISOString(),
         status: 'submitted',
-        score: Math.min(100, Math.max(50, Math.round(progress * 0.95 + Math.random() * 5))),
         completion_percentage: 100,
         payload,
         raw_answers: { ...answers },
@@ -442,13 +440,14 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       };
 
       addSubmission(newSubmission);
-      const radNumber = `RAD-IIP-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      // El radicado es el id que asignó el servidor (no se inventa un número local).
+      const radNumber = `RAD-${newSubmission.id.slice(0, 8).toUpperCase()}`;
       completeAssignmentSubmission(
         newSubmission.actor_id,
         activeForm.id,
         newSubmission.id,
         radNumber,
-        newSubmission.score || 85
+        newSubmission.score
       );
 
       setLastSubmittedId(newSubmission.id);

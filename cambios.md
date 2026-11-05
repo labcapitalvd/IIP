@@ -243,6 +243,25 @@ Despliegue: cambió `Packages/shared`, así que hay que reconstruir **en este or
 
 ---
 
+## 2026-11-05 — Envíos (radicados) leídos desde el servidor
+
+Antes la lista que veía el admin (`submissions`) vivía en `localStorage` (`iip_submissions`) y el monitor mostraba solo lo radicado en ese navegador. Además el puntaje (`Math.random()`), el número de radicado (`RAD-IIP-…` aleatorio) y varios textos (`?? 85.0`, «Nivel: Innovación Avanzada») eran inventados.
+
+Backend (`Core`):
+- `GET /public/submissions` → lista de radicados (id, formulario, entidad, segmento, estado, fecha, `answer_count`, `card_count`). **Admin: todos; entidad: solo los de su entidad**; un usuario sin entidad recibe `[]`.
+- `GET /public/submissions/{id}` → detalle con respuestas legibles: por campo `field_label`, `question_label`, `value` crudo y `display` (etiqueta de la opción, «Sí/No», nombre del archivo, lista de opciones) y las tarjetas de bucle con sus respuestas. Un radicado ajeno responde `404` (no revela que existe).
+- `application/_access.py::is_admin` compartido (lo usan asignaciones y envíos).
+- `Submission` no guarda qué usuario radicó, solo la entidad: por eso `submitted_by` pasó a opcional y las vistas muestran «—».
+- No hay cambio de estado (aprobar/rechazar) todavía: el `updateSubmissionStatus` local no lo usaba ninguna pantalla y se eliminó.
+
+Frontend: `coreService.listSubmissions/getSubmission`; `AppContext` carga la lista en `refreshData()` (sin borradores) y `loadSubmissionDetail(id)` trae las respuestas al inspeccionar. `SubmissionsMonitor` y `SubmissionsHistoryView` piden el detalle al seleccionar y muestran etiquetas en vez de ids. `iip_submissions` ya no existe en `localStorage`. El radicado mostrado es `RAD-` + 8 primeros caracteres del id del servidor. Sin calificación en el backend (`Result.final_score` sigue sin lógica), el puntaje queda «Sin calificar» en vez de un número falso; el promedio del dashboard solo cuenta radicados con puntaje.
+
+Verificado en local: la entidad ve solo el suyo (10 respuestas, 2 tarjetas), el admin ve los 179 (178 del populator + el de prueba), detalle con etiquetas/opciones/Sí-No, 404 para id inexistente y para un usuario sin entidad. `tsc --noEmit` limpio. **No probado con clics en el navegador.**
+
+Despliegue: `docker compose build base && docker compose build core frontend && docker compose up -d --no-deps core frontend`; sin migración.
+
+---
+
 ## Pendientes / gaps conocidos (no resueltos en esta sesión)
 
 Cosas encontradas durante la revisión que quedan documentadas para no perderlas de vista:
@@ -250,7 +269,7 @@ Cosas encontradas durante la revisión que quedan documentadas para no perderlas
 - **Siguiente paso acordado — persistir el resto del admin en BD** (mismo problema que tenían los formularios, ver sesión 2026-11-04 §4):
   - ~~**Usuarios de entidad**~~ (resuelto 2026-11-05): `createEntityUser` / `updateEntityUser` / `deleteEntityUser` en `AppContext.tsx` solo tocan `localStorage`. Crear puede usar el `POST /auth/register` existente (ya acepta `actor_id`); falta un endpoint para listarlos (y editar/desactivar).
   - ~~**Asignaciones**~~ (resuelto 2026-11-05): `createAssignment` / `batchAssignForm` / `removeAssignment` / `updateAssignmentProgress` son locales. Existe `POST /forms/assignments` y `GET /forms/assignments/me`; faltan listar (admin) y eliminar.
-  - **Envíos**: las respuestas sí se mandan (`POST /submissions/forms/{id}`), pero la lista que ve el admin (`submissions`, `addSubmission`, `updateSubmissionStatus`) es local; falta endpoint de listado.
+  - ~~**Envíos**~~ (resuelto 2026-11-05): las respuestas sí se mandan (`POST /submissions/forms/{id}`), pero la lista que ve el admin (`submissions`, `addSubmission`, `updateSubmissionStatus`) es local; falta endpoint de listado.
   - Al terminar, en `localStorage` debería quedar solo el borrador de respuestas en curso (`FormSubmissionContext`).
 - **Workflow de despliegue** (`.github/workflows/deploy-production.yml`): debe reconstruir `base` antes que `auth`/`core`, correr `alembic upgrade head`, y conviene agregar `restart: unless-stopped` a `auth` y `core` en `compose.yaml`. Causa directa del 502 de la sesión 2026-11-04 §3.
 - **Datos del populator incompletos**: 6 scripts fallan (`11a_seed_section_types`: UUID no v7; `11g_seed_card_templates` / `11g_seed_field_groups`: dependencias faltantes; `12a`/`12b`: `load_instrument` no existe; `13a_seed_grading_criteria`: columnas `Bucle 2019`/`Pregunta 2019` faltantes en la hoja). Resultado: los formularios 2019–2027 se crean **sin preguntas**, y `15a_seed_submissions` no encuentra varias entidades.

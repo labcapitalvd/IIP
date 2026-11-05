@@ -6,6 +6,7 @@ import {
   ActorSegmentCreatePayload,
   EntityAssignment,
   FormAssignment,
+  EntitySubmission,
   FileTypeInfo,
   FormStatus,
   FormSummary,
@@ -14,6 +15,91 @@ import {
   SubmissionItem,
 } from '../types';
 import { fromFormTree, toCreateFormRequest } from '../utils/formTree';
+
+interface SubmissionSummaryApi {
+  id: string;
+  form_id: string;
+  form_code: string;
+  form_label: string;
+  actor_id: string;
+  actor_label: string;
+  actor_segment_label?: string;
+  status: string;
+  updated_at: string;
+  answer_count: number;
+  card_count: number;
+}
+
+interface AnswerApi {
+  field_id: string;
+  field_label: string;
+  value?: unknown;
+  display: string;
+}
+
+interface SubmissionDetailApi extends SubmissionSummaryApi {
+  answers: AnswerApi[];
+  cards: Array<{
+    id: string;
+    question_id: string;
+    title: string;
+    card_index: number;
+    answers: AnswerApi[];
+  }>;
+}
+
+const mapSubmissionSummary = (s: SubmissionSummaryApi): EntitySubmission => ({
+  id: s.id,
+  form_id: s.form_id,
+  form_code: s.form_code,
+  form_title: s.form_label,
+  actor_id: s.actor_id,
+  actor_label: s.actor_label,
+  actor_segment_label: s.actor_segment_label,
+  submitted_at: s.updated_at,
+  status:
+    s.status === 'draft'
+      ? 'draft'
+      : s.status === 'approved' || s.status === 'rejected'
+        ? s.status
+        : 'submitted',
+  status_code: s.status,
+  completion_percentage: s.status === 'draft' ? 50 : 100,
+  answer_count: s.answer_count,
+  card_count: s.card_count,
+  payload: [],
+  raw_answers: {},
+});
+
+const mapSubmissionDetail = (d: SubmissionDetailApi): EntitySubmission => {
+  const field_labels: Record<string, string> = {};
+  const display_values: Record<string, string> = {};
+  const raw_answers: Record<string, any> = {};
+  d.answers.forEach((a) => {
+    field_labels[a.field_id] = a.field_label;
+    display_values[a.field_id] = a.display;
+    raw_answers[a.field_id] = a.value;
+  });
+  const card_entries: NonNullable<EntitySubmission['card_entries']> = {};
+  d.cards.forEach((c) => {
+    const answers: Record<string, any> = {};
+    const display: Record<string, string> = {};
+    c.answers.forEach((a) => {
+      field_labels[a.field_id] = a.field_label;
+      answers[a.field_id] = a.value;
+      display[a.field_id] = a.display;
+    });
+    (card_entries[c.question_id] ??= []).push({ id: c.id, title: c.title, answers, display });
+  });
+  return {
+    ...mapSubmissionSummary(d),
+    raw_answers,
+    card_entries,
+    field_labels,
+    display_values,
+    detail_loaded: true,
+  };
+};
 
 interface AdminAssignmentItem {
   id: string;
@@ -274,6 +360,24 @@ export const coreService = {
   },
 
   // --- ENVÍOS / RESPUESTAS (/public/submissions) ---
+
+  /** GET /public/submissions — admin: todos los radicados; entidad: los suyos (sin respuestas). */
+  async listSubmissions(): Promise<EntitySubmission[]> {
+    const { data } = await apiClient.request<SubmissionSummaryApi[]>('core', '/public/submissions', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data.map(mapSubmissionSummary);
+  },
+
+  /** GET /public/submissions/{id} — radicado con sus respuestas legibles. */
+  async getSubmission(id: string): Promise<EntitySubmission> {
+    const { data } = await apiClient.request<SubmissionDetailApi>('core', `/public/submissions/${id}`, {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return mapSubmissionDetail(data);
+  },
 
   /**
    * POST /public/submissions/forms/{form_id}[?as_draft=true]

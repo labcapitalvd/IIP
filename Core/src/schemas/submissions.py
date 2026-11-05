@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal, Union
 from uuid import UUID
@@ -115,3 +115,48 @@ SubmissionItemIn = Annotated[
 class ResponseSubmissionCreated(ResponseMessageSchema):
     submission_id: UUID
     submission_status: Literal["draft", "submitted"]
+
+
+class ResponseSubmissionSummary(BaseSchema):
+    """Fila de la lista de radicados."""
+
+    id: UUID
+    form_id: UUID
+    form_code: str
+    form_label: str
+    actor_id: UUID
+    actor_label: str
+    actor_segment_label: str | None = None
+    status: str = Field(description="Código de `reference.submission_status_types`.")
+    updated_at: datetime
+    answer_count: int = Field(description="Respuestas de campos (sin contar tarjetas).")
+    card_count: int = Field(description="Tarjetas (iniciativas) de preguntas en bucle.")
+
+
+class ResponseAnswerOut(BaseSchema):
+    field_id: UUID
+    field_code: str
+    field_label: str
+    question_id: UUID
+    question_label: str
+    type: str
+    value: Any = Field(
+        default=None,
+        description="Valor crudo: bool, str, número, fecha ISO, id de opción, lista de ids o id de archivo.",
+    )
+    display: str = Field(description="Valor legible (etiqueta de la opción, nombre del archivo, Sí/No…).")
+
+
+class ResponseCardOut(BaseSchema):
+    id: UUID
+    question_id: UUID
+    question_label: str
+    card_template_id: UUID
+    title: str
+    card_index: int
+    answers: list[ResponseAnswerOut]
+
+
+class ResponseSubmissionDetail(ResponseSubmissionSummary):
+    answers: list[ResponseAnswerOut]
+    cards: list[ResponseCardOut]

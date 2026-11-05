@@ -25,12 +25,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const totalActors = actors.length;
   const totalSubmissions = submissions.length;
   const participationRate = totalActors > 0 ? Math.round((totalSubmissions / totalActors) * 100) : 0;
+  // Aún no hay calificación en el backend: el promedio solo existe si algún radicado la trae.
+  const scored = submissions.filter((s) => s.score !== undefined);
   const avgScore =
-    submissions.length > 0
-      ? (
-          submissions.reduce((acc, curr) => acc + (curr.score || 0), 0) / submissions.length
-        ).toFixed(1)
-      : '0.0';
+    scored.length > 0
+      ? (scored.reduce((acc, curr) => acc + (curr.score as number), 0) / scored.length).toFixed(1)
+      : '—';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -128,9 +128,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900">
-            {avgScore} <span className="text-xs font-normal text-slate-400">/ 100</span>
+            {avgScore}{' '}
+            {scored.length > 0 && <span className="text-xs font-normal text-slate-400">/ 100</span>}
           </div>
-          <p className="text-xs text-slate-500 mt-1">Nivel: Innovación Avanzada</p>
+          <p className="text-xs text-slate-500 mt-1">
+            {scored.length > 0 ? `Promedio de ${scored.length} radicado(s) calificado(s)` : 'Aún sin calificaciones'}
+          </p>
         </div>
 
         {/* Active Form Instrument */}

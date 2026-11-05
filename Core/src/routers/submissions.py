@@ -5,13 +5,51 @@ from fastapi import APIRouter, Body, Depends, Path, Query
 from shared.utils import AccessContext, get_claims
 
 from application import SubmissionAppService
-from schemas.submissions import ResponseSubmissionCreated, SubmissionItemIn
+from schemas.submissions import (
+    ResponseSubmissionCreated,
+    ResponseSubmissionDetail,
+    ResponseSubmissionSummary,
+    SubmissionItemIn,
+)
 
 router = APIRouter(tags=["Submissions"], prefix="/submissions")
 
 
 def get_submission_service() -> SubmissionAppService:
     return SubmissionAppService()
+
+
+@router.get(
+    "",
+    response_model=List[ResponseSubmissionSummary],
+    response_model_exclude_none=True,
+    operation_id="list_submissions",
+    summary="Radicados: todos (admin) o los de la propia entidad",
+)
+async def list_submissions(
+    ctx: AccessContext = Depends(),
+    service: SubmissionAppService = Depends(get_submission_service),
+):
+    claims = get_claims(ctx.access_token)
+    return await service.list_submissions(requester_id=UUID(claims["sub"]))
+
+
+@router.get(
+    "/{submission_id}",
+    response_model=ResponseSubmissionDetail,
+    response_model_exclude_none=True,
+    operation_id="get_submission",
+    summary="Detalle de un radicado con sus respuestas legibles",
+)
+async def get_submission(
+    submission_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: SubmissionAppService = Depends(get_submission_service),
+):
+    claims = get_claims(ctx.access_token)
+    return await service.get_submission(
+        requester_id=UUID(claims["sub"]), submission_id=submission_id
+    )
 
 
 @router.post(

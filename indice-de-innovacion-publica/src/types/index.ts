@@ -439,14 +439,28 @@ export interface EntitySubmission {
   actor_id: string;
   actor_label: string;
   actor_segment_label?: string;
-  submitted_by: string;
+  /** El backend no guarda qué usuario radicó, solo la entidad. */
+  submitted_by?: string;
   submitted_at: string;
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  /** Código del estado en el backend (reference.submission_status_types). */
+  status_code?: string;
+  /** Aún no existe calificación en el backend; queda indefinido hasta que exista. */
   score?: number;
+  answer_count?: number;
+  card_count?: number;
+  /** Etiquetas y valores legibles por campo (vienen del detalle del servidor). */
+  field_labels?: Record<string, string>;
+  display_values?: Record<string, string>;
+  /** true cuando raw_answers / card_entries ya se cargaron del servidor. */
+  detail_loaded?: boolean;
   completion_percentage: number;
   payload: SubmissionItem[];
   raw_answers: Record<string, any>;
-  card_entries?: Record<string, Array<{ id: string; title: string; answers: Record<string, any> }>>;
+  card_entries?: Record<
+    string,
+    Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string> }>
+  >;
 }
 
 // System configuration and logs

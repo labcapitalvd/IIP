@@ -78,11 +78,11 @@ interface AppContextType {
     formId: string,
     submissionId: string,
     radicado: string,
-    score: number
+    score?: number
   ) => void;
   // Submissions
   addSubmission: (submission: EntitySubmission) => void;
-  updateSubmissionStatus: (id: string, status: EntitySubmission['status']) => void;
+  loadSubmissionDetail: (id: string) => Promise<EntitySubmission>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -134,10 +134,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Asignaciones: viven en el servidor (admin: todas; entidad: las suyas).
   const [assignments, setAssignments] = useState<FormAssignment[]>([]);
 
-  const [submissions, setSubmissions] = useState<EntitySubmission[]>(() => {
-    const saved = localStorage.getItem('iip_submissions');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Radicados: viven en el servidor (admin: todos; entidad: los suyos). Sin borradores.
+  const [submissions, setSubmissions] = useState<EntitySubmission[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(false);
 
@@ -168,10 +166,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Remembering the selection is only a convenience.
     }
   }, [activeFormId]);
-
-  useEffect(() => {
-    localStorage.setItem('iip_submissions', JSON.stringify(submissions));
-  }, [submissions]);
 
   const updateConfig = useCallback((newConfig: Partial<ApiConfig>) => {
     apiClient.updateConfig(newConfig);
@@ -219,7 +213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [fetchedActors, fetchedSegments, fetchedForms, fetchedUsers, fetchedAssignments] = await Promise.all([
+      const [fetchedActors, fetchedSegments, fetchedForms, fetchedUsers, fetchedAssignments, fetchedSubmissions] = await Promise.all([
         coreService.getActors().catch(() => [] as Actor[]),
         coreService.getSegments().catch(() => [] as ActorSegment[]),
         coreService
@@ -237,7 +231,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             })
           : Promise.resolve(null),
         loadAssignmentsForRole(user),
+        coreService
+          .listSubmissions()
+          .then((list) => list.filter((x) => x.status !== 'draft'))
+          .catch((err) => {
+            console.error('No se pudieron cargar los radicados del servidor:', err);
+            return null;
+          }),
       ]);
+      if (fetchedSubmissions) {
+        // Conserva el detalle ya cargado de los radicados que siguen existiendo.
+        setSubmissions((prev) =>
+          fetchedSubmissions.map((n) => prev.find((p) => p.id === n.id && p.detail_loaded) ?? n)
+        );
+      }
       if (fetchedUsers) setUsers(fetchedUsers);
       if (fetchedAssignments) setAssignments(fetchedAssignments);
       setActors(fetchedActors);
@@ -262,6 +269,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSegments([]);
       setUsers([]);
       setAssignments([]);
+      setSubmissions([]);
     }
   }, [user?.id, refreshData]);
 
@@ -490,7 +498,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const completeAssignmentSubmission = useCallback(
-    (actorId: string, formId: string, submissionId: string, radicado: string, score: number) => {
+    (actorId: string, formId: string, submissionId: string, radicado: string, score?: number) => {
       setAssignments((prev) =>
         prev.map((a) => {
           if (a.actor_id === actorId && (a.form_id === formId || !formId)) {
@@ -511,12 +519,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     []
   );
 
+  /** Agrega (o reemplaza por id) un radicado recién creado en el servidor. */
   const addSubmission = useCallback((newSub: EntitySubmission) => {
-    setSubmissions((prev) => [newSub, ...prev]);
+    setSubmissions((prev) => [newSub, ...prev.filter((s) => s.id !== newSub.id)]);
   }, []);
 
-  const updateSubmissionStatus = useCallback((id: string, status: EntitySubmission['status']) => {
-    setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
+  /** Carga del servidor las respuestas de un radicado y las deja en la lista. */
+  const loadSubmissionDetail = useCallback(async (id: string): Promise<EntitySubmission> => {
+    const detail = await coreService.getSubmission(id);
+    setSubmissions((prev) => prev.map((s) => (s.id === id ? detail : s)));
+    return detail;
   }, []);
 
   return (
@@ -554,7 +566,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAssignmentProgress,
         completeAssignmentSubmission,
         addSubmission,
-        updateSubmissionStatus,
+        loadSubmissionDetail,
       }}
     >
       {children}
