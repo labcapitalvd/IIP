@@ -1,0 +1,58 @@
+
+name: Deploy IIP Production
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iip-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Ubuntu Production
+    runs-on: [self-hosted, linux, x64, iip-prod]
+
+    steps:
+      - name: Deploy IIP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PROJECT_DIR="/home/whaler/IIP/IIP"
+
+          echo "================================"
+          echo "INICIANDO DESPLIEGUE DE IIP"
+          echo "================================"
+
+          cd "$PROJECT_DIR"
+
+          echo "1. Actualizando repositorio"
+          git fetch origin main
+          git reset --hard origin/main
+
+          echo "2. Validando Docker Compose"
+          docker compose config -q
+
+          echo "3. Actualizando servicios de aplicación"
+          docker compose up -d --build --no-deps \
+            auth core frontend nginx
+
+          echo "4. Verificando contenedores"
+          docker compose ps
+
+          echo "5. Verificando endpoint HTTPS"
+          curl -kfsS --max-time 20 \
+            https://127.0.0.1:4290/ \
+            -o /dev/null
+
+          echo "================================"
+          echo "DESPLIEGUE FINALIZADO"
+          echo "================================"
