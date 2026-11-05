@@ -199,13 +199,34 @@ Despliegue: reconstruir `base` y `auth` (`docker compose build base auth && dock
 
 ---
 
+## 2026-11-05 — Asignaciones en la BD
+
+Antes `createAssignment` / `batchAssignForm` / `removeAssignment` solo tocaban `localStorage` (`iip_assignments`); el backend ya tenía `POST /forms/assignments` y `GET /forms/assignments/me`, pero el admin nunca los usaba para listar.
+
+Backend (`Core`), solo administradores (`403 FORM_ERROR` para el resto):
+- `GET /public/forms/assignments` → todas las asignaciones con usuario, entidad, segmento, formulario, estado y avance (el avance se **calcula** del radicado de la entidad: sin radicado = pendiente, borrador = 50 %, enviado = 100 %).
+- `DELETE /public/forms/assignments/{id}` → 204; `404` si no existe.
+- `POST` (ya existía) crea o actualiza fecha/notas si ya existía esa pareja usuario-formulario.
+- Se extrajeron `_require_admin` y `_progress` en `AssignmentAppService` (lo usan `assign`, `list_all` y `list_for_user`).
+
+Frontend: `coreService.listAssignments/assignForm/deleteAssignment`. `AppContext` carga las asignaciones en `refreshData()` (admin: todas; entidad: `/assignments/me`, mapeadas a `FormAssignment` para que `EntityDashboard` siga funcionando). Crear, asignación masiva y revocar llaman al servidor y releen; `iip_assignments` ya no existe en `localStorage`. "Asignar formulario al crear usuario" ahora también se guarda en el servidor. La fecha límite se manda solo como `YYYY-MM-DD`. `batchAssignForm` usa `allSettled` y avisa cuántos fallaron.
+
+Ojo: un formulario que sea solo borrador local (id `form-iip-…`, no guardado) no se puede asignar: hay que guardarlo primero.
+`updateAssignmentProgress` / `completeAssignmentSubmission` quedan como actualización en memoria; el estado real lo calcula el servidor al recargar.
+
+Verificado en local: entidad recibe 403 al listar/borrar; admin asigna (201), lista, revoca (204), revocar de nuevo (404); `/assignments/me` de la entidad sigue funcionando tras el refactor. `tsc --noEmit` limpio. **No probado con clics en el navegador.**
+
+Despliegue: reconstruir `base` y `core` (`docker compose build base core && docker compose up -d --no-deps core frontend`); sin migración.
+
+---
+
 ## Pendientes / gaps conocidos (no resueltos en esta sesión)
 
 Cosas encontradas durante la revisión que quedan documentadas para no perderlas de vista:
 
 - **Siguiente paso acordado — persistir el resto del admin en BD** (mismo problema que tenían los formularios, ver sesión 2026-11-04 §4):
   - ~~**Usuarios de entidad**~~ (resuelto 2026-11-05): `createEntityUser` / `updateEntityUser` / `deleteEntityUser` en `AppContext.tsx` solo tocan `localStorage`. Crear puede usar el `POST /auth/register` existente (ya acepta `actor_id`); falta un endpoint para listarlos (y editar/desactivar).
-  - **Asignaciones**: `createAssignment` / `batchAssignForm` / `removeAssignment` / `updateAssignmentProgress` son locales. Existe `POST /forms/assignments` y `GET /forms/assignments/me`; faltan listar (admin) y eliminar.
+  - ~~**Asignaciones**~~ (resuelto 2026-11-05): `createAssignment` / `batchAssignForm` / `removeAssignment` / `updateAssignmentProgress` son locales. Existe `POST /forms/assignments` y `GET /forms/assignments/me`; faltan listar (admin) y eliminar.
   - **Envíos**: las respuestas sí se mandan (`POST /submissions/forms/{id}`), pero la lista que ve el admin (`submissions`, `addSubmission`, `updateSubmissionStatus`) es local; falta endpoint de listado.
   - Al terminar, en `localStorage` debería quedar solo el borrador de respuestas en curso (`FormSubmissionContext`).
 - **Workflow de despliegue** (`.github/workflows/deploy-production.yml`): debe reconstruir `base` antes que `auth`/`core`, correr `alembic upgrade head`, y conviene agregar `restart: unless-stopped` a `auth` y `core` en `compose.yaml`. Causa directa del 502 de la sesión 2026-11-04 §3.

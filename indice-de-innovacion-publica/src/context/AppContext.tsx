@@ -64,9 +64,9 @@ interface AppContextType {
     actor_id: string;
     due_date: string;
     notes?: string;
-  }) => void;
-  batchAssignForm: (form_id: string, user_ids: string[], due_date: string) => void;
-  removeAssignment: (id: string) => void;
+  }) => Promise<void>;
+  batchAssignForm: (form_id: string, user_ids: string[], due_date: string) => Promise<void>;
+  removeAssignment: (id: string) => Promise<void>;
   updateAssignmentProgress: (
     actorId: string,
     formId: string,
@@ -131,10 +131,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Usuarios de entidad: viven en el servidor (GET /auth/users, solo admin).
   const [users, setUsers] = useState<AuthUser[]>([]);
 
-  const [assignments, setAssignments] = useState<FormAssignment[]>(() => {
-    const saved = localStorage.getItem('iip_assignments');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Asignaciones: viven en el servidor (admin: todas; entidad: las suyas).
+  const [assignments, setAssignments] = useState<FormAssignment[]>([]);
 
   const [submissions, setSubmissions] = useState<EntitySubmission[]>(() => {
     const saved = localStorage.getItem('iip_submissions');
@@ -172,10 +170,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [activeFormId]);
 
   useEffect(() => {
-    localStorage.setItem('iip_assignments', JSON.stringify(assignments));
-  }, [assignments]);
-
-  useEffect(() => {
     localStorage.setItem('iip_submissions', JSON.stringify(submissions));
   }, [submissions]);
 
@@ -188,10 +182,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     apiClient.clearLogs();
   }, []);
 
+  const loadAssignmentsForRole = useCallback(async (u: typeof user): Promise<FormAssignment[] | null> => {
+    if (!u) return null;
+    try {
+      if (u.role === 'admin') return await coreService.listAssignments();
+      const mine = await coreService.getMyAssignments();
+      return mine.map((a) => ({
+        id: a.id,
+        form_id: a.form_id,
+        form_code: a.form_code,
+        form_title: a.form_label,
+        form_year: 0,
+        user_id: u.id,
+        user_name: u.username,
+        user_email: u.email,
+        actor_id: a.actor_id ?? u.actor_id ?? '',
+        actor_label: a.actor_label ?? u.actor_label ?? '',
+        assigned_at: a.assigned_at,
+        due_date: a.due_date ?? '',
+        status: a.status,
+        completion_percentage: a.completion_percentage,
+        submission_id: a.submission_id,
+        notes: a.notes,
+      }));
+    } catch (err) {
+      console.error('No se pudieron cargar las asignaciones del servidor:', err);
+      return null;
+    }
+  }, []);
+
+  const refreshAssignments = useCallback(async () => {
+    const fresh = await loadAssignmentsForRole(user);
+    if (fresh) setAssignments(fresh);
+  }, [user, loadAssignmentsForRole]);
+
   const refreshData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [fetchedActors, fetchedSegments, fetchedForms, fetchedUsers] = await Promise.all([
+      const [fetchedActors, fetchedSegments, fetchedForms, fetchedUsers, fetchedAssignments] = await Promise.all([
         coreService.getActors().catch(() => [] as Actor[]),
         coreService.getSegments().catch(() => [] as ActorSegment[]),
         coreService
@@ -208,8 +236,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               return null;
             })
           : Promise.resolve(null),
+        loadAssignmentsForRole(user),
       ]);
       if (fetchedUsers) setUsers(fetchedUsers);
+      if (fetchedAssignments) setAssignments(fetchedAssignments);
       setActors(fetchedActors);
       setSegments(fetchedSegments);
       if (fetchedForms) {
@@ -222,7 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsLoadingData(false);
     }
-  }, [user?.role]);
+  }, [user?.id, user?.role, loadAssignmentsForRole]);
 
   // Load backend data once there is an authenticated session.
   useEffect(() => {
@@ -231,6 +261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActors([]);
       setSegments([]);
       setUsers([]);
+      setAssignments([]);
     }
   }, [user?.id, refreshData]);
 
@@ -369,27 +400,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newUser = fresh.find((u) => u.username === payload.username.toLowerCase().trim());
     if (!newUser) throw new Error('El usuario se creó pero no se pudo recuperar del servidor.');
 
-    // If user requested to assign a form immediately upon user creation
+    // Si se pidió asignar un formulario al crear el usuario, se guarda en el servidor.
     if (payload.assign_form_id) {
       const targetForm = forms.find((f) => f.id === payload.assign_form_id) || activeForm;
-      const newAsg: FormAssignment = {
-        id: `asg-${Date.now()}`,
-        form_id: targetForm.id,
-        form_code: targetForm.code,
-        form_title: targetForm.label,
-        form_year: targetForm.year,
+      await coreService.assignForm({
         user_id: newUser.id,
-        user_name: newUser.username,
-        user_email: newUser.email,
-        actor_id: newUser.actor_id!,
-        actor_label: newUser.actor_label!,
-        actor_segment_label: newUser.actor_segment_label,
-        assigned_at: new Date().toISOString(),
-        due_date: payload.due_date || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'pending',
-        completion_percentage: 0,
-      };
-      setAssignments((prev) => [newAsg, ...prev]);
+        form_id: targetForm.id,
+        due_date: payload.due_date ? payload.due_date.slice(0, 10) : null,
+      });
+      await refreshAssignments();
     }
 
     return newUser;
@@ -411,86 +430,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Form Assignments
   const createAssignment = useCallback(
-    (payload: {
+    async (payload: {
       form_id: string;
       user_id: string;
       actor_id: string;
       due_date: string;
       notes?: string;
     }) => {
-      const form = forms.find((f) => f.id === payload.form_id) || activeForm;
-      const userObj = users.find((u) => u.id === payload.user_id);
-      const actor = actors.find((a) => a.id === payload.actor_id);
-
-      const newAsg: FormAssignment = {
-        id: `asg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        form_id: form.id,
-        form_code: form.code,
-        form_title: form.label,
-        form_year: form.year,
+      await coreService.assignForm({
         user_id: payload.user_id,
-        user_name: userObj?.username || 'entidad.usuario',
-        user_email: userObj?.email || 'entidad@bogota.gov.co',
-        actor_id: payload.actor_id,
-        actor_label: actor?.label || userObj?.actor_label || 'Entidad Distrital',
-        actor_segment_label: actor?.actor_segment?.label,
-        assigned_at: new Date().toISOString(),
-        due_date: payload.due_date,
-        status: 'pending',
-        completion_percentage: 0,
+        form_id: payload.form_id,
+        due_date: payload.due_date.slice(0, 10),
         notes: payload.notes,
-      };
-
-      setAssignments((prev) => {
-        // Prevent exact duplicate for same form and user
-        const filtered = prev.filter(
-          (a) => !(a.form_id === payload.form_id && a.user_id === payload.user_id)
-        );
-        return [newAsg, ...filtered];
       });
+      await refreshAssignments();
     },
-    [forms, activeForm, users, actors]
+    [refreshAssignments]
   );
 
   const batchAssignForm = useCallback(
-    (form_id: string, user_ids: string[], due_date: string) => {
-      const form = forms.find((f) => f.id === form_id) || activeForm;
-      const newAsgs: FormAssignment[] = [];
-
-      for (const uid of user_ids) {
-        const u = users.find((usr) => usr.id === uid);
-        if (!u || !u.actor_id) continue;
-        const actor = actors.find((a) => a.id === u.actor_id);
-
-        newAsgs.push({
-          id: `asg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          form_id: form.id,
-          form_code: form.code,
-          form_title: form.label,
-          form_year: form.year,
-          user_id: u.id,
-          user_name: u.username,
-          user_email: u.email,
-          actor_id: u.actor_id,
-          actor_label: actor?.label || u.actor_label || 'Entidad Distrital',
-          actor_segment_label: actor?.actor_segment?.label,
-          assigned_at: new Date().toISOString(),
-          due_date: due_date,
-          status: 'pending',
-          completion_percentage: 0,
-        });
+    async (form_id: string, user_ids: string[], due_date: string) => {
+      const results = await Promise.allSettled(
+        user_ids.map((uid) =>
+          coreService.assignForm({ user_id: uid, form_id, due_date: due_date.slice(0, 10) })
+        )
+      );
+      await refreshAssignments();
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0) {
+        throw new Error(`No se pudo asignar a ${failed} de ${user_ids.length} usuarios.`);
       }
-
-      setAssignments((prev) => {
-        const existingKeys = new Set(newAsgs.map((na) => `${na.form_id}_${na.user_id}`));
-        const filtered = prev.filter((a) => !existingKeys.has(`${a.form_id}_${a.user_id}`));
-        return [...newAsgs, ...filtered];
-      });
     },
-    [forms, activeForm, users, actors]
+    [refreshAssignments]
   );
 
-  const removeAssignment = useCallback((id: string) => {
+  const removeAssignment = useCallback(async (id: string) => {
+    await coreService.deleteAssignment(id);
     setAssignments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 

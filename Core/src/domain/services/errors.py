@@ -101,6 +101,11 @@ class AssignmentForbiddenError(FormError):
     message = "Only an administrator can assign forms."
 
 
+class AssignmentNotFoundError(FormError):
+    status_code = 404
+    message = "The assignment could not be found."
+
+
 class AssignmentTargetNotFoundError(FormError):
     status_code = 404
     message = "The user or the form to assign could not be found."

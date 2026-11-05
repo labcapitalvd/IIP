@@ -5,6 +5,7 @@ import {
   ActorSegment,
   ActorSegmentCreatePayload,
   EntityAssignment,
+  FormAssignment,
   FileTypeInfo,
   FormStatus,
   FormSummary,
@@ -13,6 +14,26 @@ import {
   SubmissionItem,
 } from '../types';
 import { fromFormTree, toCreateFormRequest } from '../utils/formTree';
+
+interface AdminAssignmentItem {
+  id: string;
+  form_id: string;
+  form_code: string;
+  form_label: string;
+  form_year?: number;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  actor_id?: string;
+  actor_label?: string;
+  actor_segment_label?: string;
+  assigned_at: string;
+  due_date?: string;
+  notes?: string;
+  status: FormAssignment['status'];
+  completion_percentage: number;
+  submission_id?: string;
+}
 
 export const coreService = {
   // --- ASIGNACIONES (/public/forms/assignments) ---
@@ -27,6 +48,55 @@ export const coreService = {
       requiresAuth: true,
     });
     return data;
+  },
+
+  /** GET /public/forms/assignments — todas las asignaciones con su avance (solo admin). */
+  async listAssignments(): Promise<FormAssignment[]> {
+    const { data } = await apiClient.request<AdminAssignmentItem[]>('core', '/public/forms/assignments', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data.map((a) => ({
+      id: a.id,
+      form_id: a.form_id,
+      form_code: a.form_code,
+      form_title: a.form_label,
+      form_year: a.form_year ?? 0,
+      user_id: a.user_id,
+      user_name: a.user_name,
+      user_email: a.user_email,
+      actor_id: a.actor_id ?? '',
+      actor_label: a.actor_label ?? '',
+      actor_segment_label: a.actor_segment_label,
+      assigned_at: a.assigned_at,
+      due_date: a.due_date ?? '',
+      status: a.status,
+      completion_percentage: a.completion_percentage,
+      submission_id: a.submission_id,
+      notes: a.notes,
+    }));
+  },
+
+  /** POST /public/forms/assignments — asigna (o actualiza fecha/notas de) un formulario a un usuario. */
+  async assignForm(payload: {
+    user_id: string;
+    form_id: string;
+    due_date?: string | null;
+    notes?: string;
+  }): Promise<void> {
+    await apiClient.request('core', '/public/forms/assignments', {
+      method: 'POST',
+      body: payload,
+      requiresAuth: true,
+    });
+  },
+
+  /** DELETE /public/forms/assignments/{id} — revoca la asignación (solo admin). */
+  async deleteAssignment(id: string): Promise<void> {
+    await apiClient.request('core', `/public/forms/assignments/${id}`, {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
   },
 
   // --- ACTORES (/public/actors) ---
