@@ -13,12 +13,17 @@ import {
   Rocket,
   CheckCircle2,
   X,
+  Trash2,
 } from 'lucide-react';
 import { EntitySubmission } from '../../types';
 
 export const SubmissionsMonitor: React.FC = () => {
-  const { submissions, loadSubmissionDetail } = useApp();
+  const { submissions, loadSubmissionDetail, deleteSubmission } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
+  const [actorFilter, setActorFilter] = useState('all');
+  const [formFilter, setFormFilter] = useState('all');
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const selectedSub: EntitySubmission | null = submissions.find((s) => s.id === selectedId) ?? null;
@@ -35,13 +40,54 @@ export const SubmissionsMonitor: React.FC = () => {
     );
   }, [selectedId]);
 
+  const actorOptions = [...new Map<string, string>(submissions.map((s) => [s.actor_id, s.actor_label] as [string, string])).entries()].sort((a, b) =>
+    a[1].localeCompare(b[1])
+  );
+  const formOptions = [...new Map<string, string>(
+      submissions.map((s) => [s.form_id, `${s.form_code} — ${s.form_title}`] as [string, string])
+    ).entries()].sort(
+    (a, b) => a[1].localeCompare(b[1])
+  );
+
   const filteredSubmissions = submissions.filter((s) => {
+    const q = searchTerm.toLowerCase();
     return (
-      s.actor_label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.form_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.submitted_by ?? '').toLowerCase().includes(searchTerm.toLowerCase())
+      (actorFilter === 'all' || s.actor_id === actorFilter) &&
+      (formFilter === 'all' || s.form_id === formFilter) &&
+      (!q ||
+        s.actor_label.toLowerCase().includes(q) ||
+        s.form_title.toLowerCase().includes(q) ||
+        s.form_code.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q))
     );
   });
+
+  const handleDelete = async (sub: EntitySubmission) => {
+    if (
+      !confirm(
+        `¿Eliminar TODAS las respuestas de «${sub.actor_label}» al formulario «${sub.form_code}»?\n\n` +
+          'Esta acción no se puede deshacer. La asignación de esa entidad volverá a quedar pendiente.'
+      )
+    )
+      return;
+    setDeletingId(sub.id);
+    setFeedback(null);
+    try {
+      try {
+        await deleteSubmission(sub.id);
+      } catch (err: any) {
+        if (err?.data?.code !== 'SUBMISSION_HAS_GRADES_ERROR') throw err;
+        if (!confirm('Este radicado ya tiene calificaciones. ¿Eliminarlo junto con sus calificaciones?')) return;
+        await deleteSubmission(sub.id, true);
+      }
+      if (selectedId === sub.id) setSelectedId(null);
+      setFeedback({ ok: true, message: `Se eliminaron las respuestas de ${sub.actor_label} (${sub.form_code}).` });
+    } catch (err: any) {
+      setFeedback({ ok: false, message: err?.message || 'No se pudo eliminar el radicado.' });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleDownloadAllJson = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(submissions, null, 2));
@@ -79,16 +125,55 @@ export const SubmissionsMonitor: React.FC = () => {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
-        <Search className="w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Buscar por nombre de entidad, radicado o usuario que envió..."
-          className="w-full text-xs outline-none bg-transparent"
-        />
+      {feedback && (
+        <div
+          className={`p-3 rounded-xl border text-xs ${
+            feedback.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          {feedback.message}
+        </div>
+      )}
+
+      {/* Search + filtros entidad × formulario */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-1 md:grid-cols-[1fr_16rem_16rem] gap-3 items-center">
+        <div className="flex items-center gap-3">
+          <Search className="w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por entidad, formulario o número de radicado..."
+            className="w-full text-xs outline-none bg-transparent"
+          />
+        </div>
+        <select
+          value={actorFilter}
+          onChange={(e) => setActorFilter(e.target.value)}
+          className="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white"
+        >
+          <option value="all">Todas las entidades</option>
+          {actorOptions.map(([id, label]) => (
+            <option key={id} value={id}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={formFilter}
+          onChange={(e) => setFormFilter(e.target.value)}
+          className="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white"
+        >
+          <option value="all">Todos los formularios</option>
+          {formOptions.map(([id, label]) => (
+            <option key={id} value={id}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="text-[11px] text-slate-500 -mt-3">
+        {filteredSubmissions.length} de {submissions.length} radicado(s)
       </div>
 
       {/* Submissions Table */}
@@ -100,7 +185,7 @@ export const SubmissionsMonitor: React.FC = () => {
                 <th className="px-6 py-3.5">Entidad / Actor</th>
                 <th className="px-6 py-3.5">Sector</th>
                 <th className="px-6 py-3.5">Fecha de Envío</th>
-                <th className="px-6 py-3.5">Responsable</th>
+                <th className="px-6 py-3.5">Formulario</th>
                 <th className="px-6 py-3.5">Puntaje IIP</th>
                 <th className="px-6 py-3.5">Iniciativas</th>
                 <th className="px-6 py-3.5 text-right">Acciones</th>
@@ -138,7 +223,10 @@ export const SubmissionsMonitor: React.FC = () => {
                     <td className="px-6 py-4 font-mono text-slate-500">
                       {new Date(sub.submitted_at).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 font-mono text-slate-600">{sub.submitted_by || '—'}</td>
+                    <td className="px-6 py-4 text-slate-700">
+                      <span className="font-mono font-bold">{sub.form_code}</span>
+                      <span className="block text-[10px] text-slate-400 max-w-[14rem] truncate">{sub.form_title}</span>
+                    </td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-emerald-50 text-emerald-700">
                         {sub.score !== undefined ? `${sub.score} pts` : 'Sin calificar'}
@@ -156,6 +244,15 @@ export const SubmissionsMonitor: React.FC = () => {
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>Inspeccionar</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(sub)}
+                        disabled={deletingId === sub.id}
+                        title="Eliminar las respuestas de esta entidad para este formulario"
+                        className="ml-2 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{deletingId === sub.id ? 'Eliminando…' : 'Eliminar'}</span>
                       </button>
                     </td>
                   </tr>
@@ -182,6 +279,7 @@ export const SubmissionsMonitor: React.FC = () => {
                   Inspección de Respuestas
                 </span>
                 <h3 className="font-bold text-sm text-white mt-0.5">{selectedSub.actor_label}</h3>
+                <span className="text-xs text-slate-300 block">Formulario: {selectedSub.form_code} — {selectedSub.form_title}</span>
                 <span className="text-xs text-slate-400">Radicado: {selectedSub.id}</span>
               </div>
               <button
@@ -267,7 +365,14 @@ export const SubmissionsMonitor: React.FC = () => {
               </div>
             </div>
 
-            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex justify-between gap-2">
+              <button
+                onClick={() => handleDelete(selectedSub)}
+                disabled={deletingId === selectedSub.id}
+                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs rounded-xl inline-flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Eliminar respuestas
+              </button>
               <button
                 onClick={() => setSelectedSub(null)}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-xl"

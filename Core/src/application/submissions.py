@@ -3,11 +3,15 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import with_polymorphic
 
 from domain import SubmissionService
-from domain.services.errors import SubmissionNotFoundError
+from domain.services.errors import (
+    SubmissionForbiddenError,
+    SubmissionHasGradesError,
+    SubmissionNotFoundError,
+)
 from infrastructure.uow import SubmissionUoW
 from schemas.submissions import (
     ResponseAnswerOut,
@@ -33,6 +37,7 @@ from shared.models import (
     FieldGroup,
     File,
     Form,
+    Grade,
     MultiChoiceOptionLink,
     Question,
     Submission,
@@ -62,6 +67,31 @@ class SubmissionAppService:
                 as_draft=as_draft,
             )
             return submission
+
+    async def delete_submission(
+        self, requester_id: UUID, submission_id: UUID, force: bool = False
+    ) -> None:
+        """
+        Borra un radicado con todas sus respuestas (solo administradores). Si ya tiene
+        calificaciones responde 409 salvo que se confirme con `force`, que también las borra.
+        Las respuestas, tarjetas y resultados caen por ON DELETE CASCADE; las
+        calificaciones no (su FK es SET NULL sobre una columna NOT NULL), por eso se borran aquí.
+        """
+        async with UnitOfWork() as uow:
+            session = uow.session
+            if not await is_admin(session, requester_id):
+                raise SubmissionForbiddenError()
+            if await session.get(Submission, submission_id) is None:
+                raise SubmissionNotFoundError()
+
+            grades = await session.scalar(
+                select(func.count()).select_from(Grade).where(Grade.submission_id == submission_id)
+            )
+            if grades and not force:
+                raise SubmissionHasGradesError()
+            if grades:
+                await session.execute(delete(Grade).where(Grade.submission_id == submission_id))
+            await session.execute(delete(Submission).where(Submission.id == submission_id))
 
     # ------------------------------------------------------------------ lectura
 

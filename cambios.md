@@ -290,6 +290,23 @@ Despliegue: `docker compose build base && docker compose build core frontend && 
 
 ---
 
+## 2026-11-05 — Ver y eliminar respuestas por entidad × formulario
+
+Backend (`Core`):
+- `DELETE /public/submissions/{id}` → 204. **Solo administradores** (`403 SUBMISSION_FORBIDDEN_ERROR`); `404` si no existe. Borra el radicado con todas sus respuestas, tarjetas y resultado (cascada de BD).
+- Si el radicado ya tiene calificaciones (`grading.grades`) responde `409 SUBMISSION_HAS_GRADES_ERROR`; con `?force=true` las borra también. Es necesario hacerlo a mano porque `grades.submission_id` es NOT NULL con `ON DELETE SET NULL` (un borrado normal fallaría con 500).
+- Tras borrar, la asignación de esa entidad vuelve a `pending` y puede volver a radicar.
+
+Frontend (`SubmissionsMonitor`): columna **Formulario** (código y nombre; reemplaza «Responsable», que el backend no guarda), filtros por **entidad** y por **formulario** además del buscador, contador «X de N radicados», y botón **Eliminar** en cada fila y en el detalle, con confirmación (y segunda confirmación si tiene calificaciones). `AppContext.deleteSubmission` quita el radicado y relee las asignaciones. «Ver» ya existía: Inspeccionar muestra las respuestas legibles (`GET /submissions/{id}`).
+
+Verificado en local: la entidad no puede borrar (403) ni ve el radicado después de que el admin lo borra; admin borra (204), detalle 404, borrar otra vez 404, id falso 404, asignación pasa de `submitted` a `pending` y se puede re-radicar; con una calificación: sin `force` 409 y sigue existiendo, con `force` 204 y no quedan calificaciones. `tsc --noEmit` limpio. **No probado con clics en el navegador.**
+
+**Restauración en `Auth` (ojo al integrar ramas):** al revisar esta rama se vio que `GET/PUT/DELETE /public/auth/users` (la gestión de usuarios de entidad en BD, ver «Usuarios de entidad en la BD») **no estaban** en `Auth/src/routers/auth.py`, `application/auth_app_service.py`, `schemas/auth.py` ni `domain/errors.py`/`__init__.py`, aunque el frontend sí los llama: se perdieron al resolver el merge de `Dev` (esas 4 versiones de `Auth` ganaron sobre las nuestras; `repositories/users.py` sí conservó sus métodos). Se reaplicaron sobre la versión actual de `Auth` (que ya trae el registro de administrador). Si se vuelve a mergear `Dev`, conviene verificar que esos endpoints sigan.
+
+Despliegue: `docker compose build base && docker compose build core auth frontend && docker compose up -d --no-deps core auth frontend`; sin migración.
+
+---
+
 ## Pendientes / gaps conocidos (no resueltos en esta sesión)
 
 Cosas encontradas durante la revisión que quedan documentadas para no perderlas de vista:
