@@ -151,6 +151,7 @@ services:
       - app_nginx
       - app_cache_net
 
+  
   frontend:
     container_name: app_frontend
     build:
@@ -163,6 +164,17 @@ services:
       - core
     networks:
       - app_nginx
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --tries=1 --spider http://127.0.0.1:4287/ || exit 1"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 
 networks:
   app_db_net:
