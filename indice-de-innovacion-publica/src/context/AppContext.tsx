@@ -24,6 +24,7 @@ export class FormHasSubmissionsError extends Error {
 }
 import { apiClient } from '../services/apiClient';
 import { coreService } from '../services/coreService';
+import { authService } from '../services/authService';
 
 interface AppContextType {
   actors: Actor[];
@@ -54,8 +55,8 @@ interface AppContextType {
   duplicateForm: (id: string) => Promise<void>;
   // User Management (Admin creates users for entities)
   createEntityUser: (payload: CreateEntityUserPayload) => Promise<AuthUser>;
-  updateEntityUser: (id: string, updates: Partial<AuthUser>) => void;
-  deleteEntityUser: (id: string) => void;
+  updateEntityUser: (id: string, updates: Partial<AuthUser>) => Promise<void>;
+  deleteEntityUser: (id: string) => Promise<void>;
   // Form Assignments (Admin assigns forms to entities/users)
   createAssignment: (payload: {
     form_id: string;
@@ -127,10 +128,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Placeholder template only while the backend has no forms yet.
   const activeForm = forms.find((f) => f.id === activeFormId) ?? forms[0] ?? IIP_DEFAULT_FORM;
 
-  const [users, setUsers] = useState<AuthUser[]>(() => {
-    const saved = localStorage.getItem('iip_all_users');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Usuarios de entidad: viven en el servidor (GET /auth/users, solo admin).
+  const [users, setUsers] = useState<AuthUser[]>([]);
 
   const [assignments, setAssignments] = useState<FormAssignment[]>(() => {
     const saved = localStorage.getItem('iip_assignments');
@@ -173,10 +172,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [activeFormId]);
 
   useEffect(() => {
-    localStorage.setItem('iip_all_users', JSON.stringify(users));
-  }, [users]);
-
-  useEffect(() => {
     localStorage.setItem('iip_assignments', JSON.stringify(assignments));
   }, [assignments]);
 
@@ -196,7 +191,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [fetchedActors, fetchedSegments, fetchedForms] = await Promise.all([
+      const [fetchedActors, fetchedSegments, fetchedForms, fetchedUsers] = await Promise.all([
         coreService.getActors().catch(() => [] as Actor[]),
         coreService.getSegments().catch(() => [] as ActorSegment[]),
         coreService
@@ -206,7 +201,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             console.error('No se pudieron cargar los formularios del servidor:', err);
             return null;
           }),
+        // Solo el admin puede listar usuarios; para una entidad el 403 es lo esperado.
+        user?.role === 'admin'
+          ? authService.listUsers().catch((err) => {
+              console.error('No se pudieron cargar los usuarios del servidor:', err);
+              return null;
+            })
+          : Promise.resolve(null),
       ]);
+      if (fetchedUsers) setUsers(fetchedUsers);
       setActors(fetchedActors);
       setSegments(fetchedSegments);
       if (fetchedForms) {
@@ -219,7 +222,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsLoadingData(false);
     }
-  }, []);
+  }, [user?.role]);
 
   // Load backend data once there is an authenticated session.
   useEffect(() => {
@@ -227,6 +230,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     else {
       setActors([]);
       setSegments([]);
+      setUsers([]);
     }
   }, [user?.id, refreshData]);
 
@@ -350,22 +354,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // User Management for Entities
   const createEntityUser = async (payload: CreateEntityUserPayload): Promise<AuthUser> => {
-    const actor = actors.find((a) => a.id === payload.actor_id);
-    const newUser: AuthUser = {
-      id: `usr-entity-${Date.now()}`,
+    // El servidor crea la cuenta (con su vínculo a la entidad); luego se relee la lista
+    // para obtener el id real, que es el que usan las asignaciones.
+    await authService.register({
       username: payload.username.toLowerCase().trim(),
       email: payload.email.toLowerCase().trim(),
-      role: 'entity',
+      password: payload.password ?? '',
       actor_id: payload.actor_id,
-      actor_label: actor?.label || payload.actor_label || 'Entidad Distrital',
-      actor_segment_label: actor?.actor_segment?.label,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      phone: payload.phone,
       contact_person: payload.contact_person,
-    };
-
-    setUsers((prev) => [newUser, ...prev]);
+      phone: payload.phone,
+    });
+    const fresh = await authService.listUsers();
+    setUsers(fresh);
+    const newUser = fresh.find((u) => u.username === payload.username.toLowerCase().trim());
+    if (!newUser) throw new Error('El usuario se creó pero no se pudo recuperar del servidor.');
 
     // If user requested to assign a form immediately upon user creation
     if (payload.assign_form_id) {
@@ -393,11 +395,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newUser;
   };
 
-  const updateEntityUser = useCallback((id: string, updates: Partial<AuthUser>) => {
+  const updateEntityUser = useCallback(async (id: string, updates: Partial<AuthUser>) => {
+    await authService.updateUser(id, {
+      is_active: updates.is_active,
+      contact_person: updates.contact_person,
+      phone: updates.phone,
+    });
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updates } : u)));
   }, []);
 
-  const deleteEntityUser = useCallback((id: string) => {
+  const deleteEntityUser = useCallback(async (id: string) => {
+    await authService.deleteUser(id);
     setUsers((prev) => prev.filter((u) => u.id !== id));
   }, []);
 

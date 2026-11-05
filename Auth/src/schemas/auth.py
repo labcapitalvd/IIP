@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import EmailStr, Field, SecretStr, field_validator
 from shared.schemas import (
     UUID_STR,
@@ -68,6 +70,14 @@ class RefreshTokenBody(BaseSchema):
     refresh_token: str
 
 
+class RequestUpdateUser(BaseSchema):
+    """Admin edit of a user account. Only the fields sent are changed."""
+
+    is_active: bool | None = None
+    contact_person: str | None = Field(default=None, min_length=1, max_length=255)
+    phone: str | None = Field(default=None, min_length=1, max_length=50)
+
+
 ##############################################################################################
 # Responses
 ##############################################################################################
@@ -97,3 +107,18 @@ class ResponseMe(UuidSchema):
     actor_links: list[ResponseMeActorLink] = Field(default_factory=list)
     name: str | None = Field(default=None, description="Contact person's full name.")
     phone: str | None = Field(default=None, description="Contact phone number.")
+
+
+class ResponseUserListItem(UuidSchema):
+    """A user account as shown in the admin list."""
+
+    username: str
+    email: str
+    is_active: bool
+    updated_at: datetime | None = None
+    system_roles: list[str] = Field(default_factory=list)
+    actor_id: UUID_STR | None = None
+    actor_label: str | None = None
+    actor_segment_label: str | None = None
+    contact_person: str | None = None
+    phone: str | None = None

@@ -111,14 +111,114 @@ Verificación: `python -m py_compile` sobre todos los archivos movidos/editados 
 
 ---
 
+## 2026-11-04 / 05 — Sesión: entorno local, registro de administrador, caída de `core` en producción y formularios persistidos en BD
+
+Ramas involucradas: se empezó en `Dev`; el registro de administrador quedó en el commit `f214109` (ya desplegado); el trabajo de formularios está en **`formularios-response-db`** (sin commit al cierre de la sesión). Ojo: `formularios-response-db` parte de `1b172b1` y **no incluye** `f214109`.
+
+### 1. Levantar el proyecto en local sin tocar lo versionado
+
+Todo se resolvió con archivos ignorados por git, sin modificar `compose.yaml`:
+
+- **Certificado HTTPS**: `compose.yaml` pide `Secrets/vd-cert.crt` / `vd-cert.key`, pero en `Secrets/` estaban como `cert.crt` / `cert.key` (mismo certificado, `CN=localhost`, vence 2027-05, la clave corresponde). Se copiaron con los nombres esperados.
+- **Postgres no arrancaba**: `both POSTGRES_PASSWORD and POSTGRES_PASSWORD_FILE are set`. El `.env` local define `POSTGRES_PASSWORD` y `compose.yaml` pasa `POSTGRES_PASSWORD_FILE`. Se comentó la línea en `.env` (mismo valor que `Secrets/postgres_password`; `Packages/shared/.../postgres.py` cae al archivo si no hay variable). Respaldo en `Secrets/env.bak`.
+- **`compose.override.yaml` local** (excluido vía `.git/info/exclude`, Docker lo carga solo):
+  - publica el frontend en `4287:4287` (el commit `7331435` quitó ese mapeo de `compose.yaml` porque producción entra por nginx en `4290`);
+  - usa un volumen nuevo **`iip_dev_pg`** para la BD: el volumen viejo `stats_vol_pg` tenía un esquema antiguo (sin `alembic_version`, sin `reference.system_roles`, `user_tiers` sin `code`) incompatible con el código actual. `stats_vol_pg` quedó intacto;
+  - redefine los secretos a `./Secrets/...`: en git, `compose.yaml` usa las rutas del servidor (`/Secrets/...`), que no existen en local.
+- BD nueva construida con el pipeline normal: `schemer → alembic upgrade head → seeder → populator`.
+- **Usuario de prueba permanente**: `veeduria.admin` / `veeduria@admin.com`, tier `admin`, rol `admin`. Está en `Secrets/users.toml` (ignorado por git), así que el seeder lo recrea si se reconstruye la BD. Respaldo en `Secrets/users.toml.bak`.
+
+### 2. Registro de administrador desde el login (commit `f214109`)
+
+- Backend: `POST /public/auth/register-admin` (Auth). Crea el usuario con tier `admin` + rol `admin`, rechaza username o email repetido.
+- Protegido por la variable **`ADMIN_REGISTRATION_KEY`** en `.env`: si está vacía o no existe, el endpoint responde `403 Admin registration is disabled.` (comportamiento esperado, no es un error). Si la clave no coincide: `403 INVALID_ADMIN_REGISTRATION_KEY`. Documentada vacía en `Secrets_Template/example.env`.
+- Frontend: tercera pestaña **"Administrador"** en `LoginView.tsx` (usuario, nombre, correo, contraseña + confirmación, clave de registro).
+- Producción: la variable se agrega a mano en el `.env` del servidor y se recrea `auth` (`docker compose up -d --no-deps --force-recreate auth`). Recomendado vaciarla de nuevo cuando ya no se necesite.
+
+### 3. 502 en producción: `core` caído por imagen `base` desactualizada
+
+Síntoma: `GET /api/core/public/parameters` → `502 Bad Gateway` (y todo `core`). Log: `ImportError: cannot import name 'UserFormAssignment' from 'shared.models'`.
+
+Causa: `Auth`/`Core`/`Persistence` parten de `labcapital/apps:app-base`, que es donde se instala `Packages/shared` (los modelos). El workflow `.github/workflows/deploy-production.yml` solo hace `docker compose up -d --build --no-deps auth core frontend nginx`: **nunca reconstruye `base` ni corre migraciones**. Cuando cambia `shared`, `core` se construye con código nuevo sobre modelos viejos y se cae al importar. Además `auth` y `core` no tienen `restart: unless-stopped`, así que quedan caídos.
+
+Arreglado a mano en el servidor (`docker compose build base` + rebuild de `auth core`). **Sigue pendiente arreglar el workflow** (ver Pendientes).
+
+### 4. Formularios guardados y leídos desde la BD (rama `formularios-response-db`)
+
+Problema reportado: "lo que guardo no aparece en incógnito ni en otro dispositivo". Causa: `AppContext.tsx` guardaba casi todo en `localStorage`. Diagnóstico por entidad:
+
+| Dato | Antes | Ahora |
+|---|---|---|
+| Entidades / segmentos | BD (OK) | sin cambios |
+| **Formularios** | se guardaban en BD pero la lista se leía de `localStorage`; borrar/duplicar solo local | **BD** (este cambio) |
+| Usuarios de entidad | solo `localStorage` | **pendiente** |
+| Asignaciones | solo `localStorage` | **pendiente** |
+| Envíos (lista del admin) | solo `localStorage` | **pendiente** |
+
+Backend (Core):
+- `GET /public/forms` → lista (`ResponseFormSummary`, incluye `has_submissions`), más recientes primero.
+- `GET /public/forms/{form_id}` → árbol completo (`ResponseFormTree`): mismo formato que el cuerpo de `POST /forms`, con ids. Reconstruye `depends_on` desde `rules.field_dependencies` y las reglas de archivo (`file_types`, `max_file_size`) desde `rules.field_rules`. Las secciones se cargan en plano con `selectinload` y se anidan por `parent_id` (ojo: `form.sections` trae también las hijas).
+- `DELETE /public/forms/{form_id}` → solo admin (`403 FORM_FORBIDDEN_ERROR`), `409 FORM_HAS_SUBMISSIONS_ERROR` si tiene respuestas; borra preguntas → secciones → formulario (las asignaciones caen por `ON DELETE CASCADE`).
+- Nuevas columnas `forms.forms.year`, `version`, `is_active` (antes la vigencia/versión/estado del constructor no se guardaban en ningún lado). Migración **`8e4f2a5b0d43_form_metadata`** (después de `7d3e1f4a9c32`); para formularios existentes con código de 4 dígitos, `year = code`.
+
+Frontend:
+- `utils/formTree.ts`: `fromFormTree()` (árbol del backend → `IIPForm`), inverso exacto de `toCreateFormRequest()`, que ahora también envía `year`/`version`/`is_active`.
+- `services/coreService.ts`: `listForms()`, `getForm()`, `deleteForm()`.
+- `context/AppContext.tsx`: los formularios se cargan del servidor en `refreshData()` al iniciar sesión. Tras guardar se **vuelve a leer** el formulario del servidor (un `PUT` reconstruye el árbol y cambian los ids de preguntas/campos; las respuestas deben usar los nuevos). Borrar llama al backend; duplicar guarda la copia en el servidor. En `localStorage` quedan **solo borradores nunca guardados** (`is_synced_to_backend = false`, clave `iip_all_forms`) y el id del formulario seleccionado (`iip_active_form_id`).
+- `FormsManager.tsx`: al abrir el editor se carga la última versión del servidor; mensajes de error al borrar/duplicar.
+
+Verificado en local: round-trip `toCreateFormRequest → POST → GET → fromFormTree → toCreateFormRequest` **idéntico** (pregunta Sí/No + bucle dependiente + archivo + selección múltiple + numérica); los ids resultantes son UUID del servidor; DELETE probado (403 sin rol admin, 409 con respuestas, 204 admin, sin huérfanos). `tsc --noEmit` limpio. **No probado haciendo clics en el navegador.**
+
+**Despliegue de esta rama en producción (en este orden, si no `core` se cae como en §3):**
+
+```bash
+docker compose build base persister
+docker compose run --rm --no-deps persister sh -c "cd /api/migrator && alembic upgrade head"
+docker compose up -d --build --no-deps auth core frontend
+```
+
+---
+
+## 2026-11-05 — Usuarios de entidad en la BD
+
+Antes `createEntityUser` / `updateEntityUser` / `deleteEntityUser` solo tocaban `localStorage` (`iip_all_users`): la cuenta no existía en el servidor y no se veía desde otro navegador.
+
+Backend (`Auth`), todos **solo administradores** (`403 ADMIN_REQUIRED_ERROR`; el rol se consulta en BD en cada llamada):
+- `GET /public/auth/users` → lista con rol, entidad (`actor_id`, `actor_label`, segmento), contacto y estado.
+- `PUT /public/auth/users/{id}` → `is_active`, `contact_person`, `phone` (solo lo enviado).
+- `DELETE /public/auth/users/{id}` → 204; `400 INVALID_USER_OPERATION` si el admin intenta borrarse a sí mismo; `404` si no existe. Las asignaciones, vínculos y sesiones caen por `ON DELETE CASCADE`.
+- Crear sigue siendo `POST /auth/register` (ya aceptaba `actor_id`, contacto y teléfono).
+
+Frontend: `authService.listUsers/updateUser/deleteUser`; `AppContext` carga los usuarios en `refreshData()` si el usuario es admin, y tras `register` relee la lista para obtener el id real. `iip_all_users` ya no existe en `localStorage`. `EntityUsersManager` muestra el error del servidor si falla activar/desactivar/borrar.
+
+Verificado: 403 con usuario normal; con admin → listar, crear, desactivar (el login del desactivado da 403), editar teléfono, borrar (204), borrar de nuevo (404), auto-borrado (400). `tsc --noEmit` limpio. **No probado con clics en el navegador.**
+
+Gap conocido: borrar un usuario con filas en `audit.logs` o `interactions.comments` (FK sin cascada) fallaría con 500.
+
+Despliegue: reconstruir `base` y `auth` (`docker compose build base auth && docker compose up -d --no-deps auth frontend`); no hay migración.
+
+---
+
 ## Pendientes / gaps conocidos (no resueltos en esta sesión)
 
 Cosas encontradas durante la revisión que quedan documentadas para no perderlas de vista:
 
+- **Siguiente paso acordado — persistir el resto del admin en BD** (mismo problema que tenían los formularios, ver sesión 2026-11-04 §4):
+  - ~~**Usuarios de entidad**~~ (resuelto 2026-11-05): `createEntityUser` / `updateEntityUser` / `deleteEntityUser` en `AppContext.tsx` solo tocan `localStorage`. Crear puede usar el `POST /auth/register` existente (ya acepta `actor_id`); falta un endpoint para listarlos (y editar/desactivar).
+  - **Asignaciones**: `createAssignment` / `batchAssignForm` / `removeAssignment` / `updateAssignmentProgress` son locales. Existe `POST /forms/assignments` y `GET /forms/assignments/me`; faltan listar (admin) y eliminar.
+  - **Envíos**: las respuestas sí se mandan (`POST /submissions/forms/{id}`), pero la lista que ve el admin (`submissions`, `addSubmission`, `updateSubmissionStatus`) es local; falta endpoint de listado.
+  - Al terminar, en `localStorage` debería quedar solo el borrador de respuestas en curso (`FormSubmissionContext`).
+- **Workflow de despliegue** (`.github/workflows/deploy-production.yml`): debe reconstruir `base` antes que `auth`/`core`, correr `alembic upgrade head`, y conviene agregar `restart: unless-stopped` a `auth` y `core` en `compose.yaml`. Causa directa del 502 de la sesión 2026-11-04 §3.
+- **Datos del populator incompletos**: 6 scripts fallan (`11a_seed_section_types`: UUID no v7; `11g_seed_card_templates` / `11g_seed_field_groups`: dependencias faltantes; `12a`/`12b`: `load_instrument` no existe; `13a_seed_grading_criteria`: columnas `Bucle 2019`/`Pregunta 2019` faltantes en la hoja). Resultado: los formularios 2019–2027 se crean **sin preguntas**, y `15a_seed_submissions` no encuentra varias entidades.
+- **`Scripts/launcher.sh` (restaurar backup)**: usa `${POSTGRES_PASSWORD}` dentro del contenedor `db`; si en `.env` solo existe `POSTGRES_PASSWORD_FILE` (como en el local actual), la restauración puede fallar por contraseña.
+- **BD de producción**: confirmar con `alembic current` que está bajo alembic antes de correr `upgrade head` (el volumen viejo `stats_vol_pg` del local no lo estaba).
+- **Plantilla de ejemplo**: si el servidor no tiene formularios, la vista de detalle muestra `IIP_DEFAULT_FORM` (del código) como antes; no es un dato real.
+- **`.gitattributes` / CRLF**: muchos archivos aparecen modificados en `git status` solo por finales de línea; falta `git add --renormalize .` en un commit aparte.
+
 - **Sin autorización granular en `Core`**: los routers de `Core` (`/actors`, `/forms`, `/submissions`) solo validan que el JWT sea válido, no qué puede hacer ese usuario (RBAC/ReBAC compilado en Valkey al login, pero nunca consultado después).
 - **Gap 500 vs 401**: un token inválido/expirado en un endpoint protegido de `Core` responde `500` en vez de `401`, porque las excepciones de `shared/utils/tokens/errors.py` no heredan de `BaseDomainError`. No afecta a login/register (no requieren token), pero sí a todo lo demás.
 - **`POST /submissions/forms/{form_id}`**: body sin tipar (`List[Any]`), con bugs conocidos — `AnswerFile` espera `value_id` pero el factory intenta `value`; los discriminadores `"multichoice"`/`"singlechoice"` no coinciden con los `code` reales de `reference.field_types` (`multi_choice`/`single_choice`); `"multichoice"` crea una respuesta vacía sin guardar nada.
-- **No hay `GET /forms` (listar) ni `GET /forms/{id}`**: solo creación. El frontend no puede traer formularios existentes desde el backend real todavía.
+- ~~**No hay `GET /forms` (listar) ni `GET /forms/{id}`**~~ — resuelto en la sesión 2026-11-04 §4 (rama `formularios-response-db`).
 - **`Result.final_score`**: no se encontró lógica de agregación/ponderación implementada (`Criterion.weight` existe pero nada la usa).
 - **`grading.Assignment` y `forms.Information`**: declaradas como referencia de tabla en `targets.py`, sin modelo ORM ni migración.
 - **`persister` (Docker) no tiene `CMD`**: se opera solo vía `Scripts/launcher.sh` (`--setup`, `--schemer`, `--migrator`, `--seeder`, `--populator`). Si alguien intenta `docker compose up persister` esperando que corra solo, no pasa nada.
