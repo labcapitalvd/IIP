@@ -146,3 +146,13 @@ class SubmissionInvalidError(SubmissionError):
 class SubmissionNotFoundError(SubmissionError):
     status_code = 404
     message = "The submission could not be found."
+
+
+class SubmissionForbiddenError(SubmissionError):
+    status_code = 403
+    message = "Only an administrator can delete submissions."
+
+
+class SubmissionHasGradesError(SubmissionError):
+    status_code = 409
+    message = "This submission already has grades; confirm to delete it together with them."

@@ -53,6 +53,20 @@ class ActorNotFoundError(AuthError):
     message = "Actor not found."
 
 
+class AdminRequiredError(AuthError):
+    """The caller is not a platform administrator."""
+
+    status_code = 403
+    message = "Only an administrator can manage users."
+
+
+class InvalidUserOperation(AuthError):
+    """The requested admin operation on a user is not allowed."""
+
+    status_code = 400
+    message = "Invalid user operation."
+
+
 class DefaultRoleDoesntExist(AuthError):
     """System configuration error - missing the standard_user system role in DB."""
 

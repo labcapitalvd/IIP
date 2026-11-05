@@ -1,7 +1,7 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Path, Query
+from fastapi import APIRouter, Body, Depends, Path, Query, status
 from shared.utils import AccessContext, get_claims
 
 from application import SubmissionAppService
@@ -49,6 +49,26 @@ async def get_submission(
     claims = get_claims(ctx.access_token)
     return await service.get_submission(
         requester_id=UUID(claims["sub"]), submission_id=submission_id
+    )
+
+
+@router.delete(
+    "/{submission_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="delete_submission",
+    summary="Eliminar un radicado y sus respuestas (solo admin)",
+)
+async def delete_submission(
+    submission_id: UUID = Path(),
+    force: bool = Query(
+        False, description="true también borra sus calificaciones si las tiene (si no, 409)."
+    ),
+    ctx: AccessContext = Depends(),
+    service: SubmissionAppService = Depends(get_submission_service),
+):
+    claims = get_claims(ctx.access_token)
+    await service.delete_submission(
+        requester_id=UUID(claims["sub"]), submission_id=submission_id, force=force
     )
 
 
