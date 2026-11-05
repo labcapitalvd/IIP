@@ -276,11 +276,20 @@ export const coreService = {
   // --- ENVÍOS / RESPUESTAS (/public/submissions) ---
 
   /**
-   * POST /public/submissions/forms/{form_id}
-   * Body: List of typed answers (boolean, text, numeric, date, singlechoice, card_entry)
+   * POST /public/submissions/forms/{form_id}[?as_draft=true]
+   * Body: List of typed answers (boolean, text, numeric, date, single_choice, multi_choice, file, card_entry).
+   * 422 si no coincide con el formulario; 409 si la entidad ya radicó este formulario.
    */
-  async submitForm(formId: string, payload: SubmissionItem[]): Promise<{ status: string; message: string }> {
-    const { data } = await apiClient.request('core', `/public/submissions/forms/${formId}`, {
+  async submitForm(
+    formId: string,
+    payload: SubmissionItem[],
+    asDraft = false
+  ): Promise<{ message: string; submission_id: string; submission_status: 'draft' | 'submitted' }> {
+    const { data } = await apiClient.request<{
+      message: string;
+      submission_id: string;
+      submission_status: 'draft' | 'submitted';
+    }>('core', `/public/submissions/forms/${formId}${asDraft ? '?as_draft=true' : ''}`, {
       method: 'POST',
       body: payload,
       requiresAuth: true,

@@ -14,12 +14,15 @@ class SubmissionAppService:
     ):
         self.submission_service = submission_service or SubmissionService()
 
-    async def create_submission(self, user_id: str, form_id: str, data: Any):
+    async def create_submission(
+        self, user_id: str, form_id: str, data: Any, as_draft: bool = False
+    ):
         async with SubmissionUoW() as uow:
             submission = await self.submission_service.process_submission(
                 user_id=UUID(user_id) if isinstance(user_id, str) else user_id,
                 form_id=UUID(form_id) if isinstance(form_id, str) else form_id,
-                answers_data=data,
+                items=data,
                 uow=uow,
+                as_draft=as_draft,
             )
             return submission

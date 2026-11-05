@@ -332,15 +332,46 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
   }, [activeForm, answers, cardEntries]);
 
   /**
-   * Compiles typed submission payload strictly adhering to backend specification:
-   * "boolean" -> { type: "boolean", field_id: "...", value: true }
-   * "text" -> { type: "text", field_id: "...", value: "string" }
-   * "numeric" -> { type: "numeric", field_id: "...", value: 12.5 }
-   * "date" -> { type: "date", field_id: "...", value: "2026-08-20" }
-   * "singlechoice" -> { type: "singlechoice", field_id: "...", value: "choice-id" }
-   * "card_entry" -> { type: "card_entry", field_id, question_id, card_template_id, title, card_index, answers: [...] }
+   * Compiles the typed payload for POST /submissions/forms/{id} (códigos = reference.field_types):
+   * boolean / text / numeric / date -> { type, field_id, value }
+   * single_choice -> { type, field_id, value: "choice-id" }
+   * multi_choice  -> { type, field_id, value: ["choice-id", ...] }
+   * file          -> { type, field_id, value: "file-id" }
+   * card_entry    -> { type, field_id, question_id, card_template_id, title, card_index, answers: [...] }
    */
   const compileSubmissionPayload = useCallback((): SubmissionItem[] => {
+    const toAnswer = (
+      field: { id: string; field_type_code: string },
+      rawVal: unknown
+    ): SubmissionValueAnswer | null => {
+      if (rawVal === undefined || rawVal === null || rawVal === '') return null;
+      if (Array.isArray(rawVal) && rawVal.length === 0) return null;
+      const field_id = field.id;
+      switch (field.field_type_code) {
+        case 'boolean':
+          return { type: 'boolean', field_id, value: Boolean(rawVal) };
+        case 'numeric':
+          return { type: 'numeric', field_id, value: Number(rawVal) };
+        case 'date':
+          return { type: 'date', field_id, value: String(rawVal) };
+        case 'singlechoice':
+        case 'single_choice':
+          return { type: 'single_choice', field_id, value: String(rawVal) };
+        case 'multichoice':
+        case 'multi_choice':
+          return {
+            type: 'multi_choice',
+            field_id,
+            value: (Array.isArray(rawVal) ? rawVal : [rawVal]).map(String),
+          };
+        case 'file':
+          return { type: 'file', field_id, value: String(rawVal) };
+        case 'text':
+        default:
+          return { type: 'text', field_id, value: String(rawVal) };
+      }
+    };
+
     const payload: SubmissionItem[] = [];
 
     activeForm.sections.forEach((sec) => {
@@ -349,50 +380,10 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
           const entries = cardEntries[q.id] || [];
           entries.forEach((entry, index) => {
             const nestedAnswers: SubmissionValueAnswer[] = [];
-
             q.card_template.field_groups.forEach((fg) => {
               fg.fields.forEach((field) => {
-                const rawVal = entry.answers[field.id];
-                if (rawVal === undefined || rawVal === null || rawVal === '') return;
-
-                switch (field.field_type_code) {
-                  case 'boolean':
-                    nestedAnswers.push({
-                      type: 'boolean',
-                      field_id: field.id,
-                      value: Boolean(rawVal),
-                    });
-                    break;
-                  case 'numeric':
-                    nestedAnswers.push({
-                      type: 'numeric',
-                      field_id: field.id,
-                      value: Number(rawVal),
-                    });
-                    break;
-                  case 'date':
-                    nestedAnswers.push({
-                      type: 'date',
-                      field_id: field.id,
-                      value: String(rawVal),
-                    });
-                    break;
-                  case 'singlechoice':
-                    nestedAnswers.push({
-                      type: 'singlechoice',
-                      field_id: field.id,
-                      value: String(rawVal),
-                    });
-                    break;
-                  case 'text':
-                  default:
-                    nestedAnswers.push({
-                      type: 'text',
-                      field_id: field.id,
-                      value: String(rawVal),
-                    });
-                    break;
-                }
+                const a = toAnswer(field, entry.answers[field.id]);
+                if (a) nestedAnswers.push(a);
               });
             });
 
@@ -405,54 +396,13 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
               card_index: index,
               answers: nestedAnswers,
             };
-
             payload.push(cardEntryPayload);
           });
         } else {
-          // Standard question / single card template fields
           q.card_template.field_groups.forEach((fg) => {
             fg.fields.forEach((field) => {
-              const rawVal = answers[field.id];
-              if (rawVal === undefined || rawVal === null || rawVal === '') return;
-
-              switch (field.field_type_code) {
-                case 'boolean':
-                  payload.push({
-                    type: 'boolean',
-                    field_id: field.id,
-                    value: Boolean(rawVal),
-                  });
-                  break;
-                case 'numeric':
-                  payload.push({
-                    type: 'numeric',
-                    field_id: field.id,
-                    value: Number(rawVal),
-                  });
-                  break;
-                case 'date':
-                  payload.push({
-                    type: 'date',
-                    field_id: field.id,
-                    value: String(rawVal),
-                  });
-                  break;
-                case 'singlechoice':
-                  payload.push({
-                    type: 'singlechoice',
-                    field_id: field.id,
-                    value: String(rawVal),
-                  });
-                  break;
-                case 'text':
-                default:
-                  payload.push({
-                    type: 'text',
-                    field_id: field.id,
-                    value: String(rawVal),
-                  });
-                  break;
-              }
+              const a = toAnswer(field, answers[field.id]);
+              if (a) payload.push(a);
             });
           });
         }
@@ -468,13 +418,13 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       const payload = compileSubmissionPayload();
 
       // Dispatch to the core service
-      await coreService.submitForm(activeForm.id, payload);
+      const saved = await coreService.submitForm(activeForm.id, payload);
 
       const targetActor = actors.find((a) => a.id === user?.actor_id) || actors[0];
       const targetSegment = segments.find((s) => s.id === targetActor?.actor_segment_id);
 
       const newSubmission: EntitySubmission = {
-        id: `sub-${Date.now()}`,
+        id: saved.submission_id,
         form_id: activeForm.id,
         form_code: activeForm.code,
         form_title: activeForm.label,

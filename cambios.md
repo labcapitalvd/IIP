@@ -220,6 +220,29 @@ Despliegue: reconstruir `base` y `core` (`docker compose build base core && dock
 
 ---
 
+## 2026-11-05 — Arreglo de `POST /submissions/forms/{form_id}`
+
+Bugs encontrados (los 3 primeros ya estaban anotados; el 4.º y el 5.º aparecieron al probar de verdad):
+1. Cuerpo sin tipar (`List[Any]`) → ahora es una unión discriminada Pydantic (`schemas/submissions.py`): `boolean`, `text`, `numeric`, `date`, `single_choice`, `multi_choice`, `file`, `card_entry` (con `answers` anidadas). Los alias legados `singlechoice` / `multichoice` se siguen aceptando.
+2. `AnswerFile` recibía `value=` pero la columna es `value_id` → corregido (acepta `null` o el id de un archivo ya subido).
+3. `multichoice` creaba una respuesta vacía → ahora crea los `MultiChoiceOptionLink` de cada opción marcada.
+4. **`polymorphic_identity` de todas las respuestas usaba `FieldTypesEnum.X.value` (la tupla completa) en vez de `.code`** → ningún `INSERT` en `submissions.answers` podía funcionar nunca (`expected str, got tuple`). Corregido en `Packages/shared/.../models/submissions.py`; también el `'CARD'` del `primaryjoin` de `Submission.card_entries` (ahora `'card'`).
+5. El estado se buscaba por `label` ("Draft") y siempre era borrador; el `ValueError` si el usuario no tenía entidad salía como 500.
+
+Comportamiento nuevo del endpoint:
+- Valida contra el formulario (422 `SUBMISSION_INVALID_ERROR`): campos que no son del formulario, tipo de respuesta distinto al del campo, opciones que no pertenecen al campo, archivos inexistentes, tarjeta que no corresponde a su pregunta/plantilla.
+- `?as_draft=true` guarda un borrador (reemplaza el borrador anterior de esa entidad y formulario). Sin el parámetro **radica** (estado `submitted`).
+- Si la entidad ya radicó el formulario → `409 SUBMISSION_ALREADY_SUBMITTED_ERROR`. Usuario sin entidad → `403`. Formulario inexistente → `404`.
+- Responde `{ submission_id, submission_status }`.
+
+Frontend: `compileSubmissionPayload` usa un solo helper `toAnswer` (antes dos `switch` duplicados) con los códigos canónicos y soporta `multi_choice` y `file`; `submitForm` usa el `submission_id` real del servidor.
+
+Verificado en local con un formulario de prueba (todos los tipos + bucle de 2 tarjetas): los 4 casos de 422, borrador → reemplazo → radicado (200) → segundo radicado (409). En BD: 1 radicado, 2 tarjetas, 3 respuestas hijas ligadas a su tarjeta, 2 opciones multi. `tsc --noEmit` limpio. **No probado con clics en el navegador**; además el portal de entidades todavía no dibuja selección múltiple ni archivos (pendiente de rediseño).
+
+Despliegue: cambió `Packages/shared`, así que hay que reconstruir **en este orden** `base` y luego `core`/`auth` (si se construyen juntos, `core` puede quedar sobre la base vieja): `docker compose build base && docker compose build core auth frontend && docker compose up -d --no-deps core auth frontend`. Sin migración.
+
+---
+
 ## Pendientes / gaps conocidos (no resueltos en esta sesión)
 
 Cosas encontradas durante la revisión que quedan documentadas para no perderlas de vista:
@@ -238,7 +261,7 @@ Cosas encontradas durante la revisión que quedan documentadas para no perderlas
 
 - **Sin autorización granular en `Core`**: los routers de `Core` (`/actors`, `/forms`, `/submissions`) solo validan que el JWT sea válido, no qué puede hacer ese usuario (RBAC/ReBAC compilado en Valkey al login, pero nunca consultado después).
 - **Gap 500 vs 401**: un token inválido/expirado en un endpoint protegido de `Core` responde `500` en vez de `401`, porque las excepciones de `shared/utils/tokens/errors.py` no heredan de `BaseDomainError`. No afecta a login/register (no requieren token), pero sí a todo lo demás.
-- **`POST /submissions/forms/{form_id}`**: body sin tipar (`List[Any]`), con bugs conocidos — `AnswerFile` espera `value_id` pero el factory intenta `value`; los discriminadores `"multichoice"`/`"singlechoice"` no coinciden con los `code` reales de `reference.field_types` (`multi_choice`/`single_choice`); `"multichoice"` crea una respuesta vacía sin guardar nada.
+- ~~**`POST /submissions/forms/{form_id}`**~~ (resuelto 2026-11-05): body sin tipar (`List[Any]`), con bugs conocidos — `AnswerFile` espera `value_id` pero el factory intenta `value`; los discriminadores `"multichoice"`/`"singlechoice"` no coinciden con los `code` reales de `reference.field_types` (`multi_choice`/`single_choice`); `"multichoice"` crea una respuesta vacía sin guardar nada.
 - ~~**No hay `GET /forms` (listar) ni `GET /forms/{id}`**~~ — resuelto en la sesión 2026-11-04 §4 (rama `formularios-response-db`).
 - **`Result.final_score`**: no se encontró lógica de agregación/ponderación implementada (`Criterion.weight` existe pero nada la usa).
 - **`grading.Assignment` y `forms.Information`**: declaradas como referencia de tabla en `targets.py`, sin modelo ORM ni migración.

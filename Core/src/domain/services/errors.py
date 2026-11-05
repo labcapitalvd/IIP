@@ -109,3 +109,30 @@ class AssignmentNotFoundError(FormError):
 class AssignmentTargetNotFoundError(FormError):
     status_code = 404
     message = "The user or the form to assign could not be found."
+
+
+class SubmissionError(BaseDomainError):
+    """Base error for submission (form answers) domain logic."""
+
+    status_code = 400
+    message = "An error occurred in the Submission service."
+
+
+class SubmissionFormNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The form being answered could not be found."
+
+
+class SubmissionActorMissingError(SubmissionError):
+    status_code = 403
+    message = "The authenticated user is not linked to any entity, so it cannot submit answers."
+
+
+class SubmissionAlreadySubmittedError(SubmissionError):
+    status_code = 409
+    message = "This entity already submitted this form; it can no longer be modified."
+
+
+class SubmissionInvalidError(SubmissionError):
+    status_code = 422
+    message = "The submitted answers do not match the form."

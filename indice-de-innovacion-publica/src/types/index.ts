@@ -391,9 +391,21 @@ export interface DateAnswer {
 }
 
 export interface SingleChoiceAnswer {
-  type: 'singlechoice';
+  type: 'single_choice';
   field_id: string;
   value: string; // UUID of chosen field_choice
+}
+
+export interface MultiChoiceAnswer {
+  type: 'multi_choice';
+  field_id: string;
+  value: string[]; // UUIDs of the checked field_choices
+}
+
+export interface FileAnswer {
+  type: 'file';
+  field_id: string;
+  value: string | null; // UUID of an already uploaded file
 }
 
 export interface CardEntryAnswer {
@@ -411,7 +423,9 @@ export type SubmissionValueAnswer =
   | TextAnswer
   | NumericAnswer
   | DateAnswer
-  | SingleChoiceAnswer;
+  | SingleChoiceAnswer
+  | MultiChoiceAnswer
+  | FileAnswer;
 
 export type SubmissionItem =
   | SubmissionValueAnswer

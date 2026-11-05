@@ -1,11 +1,11 @@
-from typing import Any, List
+from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Path
-from shared.schemas import ResponseMessageSchema
+from fastapi import APIRouter, Body, Depends, Path, Query
 from shared.utils import AccessContext, get_claims
 
 from application import SubmissionAppService
+from schemas.submissions import ResponseSubmissionCreated, SubmissionItemIn
 
 router = APIRouter(tags=["Submissions"], prefix="/submissions")
 
@@ -16,18 +16,36 @@ def get_submission_service() -> SubmissionAppService:
 
 @router.post(
     "/forms/{form_id}",
-    response_model=ResponseMessageSchema,
+    response_model=ResponseSubmissionCreated,
     response_model_exclude_none=True,
     operation_id="send_submission",
 )
 async def create_submission(
     form_id: UUID = Path(),
-    answers: List[Any] = Body(...),
+    answers: List[SubmissionItemIn] = Body(...),
+    as_draft: bool = Query(
+        False, description="true guarda un borrador (reemplaza el anterior); false radica el envío."
+    ),
     ctx: AccessContext = Depends(),
     service: SubmissionAppService = Depends(get_submission_service),
 ):
-    user_id = get_claims(ctx.access_token)
-    await service.create_submission(
-        user_id=str(user_id.get("sub")), form_id=str(form_id), data=answers
+    """
+    Guarda las respuestas de la entidad del usuario para el formulario.
+
+    Tipos de respuesta: boolean, text, numeric, date, single_choice (value = id de opción),
+    multi_choice (value = lista de ids), file (value = id de archivo) y card_entry
+    (tarjeta de un bucle, con sus `answers`). Se validan contra el formulario (422).
+    Si la entidad ya radicó el formulario responde 409.
+    """
+    claims = get_claims(ctx.access_token)
+    submission = await service.create_submission(
+        user_id=str(claims.get("sub")),
+        form_id=str(form_id),
+        data=answers,
+        as_draft=as_draft,
     )
-    return ResponseMessageSchema(message=f"submission {form_id} created.")
+    return ResponseSubmissionCreated(
+        message=f"submission {form_id} created.",
+        submission_id=submission.id,
+        submission_status="draft" if as_draft else "submitted",
+    )
