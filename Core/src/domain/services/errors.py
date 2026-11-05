@@ -91,6 +91,11 @@ class FormStructureConflictError(FormError):
     status_code = 409  # Conflict
     message = "Duplicate codes were found within the submitted form structure."
 
+class FormHierarchyError(FormError):
+    status_code = 422
+    message = "The form must be organized as Component > Variable > Indicator > Question."
+
+
 class FormForbiddenError(FormError):
     status_code = 403
     message = "Only an administrator can delete forms."

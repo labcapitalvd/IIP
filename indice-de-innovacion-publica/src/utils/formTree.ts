@@ -13,8 +13,10 @@ import {
 } from '../types';
 
 /**
- * Modelo del formulario:
- *   Formulario → Variables (sección raíz) → Indicadores (sección hija) → Preguntas
+ * Modelo del formulario (igual que en la BD, `forms.section_types` C / V / I):
+ *   Formulario → Componentes → Variables → Indicadores → Preguntas
+ * Cada pregunta lleva un peso (`grading.criteria`) para la calificación manual; los pesos de
+ * todas las preguntas del formulario deben sumar 100.
  * Una pregunta es simple (un campo) o bucle (tarjetas repetibles con varios campos).
  */
 
@@ -96,16 +98,33 @@ export const newIndicator = (variableCode: string, n: number): FormSection => ({
   questions: [newQuestion('boolean', 1)],
 });
 
-export const newVariable = (n: number): FormSection => ({
-  id: uid('var'),
-  code: `V${n}`,
-  label: '',
-  description: '',
-  help_text: '',
-  order_index: n,
-  icon_name: 'Layers',
-  children: [newIndicator(`V${n}`, 1)],
-});
+export const newVariable = (componentCode: string, n: number): FormSection => {
+  const code = `${componentCode}_V${n}`;
+  return {
+    id: uid('var'),
+    code,
+    label: '',
+    description: '',
+    help_text: '',
+    order_index: n,
+    icon_name: 'Layers',
+    children: [newIndicator(code, 1)],
+  };
+};
+
+export const newComponent = (n: number): FormSection => {
+  const code = `C${n}`;
+  return {
+    id: uid('cmp'),
+    code,
+    label: '',
+    description: '',
+    help_text: '',
+    order_index: n,
+    icon_name: 'Building2',
+    children: [newVariable(code, 1)],
+  };
+};
 
 export const questionFields = (q: FormQuestion): FormField[] =>
   q.card_template.field_groups.flatMap((g) => g.fields);
@@ -134,120 +153,231 @@ export const numberQuestions = (questions: FormQuestion[]): Record<string, strin
   return out;
 };
 
+export const getVariables = (component: FormSection): FormSection[] => component.children ?? [];
 export const getIndicators = (variable: FormSection): FormSection[] => variable.children ?? [];
 
-export const countQuestions = (form: IIPForm): number =>
-  form.sections.reduce(
-    (acc, v) => acc + getIndicators(v).reduce((a, i) => a + (i.questions?.length || 0), 0) + (v.questions?.length || 0),
-    0
-  );
+/** Todos los indicadores del formulario, en orden. */
+export const allIndicators = (form: IIPForm): FormSection[] =>
+  form.sections.flatMap((c) => getVariables(c).flatMap(getIndicators));
 
-export const countIndicators = (form: IIPForm): number =>
-  form.sections.reduce((acc, v) => acc + getIndicators(v).length, 0);
+/** Todas las preguntas del formulario (de todos los indicadores), en orden. */
+export const allQuestions = (form: IIPForm): FormQuestion[] => allIndicators(form).flatMap((i) => i.questions ?? []);
+
+export const countComponents = (form: IIPForm): number => form.sections.length;
+export const countVariables = (form: IIPForm): number =>
+  form.sections.reduce((acc, c) => acc + getVariables(c).length, 0);
+export const countIndicators = (form: IIPForm): number => allIndicators(form).length;
+export const countQuestions = (form: IIPForm): number => allQuestions(form).length;
+
+/* ------------------------------ Pesos ------------------------------ */
+
+export const TARGET_WEIGHT = 100;
+
+const cents = (n: number | undefined) => Math.round((Number(n) || 0) * 100);
+
+/** Suma de pesos de las preguntas de una sección (recursiva). */
+export const sectionWeight = (section: FormSection): number =>
+  ((section.questions ?? []).reduce((a, q) => a + cents(q.weight), 0) +
+    (section.children ?? []).reduce((a, c) => a + sectionWeight(c) * 100, 0)) /
+  100;
+
+export const formWeight = (form: IIPForm): number => form.sections.reduce((a, c) => a + sectionWeight(c), 0);
+
+export const weightIsComplete = (total: number) => Math.abs(total - TARGET_WEIGHT) < 0.005;
+
+export const formatWeight = (n: number) => `${+n.toFixed(2)}`;
+
+/** Reparte `target` en `n` partes de centésimas que suman exactamente `target`. */
+const evenCents = (n: number, targetCents: number): number[] => {
+  if (!n) return [];
+  const base = Math.floor(targetCents / n);
+  const extra = targetCents - base * n;
+  return Array.from({ length: n }, (_, i) => base + (i < extra ? 1 : 0));
+};
+
+/** Escala proporcionalmente los pesos actuales para que sumen 100 (o reparte parejo si todos son 0). */
+export const scaleWeightsTo100 = (form: IIPForm): IIPForm => {
+  const copy = structuredClone(form);
+  const qs = allQuestions(copy);
+  const targetCents = TARGET_WEIGHT * 100;
+  const total = qs.reduce((a, q) => a + cents(q.weight), 0);
+  if (!qs.length) return copy;
+  let result: number[];
+  if (total === 0) {
+    result = evenCents(qs.length, targetCents);
+  } else {
+    const raw = qs.map((q) => (cents(q.weight) / total) * targetCents);
+    result = raw.map(Math.floor);
+    let left = targetCents - result.reduce((a, b) => a + b, 0);
+    [...raw.keys()]
+      .sort((x, y) => raw[y] - Math.floor(raw[y]) - (raw[x] - Math.floor(raw[x])))
+      .forEach((idx) => {
+        if (left-- > 0) result[idx] += 1;
+      });
+  }
+  qs.forEach((q, i) => (q.weight = result[i] / 100));
+  return copy;
+};
+
+/** Reparte 100 en partes iguales entre todas las preguntas del formulario. */
+export const distributeWeightsEvenly = (form: IIPForm): IIPForm => {
+  const copy = structuredClone(form);
+  const qs = allQuestions(copy);
+  const parts = evenCents(qs.length, TARGET_WEIGHT * 100);
+  qs.forEach((q, i) => (q.weight = parts[i] / 100));
+  return copy;
+};
 
 /**
- * Convierte formularios guardados con el formato anterior
- * (Dimensión → Criterio(pregunta con N campos)) al modelo actual
- * (Variable → Indicador → Preguntas). Es idempotente.
+ * Lleva formularios con formatos anteriores al modelo actual. Es idempotente:
+ *  - Dimensión → Criterio (pregunta con N campos)      → Componente → Variable → Indicador → Preguntas
+ *  - Variable → Indicador → Preguntas (sin Componente) → se agrupa en un «Componente 1»
  */
-export const migrateForm = (form: IIPForm): IIPForm => ({
-  ...form,
-  sections: form.sections.map((sec) => {
-    if (sec.children?.length || !sec.questions?.length) return sec;
-    const indicators: FormSection[] = sec.questions.map((legacy, i) => {
-      const fields = questionFields(legacy);
-      const repeatable = !!legacy.card_template.is_repeatable;
-      const questions: FormQuestion[] = repeatable
-        ? [{ ...legacy, question_kind: 'loop', is_required: true, depends_on: null }]
-        : fields.map((f, k) => ({
-            id: `${legacy.id}-${k + 1}`,
-            code: `Q${k + 1}`,
-            label: f.label,
-            help_text: f.help_text,
-            question_kind: fieldTypeToKind(f.field_type_code),
-            is_required: f.is_required,
-            depends_on: null,
-            card_template: emptyCard(`Q${k + 1}`, f.label, [f], false),
-          }));
-      return {
-        id: legacy.id,
-        code: `${sec.code}_I${i + 1}`.slice(0, 50),
-        label: legacy.label,
-        description: legacy.description ?? '',
-        help_text: '',
-        order_index: i + 1,
-        icon_name: sec.icon_name ?? 'Target',
-        questions,
-      };
-    });
-    return { ...sec, questions: undefined, children: indicators };
-  }),
-});
+const migrateLegacyDimension = (sec: FormSection): FormSection => {
+  const indicators: FormSection[] = (sec.questions ?? []).map((legacy, i) => {
+    const fields = questionFields(legacy);
+    const repeatable = !!legacy.card_template.is_repeatable;
+    const questions: FormQuestion[] = repeatable
+      ? [{ ...legacy, question_kind: 'loop', is_required: true, depends_on: null }]
+      : fields.map((f, k) => ({
+          id: `${legacy.id}-${k + 1}`,
+          code: `Q${k + 1}`,
+          label: f.label,
+          help_text: f.help_text,
+          question_kind: fieldTypeToKind(f.field_type_code),
+          is_required: f.is_required,
+          depends_on: null,
+          card_template: emptyCard(`Q${k + 1}`, f.label, [f], false),
+        }));
+    return {
+      id: legacy.id,
+      code: `${sec.code}_I${i + 1}`.slice(0, 50),
+      label: legacy.label,
+      description: legacy.description ?? '',
+      help_text: '',
+      order_index: i + 1,
+      icon_name: sec.icon_name ?? 'Target',
+      questions,
+    };
+  });
+  return { ...sec, questions: undefined, children: indicators };
+};
+
+/** Una raíz es una Variable (formato sin Componente) si sus hijos son Indicadores (tienen preguntas, no hijos). */
+const isVariableRoot = (sec: FormSection) =>
+  !!sec.children?.length && sec.children.every((c) => !c.children?.length);
+
+export const migrateForm = (form: IIPForm): IIPForm => {
+  const roots = form.sections.map((sec) =>
+    !sec.children?.length && sec.questions?.length ? migrateLegacyDimension(sec) : sec
+  );
+  if (!roots.some(isVariableRoot)) return { ...form, sections: roots };
+  // Formato sin Componente: todas las variables raíz pasan a un único «Componente 1».
+  const variables = roots.filter(isVariableRoot);
+  const others = roots.filter((r) => !isVariableRoot(r));
+  const component: FormSection = {
+    id: uid('cmp'),
+    code: 'C1',
+    label: 'Componente 1',
+    description: '',
+    help_text: '',
+    order_index: 1,
+    icon_name: 'Building2',
+    children: variables,
+  };
+  return { ...form, sections: [component, ...others] };
+};
 
 /**
- * Vista para el portal de entidades (aún con el diseño anterior): cada Variable
- * agrupa en `questions` las preguntas de todos sus Indicadores.
+ * Vista para el portal de entidades (aún con el diseño anterior): cada Variable (de
+ * cualquier Componente) agrupa en `questions` las preguntas de todos sus Indicadores.
  */
 export const flattenForEntity = (form: IIPForm): IIPForm => ({
   ...form,
-  sections: form.sections.map((v) => ({
-    ...v,
-    children: undefined,
-    questions: [...(v.questions ?? []), ...getIndicators(v).flatMap((i) => i.questions ?? [])],
-  })),
+  sections: form.sections.flatMap((c) =>
+    getVariables(c).map((v) => ({
+      ...v,
+      children: undefined,
+      questions: [...(v.questions ?? []), ...getIndicators(v).flatMap((i) => i.questions ?? [])],
+    }))
+  ),
 });
 
 export interface FormIssue {
   message: string;
-  /** Índices de la variable / indicador y id de la pregunta con el problema. */
-  v: number;
+  /** Índices del componente / variable / indicador y id de la pregunta con el problema. */
+  c: number;
+  v: number | null;
   i: number | null;
   questionId?: string;
 }
 
-/** Validación previa al guardado. Devuelve el primer problema (con su ubicación) o null. */
+/**
+ * Validación previa al guardado. Devuelve el primer problema (con su ubicación) o null.
+ * Los pesos de todas las preguntas deben sumar exactamente 100.
+ */
 export const findFormIssue = (form: IIPForm): FormIssue | null => {
-  if (!form.sections.length) return { message: 'El formulario necesita al menos una variable.', v: 0, i: null };
+  if (!form.sections.length) return { message: 'El formulario necesita al menos un componente.', c: 0, v: null, i: null };
   const labelOk = (s: string | undefined | null) => !!s && s.trim().length > 0 && s.length <= 255;
-  for (const [vi, v] of form.sections.entries()) {
-    const vn = `Variable ${vi + 1}`;
-    if (!labelOk(v.label)) return { message: `${vn}: el nombre es obligatorio (máx. 255 caracteres).`, v: vi, i: null };
-    const inds = getIndicators(v);
-    if (!inds.length) return { message: `${vn}: agregue al menos un indicador.`, v: vi, i: null };
-    for (const [ii, ind] of inds.entries()) {
-      const inn = `${vn}, indicador ${ii + 1}`;
-      const at = (message: string, questionId?: string): FormIssue => ({ message, v: vi, i: ii, questionId });
-      if (!labelOk(ind.label)) return at(`${inn}: el nombre es obligatorio (máx. 255 caracteres).`);
-      const qs = ind.questions ?? [];
-      if (!qs.length) return at(`${inn}: agregue al menos una pregunta.`);
-      const nums = numberQuestions(qs);
-      for (const q of qs) {
-        const qn = `${inn}, pregunta ${nums[q.id]}`;
-        if (!labelOk(q.label)) return at(`${qn}: el enunciado es obligatorio (máx. 255 caracteres).`, q.id);
-        const kind = kindOf(q);
-        const fields = questionFields(q);
-        if (kind === 'loop') {
-          if (q.depends_on) {
-            const parent = qs.find((p) => p.id === q.depends_on!.question_id);
-            if (!parent || kindOf(parent) !== 'boolean' || qs.indexOf(parent) > qs.indexOf(q))
-              return at(`${qn}: la pregunta Sí/No de la que depende debe estar antes, en el mismo indicador.`, q.id);
+  for (const [ci, c] of form.sections.entries()) {
+    const cn = `Componente ${ci + 1}`;
+    if (!labelOk(c.label)) return { message: `${cn}: el nombre es obligatorio (máx. 255 caracteres).`, c: ci, v: null, i: null };
+    const vars = getVariables(c);
+    if (!vars.length) return { message: `${cn}: agregue al menos una variable.`, c: ci, v: null, i: null };
+    for (const [vi, v] of vars.entries()) {
+      const vn = `${cn}, variable ${ci + 1}.${vi + 1}`;
+      if (!labelOk(v.label)) return { message: `${vn}: el nombre es obligatorio (máx. 255 caracteres).`, c: ci, v: vi, i: null };
+      const inds = getIndicators(v);
+      if (!inds.length) return { message: `${vn}: agregue al menos un indicador.`, c: ci, v: vi, i: null };
+      for (const [ii, ind] of inds.entries()) {
+        const inn = `${vn}, indicador ${ci + 1}.${vi + 1}.${ii + 1}`;
+        const at = (message: string, questionId?: string): FormIssue => ({ message, c: ci, v: vi, i: ii, questionId });
+        if (!labelOk(ind.label)) return at(`${inn}: el nombre es obligatorio (máx. 255 caracteres).`);
+        const qs = ind.questions ?? [];
+        if (!qs.length) return at(`${inn}: agregue al menos una pregunta.`);
+        const nums = numberQuestions(qs);
+        for (const q of qs) {
+          const qn = `${inn}, pregunta ${nums[q.id]}`;
+          if (!labelOk(q.label)) return at(`${qn}: el enunciado es obligatorio (máx. 255 caracteres).`, q.id);
+          const w = Number(q.weight ?? 0);
+          if (!Number.isFinite(w) || w < 0 || w > TARGET_WEIGHT)
+            return at(`${qn}: el peso debe estar entre 0 y ${TARGET_WEIGHT}.`, q.id);
+          if (cents(w) !== w * 100 && Math.abs(cents(w) - w * 100) > 1e-6)
+            return at(`${qn}: el peso admite máximo 2 decimales.`, q.id);
+          if ((q.grading_guide ?? '').length > 4096) return at(`${qn}: la guía de calificación es demasiado larga.`, q.id);
+          const kind = kindOf(q);
+          const fields = questionFields(q);
+          if (kind === 'loop') {
+            if (q.depends_on) {
+              const parent = qs.find((p) => p.id === q.depends_on!.question_id);
+              if (!parent || kindOf(parent) !== 'boolean' || qs.indexOf(parent) > qs.indexOf(q))
+                return at(`${qn}: la pregunta Sí/No de la que depende debe estar antes, en el mismo indicador.`, q.id);
+            }
+            if (!fields.length) return at(`${qn}: agregue al menos un campo a la tarjeta.`, q.id);
           }
-          if (!fields.length) return at(`${qn}: agregue al menos un campo a la tarjeta.`, q.id);
-        }
-        for (const f of fields) {
-          if (kind === 'loop' && !labelOk(f.label)) return at(`${qn}: todos los campos de la tarjeta necesitan nombre.`, q.id);
-          if (f.field_type_code === 'file') {
-            if (!f.allowed_file_types?.length) return at(`${qn}: seleccione al menos un tipo de archivo permitido.`, q.id);
-            if (!f.max_file_size || f.max_file_size <= 0) return at(`${qn}: indique el tamaño máximo del archivo.`, q.id);
+          for (const f of fields) {
+            if (kind === 'loop' && !labelOk(f.label)) return at(`${qn}: todos los campos de la tarjeta necesitan nombre.`, q.id);
+            if (f.field_type_code === 'file') {
+              if (!f.allowed_file_types?.length) return at(`${qn}: seleccione al menos un tipo de archivo permitido.`, q.id);
+              if (!f.max_file_size || f.max_file_size <= 0) return at(`${qn}: indique el tamaño máximo del archivo.`, q.id);
+            }
+            if (isChoiceType(f.field_type_code) && (f.choices?.length ?? 0) < 2)
+              return at(`${qn}: la selección necesita al menos 2 opciones.`, q.id);
+            if (isChoiceType(f.field_type_code) && f.choices!.some((c) => !labelOk(c.label)))
+              return at(`${qn}: todas las opciones necesitan texto.`, q.id);
           }
-          if (isChoiceType(f.field_type_code) && (f.choices?.length ?? 0) < 2)
-            return at(`${qn}: la selección necesita al menos 2 opciones.`, q.id);
-          if (isChoiceType(f.field_type_code) && f.choices!.some((c) => !labelOk(c.label)))
-            return at(`${qn}: todas las opciones necesitan texto.`, q.id);
         }
       }
     }
   }
+  const total = formWeight(form);
+  if (!weightIsComplete(total))
+    return {
+      message: `Los pesos de las preguntas suman ${formatWeight(total)} y deben sumar exactamente ${TARGET_WEIGHT}. Ajústelos o use «Escalar a 100» / «Repartir en partes iguales».`,
+      c: 0,
+      v: null,
+      i: null,
+    };
   return null;
 };
 
@@ -276,6 +406,8 @@ export const toCreateFormRequest = (form: IIPForm) => {
       required: q.is_required ?? true,
       is_loop: kind === 'loop',
       display_order: order,
+      weight: Number((q.weight ?? 0).toFixed(2)),
+      grading_guide: q.grading_guide?.trim() || null,
       depends_on: parent ? { question_code: parent.code, expected_value: q.depends_on!.value } : null,
       card_template: {
         code: q.card_template.code,
@@ -308,16 +440,18 @@ export const toCreateFormRequest = (form: IIPForm) => {
     };
   };
 
-  const sectionReq = (s: FormSection, order: number, typeCode: 'V' | 'I'): any => ({
+  const LEVELS = ['C', 'V', 'I'] as const;
+  const sectionReq = (s: FormSection, order: number, depth: 0 | 1 | 2): any => ({
     code: s.code,
     label: s.label,
     description: s.description || null,
     helper: s.help_text || null,
     icon: s.icon_name || null,
     display_order: order,
-    section_type_code: typeCode,
-    questions: (s.questions ?? []).map((q, i) => questionReq(q, i, s.questions ?? [])),
-    children: typeCode === 'V' ? getIndicators(s).map((c, i) => sectionReq(c, i, 'I')) : [],
+    section_type_code: LEVELS[depth],
+    // Solo los indicadores (nivel 2) tienen preguntas; componentes y variables solo hijos.
+    questions: depth === 2 ? (s.questions ?? []).map((q, i) => questionReq(q, i, s.questions ?? [])) : [],
+    children: depth < 2 ? (s.children ?? []).map((c, i) => sectionReq(c, i, (depth + 1) as 1 | 2)) : [],
   });
 
   return {
@@ -327,7 +461,7 @@ export const toCreateFormRequest = (form: IIPForm) => {
     year: form.year || null,
     version: form.version || null,
     is_active: form.is_active,
-    sections: form.sections.map((v, i) => sectionReq(v, i, 'V')),
+    sections: form.sections.map((c, i) => sectionReq(c, i, 0)),
   };
 };
 
@@ -364,6 +498,8 @@ export const fromFormTree = (tree: FormTree): IIPForm => {
       description: q.description,
       help_text: q.helper ?? '',
       order_index: i + 1,
+      weight: q.weight ?? 0,
+      grading_guide: q.grading_guide ?? '',
       question_kind: q.is_loop ? 'loop' : fieldTypeToKind(firstType),
       is_required: q.required,
       depends_on: q.depends_on ? { question_id: q.depends_on.question_id, value: q.depends_on.expected_value } : null,
@@ -404,43 +540,51 @@ export const fromFormTree = (tree: FormTree): IIPForm => {
 };
 
 /**
- * Reasigna códigos estables por posición (V1, V1_I1, Q1, F1, OP1…), únicos dentro
+ * Reasigna códigos estables por posición (C1, C1_V1, C1_V1_I1, Q1, F1, OP1…), únicos dentro
  * de su contenedor como exige el backend. Las dependencias usan ids, no códigos.
  */
 export const normalizeCodes = (form: IIPForm): IIPForm => ({
   ...form,
-  sections: form.sections.map((v, vi) => {
-    const vcode = `V${vi + 1}`;
+  sections: form.sections.map((c, ci) => {
+    const ccode = `C${ci + 1}`;
     return {
-      ...v,
-      code: vcode,
-      order_index: vi + 1,
-      children: getIndicators(v).map((ind, ii) => ({
-        ...ind,
-        code: `${vcode}_I${ii + 1}`,
-        order_index: ii + 1,
-        questions: (ind.questions ?? []).map((q, qi) => {
-          const qcode = `Q${qi + 1}`;
-          return {
-            ...q,
-            code: qcode,
-            order_index: qi + 1,
-            card_template: {
-              ...q.card_template,
-              code: `CT_${qcode}`,
-              field_groups: q.card_template.field_groups.map((g) => ({
-                ...g,
-                code: 'FG',
-                fields: g.fields.map((f, fi) => ({
-                  ...f,
-                  code: `F${fi + 1}`,
-                  choices: f.choices?.map((c, ci) => ({ ...c, code: `OP${ci + 1}` })),
-                })),
-              })),
-            },
-          };
-        }),
-      })),
+      ...c,
+      code: ccode,
+      order_index: ci + 1,
+      children: getVariables(c).map((v, vi) => {
+        const vcode = `${ccode}_V${vi + 1}`;
+        return {
+          ...v,
+          code: vcode,
+          order_index: vi + 1,
+          children: getIndicators(v).map((ind, ii) => ({
+            ...ind,
+            code: `${vcode}_I${ii + 1}`,
+            order_index: ii + 1,
+            questions: (ind.questions ?? []).map((q, qi) => {
+              const qcode = `Q${qi + 1}`;
+              return {
+                ...q,
+                code: qcode,
+                order_index: qi + 1,
+                card_template: {
+                  ...q.card_template,
+                  code: `CT_${qcode}`,
+                  field_groups: q.card_template.field_groups.map((g) => ({
+                    ...g,
+                    code: 'FG',
+                    fields: g.fields.map((f, fi) => ({
+                      ...f,
+                      code: `F${fi + 1}`,
+                      choices: f.choices?.map((ch, chi) => ({ ...ch, code: `OP${chi + 1}` })),
+                    })),
+                  })),
+                },
+              };
+            }),
+          })),
+        };
+      }),
     };
   }),
 });

@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Optional, List
 from uuid import UUID
 from annotated_types import Len
@@ -152,6 +153,20 @@ class CreateQuestionRequest(BaseSchema):
         description="Si la pregunta captura tarjetas repetibles (usa card_template.field_groups en bucle)",
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
+    weight: Decimal = Field(
+        default=Decimal("0"),
+        ge=0,
+        le=100,
+        max_digits=5,
+        decimal_places=2,
+        description="Peso de la pregunta en la calificación manual (puntos sobre 100 en todo el "
+        "formulario). Se guarda como criterio de calificación (`grading.criteria`).",
+    )
+    grading_guide: str | None = Field(
+        default=None,
+        max_length=4096,
+        description="Guía para el calificador: qué debe verificar para puntuar esta pregunta.",
+    )
     depends_on: "QuestionDependencyRequest | None" = Field(
         default=None,
         description="Si se envía, la pregunta solo se muestra cuando la pregunta padre "
@@ -315,6 +330,8 @@ class ResponseQuestionTree(UuidSchema):
     required: bool
     is_loop: bool
     display_order: int
+    weight: float = Field(default=0, description="Suma de los pesos de sus criterios de calificación")
+    grading_guide: str | None = None
     depends_on: ResponseQuestionDependency | None = None
     card_template: ResponseCardTemplateTree | None = None
 
