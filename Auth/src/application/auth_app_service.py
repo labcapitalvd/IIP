@@ -1,3 +1,5 @@
+import hmac
+import os
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -5,9 +7,9 @@ from uuid import UUID
 from domain import PermissionCompiler, TokenDomainService, UserDomainService
 from domain import (
     ActorNotFoundError,
-    AdminRequiredError,
+    AdminRegistrationDisabled,
     DefaultRoleDoesntExist,
-    InvalidUserOperation,
+    InvalidAdminRegistrationKey,
     InvalidCredentials,
     TokenMalformed,
     UserInactive,
@@ -20,12 +22,7 @@ from shared.utils.logger import getLogger
 from shared.utils.tokens import decode_token, generate_token
 
 from infrastructure.uow import AuthUoW
-from schemas.auth import (
-    RequestUpdateUser,
-    ResponseMe,
-    ResponseMeActorLink,
-    ResponseUserListItem,
-)
+from schemas.auth import ResponseMe, ResponseMeActorLink
 
 logger = getLogger(__name__)
 
@@ -84,6 +81,50 @@ class AuthAppService:
             uow.users.add(user)
             return user
 
+    async def register_admin(
+        self,
+        username: str,
+        email: str,
+        password: str,
+        registration_key: str,
+        contact_person: str | None = None,
+    ) -> User:
+        # Admin self-registration only exists where the operator opted in by
+        # setting ADMIN_REGISTRATION_KEY; without it the endpoint is closed.
+        expected_key = os.getenv("ADMIN_REGISTRATION_KEY", "")
+        if not expected_key:
+            raise AdminRegistrationDisabled()
+        if not hmac.compare_digest(registration_key.encode(), expected_key.encode()):
+            raise InvalidAdminRegistrationKey()
+
+        async with AuthUoW() as uow:
+            existing_user = await uow.users.get_by_username(
+                username
+            ) or await uow.users.get_by_email(email)
+            admin_tier = await uow.tiers.get_by_code("admin")
+
+            user = UserDomainService.register_user(
+                username=username,
+                email=email,
+                password=password,
+                existing_user=existing_user,
+                default_tier=admin_tier,
+            )
+            user.is_verified = True
+
+            admin_role = await uow.system_roles.get_by_code(
+                SystemRolesEnum.PLATFORM_ADMIN.code
+            )
+            if not admin_role:
+                raise DefaultRoleDoesntExist()
+            user.system_role_links.append(UserSystemRoleLink(system_role=admin_role))
+
+            if contact_person:
+                user.details = UserDetails(name=contact_person, email_pro=email)
+
+            uow.users.add(user)
+            return user
+
     async def get_me(self, user_id: UUID) -> ResponseMe:
         """
         Builds the authenticated user's profile straight from the database —
@@ -120,75 +161,6 @@ class AuthAppService:
                 name=user.details.name if user.details else None,
                 phone=user.details.phone if user.details else None,
             )
-
-    # -------------------------------------------------------------------------
-    # Administración de usuarios (solo administradores)
-    # -------------------------------------------------------------------------
-
-    @staticmethod
-    async def _require_admin(uow: AuthUoW, requester_id: UUID) -> None:
-        if not await uow.users.is_admin(requester_id):
-            raise AdminRequiredError()
-
-    @staticmethod
-    def _to_list_item(user: User) -> ResponseUserListItem:
-        link = user.actor_links[0] if user.actor_links else None
-        actor = link.actor if link else None
-        segment = actor.actor_segment if actor else None
-        return ResponseUserListItem(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            is_active=user.is_active,
-            updated_at=user.updated_at,
-            system_roles=[
-                l.system_role.code for l in user.system_role_links if l.system_role
-            ],
-            actor_id=actor.id if actor else None,
-            actor_label=actor.label if actor else None,
-            actor_segment_label=segment.label if segment else None,
-            contact_person=user.details.name if user.details else None,
-            phone=user.details.phone if user.details else None,
-        )
-
-    async def list_users(self, requester_id: UUID) -> list[ResponseUserListItem]:
-        async with AuthUoW() as uow:
-            await self._require_admin(uow, requester_id)
-            users = await uow.users.list_with_links()
-            return [self._to_list_item(u) for u in users]
-
-    async def update_user(
-        self, requester_id: UUID, user_id: UUID, data: RequestUpdateUser
-    ) -> None:
-        async with AuthUoW() as uow:
-            await self._require_admin(uow, requester_id)
-            user = await uow.users.get_with_details(user_id)
-            if not user:
-                raise UserNotFound()
-            if data.is_active is not None:
-                user.is_active = data.is_active
-            if data.contact_person is not None or data.phone is not None:
-                if user.details is None:
-                    if not data.contact_person:
-                        raise InvalidUserOperation("contact_person is required to create the profile.")
-                    user.details = UserDetails(
-                        name=data.contact_person, phone=data.phone, email_pro=user.email
-                    )
-                else:
-                    if data.contact_person is not None:
-                        user.details.name = data.contact_person
-                    if data.phone is not None:
-                        user.details.phone = data.phone
-
-    async def delete_user(self, requester_id: UUID, user_id: UUID) -> None:
-        async with AuthUoW() as uow:
-            await self._require_admin(uow, requester_id)
-            if requester_id == user_id:
-                raise InvalidUserOperation("An administrator cannot delete their own account.")
-            user = await uow.users.get_by_id(id=user_id)
-            if not user:
-                raise UserNotFound()
-            await uow.users.delete(user)
 
     async def login(self, username: str, password: str) -> tuple[str, str]:
         async with AuthUoW() as uow:

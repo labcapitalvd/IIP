@@ -100,6 +100,15 @@ export interface RegisterPayload {
   phone?: string;
 }
 
+// POST /public/auth/register-admin — requires the server's ADMIN_REGISTRATION_KEY.
+export interface RegisterAdminPayload {
+  username: string;
+  email: string;
+  password: string;
+  registration_key: string;
+  contact_person?: string;
+}
+
 // GET /public/auth/me — the backend's own view of "who is logged in",
 // resolved from the DB every time. This replaces any locally cached profile.
 export interface MeActorLink {

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AuthUser, LoginResponse, RegisterPayload, UserRole } from '../types';
+import { AuthUser, LoginResponse, RegisterAdminPayload, RegisterPayload, UserRole } from '../types';
 import { authService, mapMeToAuthUser } from '../services/authService';
 import { apiClient } from '../services/apiClient';
 import { isJwtExpired } from '../utils/jwt';
@@ -14,6 +14,7 @@ interface AuthContextType {
   error: string | null;
   login: (username: string, password: string, requiredRole?: 'admin' | 'entity') => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
+  registerAdmin: (payload: RegisterAdminPayload) => Promise<void>;
   reauth: () => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -114,6 +115,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const registerAdmin = async (payload: RegisterAdminPayload) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await authService.registerAdmin(payload);
+    } catch (err: any) {
+      const message = err?.message || 'Error al registrar administrador.';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const reauth = async () => {
     try {
       await authService.reauth();
@@ -148,6 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error,
         login,
         register,
+        registerAdmin,
         reauth,
         logout,
         clearError,

@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pydantic import EmailStr, Field, SecretStr, field_validator
 from shared.schemas import (
     UUID_STR,
@@ -52,6 +50,33 @@ class RequestRegister(UsernameSchema, UserEmailSchema, UserPasswordSchema):
         return v
 
 
+class RequestRegisterAdmin(UsernameSchema, UserEmailSchema, UserPasswordSchema):
+    """Request body for registering a platform admin (gated by ADMIN_REGISTRATION_KEY)."""
+
+    registration_key: SecretStr = Field(
+        ...,
+        min_length=1,
+        max_length=256,
+        description="Must match the server's ADMIN_REGISTRATION_KEY.",
+    )
+    contact_person: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="Full name of the contact person for this account.",
+    )
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        return sanitize_text(v)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: EmailStr) -> str:
+        return sanitize_email(str(v))
+
+
 class RequestLogin(UsernameSchema, UserPasswordSchema):
     """Request body for logging in a user."""
 
@@ -68,14 +93,6 @@ class RequestLogin(UsernameSchema, UserPasswordSchema):
 
 class RefreshTokenBody(BaseSchema):
     refresh_token: str
-
-
-class RequestUpdateUser(BaseSchema):
-    """Admin edit of a user account. Only the fields sent are changed."""
-
-    is_active: bool | None = None
-    contact_person: str | None = Field(default=None, min_length=1, max_length=255)
-    phone: str | None = Field(default=None, min_length=1, max_length=50)
 
 
 ##############################################################################################
@@ -107,18 +124,3 @@ class ResponseMe(UuidSchema):
     actor_links: list[ResponseMeActorLink] = Field(default_factory=list)
     name: str | None = Field(default=None, description="Contact person's full name.")
     phone: str | None = Field(default=None, description="Contact phone number.")
-
-
-class ResponseUserListItem(UuidSchema):
-    """A user account as shown in the admin list."""
-
-    username: str
-    email: str
-    is_active: bool
-    updated_at: datetime | None = None
-    system_roles: list[str] = Field(default_factory=list)
-    actor_id: UUID_STR | None = None
-    actor_label: str | None = None
-    actor_segment_label: str | None = None
-    contact_person: str | None = None
-    phone: str | None = None

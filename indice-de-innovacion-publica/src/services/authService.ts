@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { AuthUser, LoginResponse, MeResponse, RegisterPayload } from '../types';
+import { AuthUser, LoginResponse, MeResponse, RegisterAdminPayload, RegisterPayload } from '../types';
 
 /**
  * Maps the backend's /auth/me response into the shape the UI renders.
@@ -122,6 +122,18 @@ export const authService = {
    */
   async register(payload: RegisterPayload): Promise<{ status: string; message: string }> {
     const { data } = await apiClient.request('auth', '/public/auth/register', {
+      method: 'POST',
+      body: payload,
+      isAuthAction: 'register',
+    });
+    return data;
+  },
+
+  /**
+   * POST /public/auth/register-admin
+   */
+  async registerAdmin(payload: RegisterAdminPayload): Promise<{ status: string; message: string }> {
+    const { data } = await apiClient.request('auth', '/public/auth/register-admin', {
       method: 'POST',
       body: payload,
       isAuthAction: 'register',
