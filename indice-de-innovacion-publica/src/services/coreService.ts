@@ -7,10 +7,12 @@ import {
   EntityAssignment,
   FileTypeInfo,
   FormStatus,
+  FormSummary,
+  FormTree,
   IIPForm,
   SubmissionItem,
 } from '../types';
-import { toCreateFormRequest } from '../utils/formTree';
+import { fromFormTree, toCreateFormRequest } from '../utils/formTree';
 
 export const coreService = {
   // --- ASIGNACIONES (/public/forms/assignments) ---
@@ -147,6 +149,35 @@ export const coreService = {
       requiresAuth: true,
     });
     return data;
+  },
+
+  /** GET /public/forms — todos los formularios del backend, más recientes primero. */
+  async listForms(): Promise<FormSummary[]> {
+    const { data } = await apiClient.request<FormSummary[]>('core', '/public/forms', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** GET /public/forms/{form_id} — árbol completo del formulario, ya en el modelo del frontend. */
+  async getForm(formId: string): Promise<IIPForm> {
+    const { data } = await apiClient.request<FormTree>('core', `/public/forms/${formId}`, {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return fromFormTree(data);
+  },
+
+  /**
+   * DELETE /public/forms/{form_id}
+   * Solo administradores; 409 FORM_HAS_SUBMISSIONS_ERROR si ya tiene respuestas.
+   */
+  async deleteForm(formId: string): Promise<void> {
+    await apiClient.request('core', `/public/forms/${formId}`, {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
   },
 
   /** GET /public/forms/lookup/{code} — null si el formulario aún no existe en el backend. */

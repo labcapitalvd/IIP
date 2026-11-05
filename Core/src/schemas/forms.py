@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Annotated, Optional, List
+from uuid import UUID
 from annotated_types import Len
 from pydantic import Field
 
@@ -210,6 +211,9 @@ class CreateFormRequest(BaseSchema):
     description: str | None = Field(
         default=None, max_length=4096, description="Descripción del formulario"
     )
+    year: int | None = Field(default=None, ge=1900, le=2999, description="Vigencia")
+    version: str | None = Field(default=None, max_length=20, description="Versión")
+    is_active: bool = Field(default=True, description="Si el formulario está activo")
     sections: list["CreateSectionRequest"] = Field(
         ..., min_length=1, description="Secciones del formulario"
     )
@@ -248,6 +252,92 @@ class ResponseFormCreate(UuidSchema):
     code: str = Field(..., description="Código del formulario")
     label: str = Field(..., description="Nombre del formulario")
     description: str | None = Field(default=None, description="Descripción del formulario")
+
+
+class ResponseFormSummary(UuidSchema):
+    """Fila de la lista de formularios (GET /forms)."""
+
+    code: str
+    label: str
+    description: str | None = None
+    year: int | None = None
+    version: str | None = None
+    is_active: bool
+    updated_at: datetime
+    has_submissions: bool = Field(..., description="True si ya existen respuestas")
+
+
+class ResponseFieldChoiceTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    display_order: int
+
+
+class ResponseFieldTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    required: bool
+    field_type_code: str
+    display_order: int
+    allowed_file_type_codes: list[str] = Field(default_factory=list)
+    max_file_size: int | None = None
+    field_choices: list[ResponseFieldChoiceTree] = Field(default_factory=list)
+
+
+class ResponseFieldGroupTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    display_order: int
+    fields: list[ResponseFieldTree] = Field(default_factory=list)
+
+
+class ResponseCardTemplateTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    helper: str | None = None
+    field_groups: list[ResponseFieldGroupTree] = Field(default_factory=list)
+
+
+class ResponseQuestionDependency(BaseSchema):
+    question_id: UUID = Field(..., description="Pregunta Sí/No (misma sección) de la que depende")
+    expected_value: bool
+
+
+class ResponseQuestionTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    helper: str | None = None
+    required: bool
+    is_loop: bool
+    display_order: int
+    depends_on: ResponseQuestionDependency | None = None
+    card_template: ResponseCardTemplateTree | None = None
+
+
+class ResponseSectionTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    helper: str | None = None
+    display_order: int
+    section_type_code: str | None = None
+    icon: str | None = None
+    questions: list[ResponseQuestionTree] = Field(default_factory=list)
+    children: list["ResponseSectionTree"] = Field(default_factory=list)
+
+
+ResponseSectionTree.model_rebuild()
+
+
+class ResponseFormTree(ResponseFormSummary):
+    """Formulario completo (GET /forms/{form_id}), mismo árbol que CreateFormRequest más ids."""
+
+    sections: list[ResponseSectionTree] = Field(default_factory=list)
 
 
 class ResponseForm(UuidSchema):

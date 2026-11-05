@@ -17,6 +17,8 @@ from shared.models import (
     Question,
     Section,
     Submission,
+    SystemRole,
+    UserSystemRoleLink,
 )
 
 from infrastructure.uow import FormDesignUoW
@@ -33,6 +35,7 @@ from schemas.forms import (
 from .errors import (
     FieldTypeNotFoundError,
     FormAlreadyExistsError,
+    FormForbiddenError,
     FormHasSubmissionsError,
     FormNotFoundError,
     InvalidFileFieldError,
@@ -68,6 +71,9 @@ class FormService:
             code=form_data.code,
             label=form_data.label,
             description=form_data.description,
+            year=form_data.year,
+            version=form_data.version,
+            is_active=form_data.is_active,
         )
 
         for section_data in form_data.sections:
@@ -102,6 +108,46 @@ class FormService:
     async def list_file_types(self, uow: FormDesignUoW) -> list[FileType]:
         return await uow.file_types.list_all()
 
+    async def list_forms(self, uow: FormDesignUoW) -> list[tuple[Form, bool]]:
+        return await uow.forms.list_with_submission_flag()
+
+    async def get_form_tree(
+        self, uow: FormDesignUoW, form_id: UUID
+    ) -> tuple[Form, bool, list[Section]]:
+        """Formulario, si tiene respuestas, y todas sus secciones en plano (anidar por `parent_id`)."""
+        form = await uow.forms.get_by_id(form_id)
+        if not form:
+            raise FormNotFoundError(f"Form '{form_id}' not found.")
+        sections = await uow.forms.list_sections_tree(form.id)
+        return form, await self.has_submissions(uow, form.id), sections
+
+    async def delete_form(self, uow: FormDesignUoW, form_id: UUID, user_id: UUID) -> None:
+        """Borra un formulario sin respuestas. Solo administradores."""
+        is_admin = await uow.session.scalar(
+            select(func.count())
+            .select_from(UserSystemRoleLink)
+            .join(SystemRole, SystemRole.id == UserSystemRoleLink.system_role_id)
+            .where(UserSystemRoleLink.user_id == user_id, SystemRole.code == "admin")
+        )
+        if not is_admin:
+            raise FormForbiddenError()
+
+        form = await uow.forms.get_by_id(form_id)
+        if not form:
+            raise FormNotFoundError(f"Form '{form_id}' not found.")
+        if await self.has_submissions(uow, form.id):
+            raise FormHasSubmissionsError(
+                "This form already has submissions, so it can no longer be deleted."
+            )
+
+        # Mismo orden que update_form: preguntas, luego secciones (su FK al
+        # formulario no tiene cascade), y por último el formulario. Las
+        # asignaciones (links.user_form_assignments) caen por ON DELETE CASCADE.
+        form_sections = select(Section.id).where(Section.form_id == form.id)
+        await uow.session.execute(delete(Question).where(Question.section_id.in_(form_sections)))
+        await uow.session.execute(delete(Section).where(Section.form_id == form.id))
+        await uow.session.execute(delete(Form).where(Form.id == form.id))
+
     async def update_form(
         self, uow: FormDesignUoW, form_id: UUID, form_data: CreateFormRequest
     ) -> Form:
@@ -133,6 +179,9 @@ class FormService:
         form.code = form_data.code
         form.label = form_data.label
         form.description = form_data.description
+        form.year = form_data.year
+        form.version = form_data.version
+        form.is_active = form_data.is_active
         form.updated_at = datetime.now(timezone.utc)
 
         pending: list = []
