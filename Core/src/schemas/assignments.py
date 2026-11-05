@@ -43,3 +43,13 @@ class ResponseAssignment(BaseSchema):
     status: AssignmentStatus
     completion_percentage: int = Field(ge=0, le=100)
     submission_id: UUID | None = None
+
+
+class ResponseAssignmentAdmin(ResponseAssignment):
+    """Asignación tal como la ve el administrador: incluye al usuario asignado."""
+
+    user_id: UUID
+    user_name: str
+    user_email: str
+    form_year: int | None = None
+    actor_segment_label: str | None = None

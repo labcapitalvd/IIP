@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from shared.db import BaseRepository
+from shared.enums import SystemRolesEnum
 from shared.models import (
     Actor,
     ResourceRole,
@@ -33,6 +34,44 @@ class UserRepository(BaseRepository[User]):
         stmt = select(User).where(User.email == email)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_with_links(self) -> list[User]:
+        """All users with the relations the admin list needs, most recently updated first."""
+        stmt = (
+            select(User)
+            .options(
+                selectinload(User.details),
+                selectinload(User.system_role_links).selectinload(
+                    UserSystemRoleLink.system_role
+                ),
+                selectinload(User.actor_links)
+                .selectinload(UserActorLink.actor)
+                .selectinload(Actor.actor_segment),
+            )
+            .order_by(User.updated_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_with_details(self, id: UUID) -> User | None:
+        stmt = (
+            select(User)
+            .where(User.id == self._to_uuid(id))
+            .options(selectinload(User.details))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def is_admin(self, user_id: UUID) -> bool:
+        stmt = (
+            select(UserSystemRoleLink.user_id)
+            .join(SystemRole, SystemRole.id == UserSystemRoleLink.system_role_id)
+            .where(
+                UserSystemRoleLink.user_id == self._to_uuid(user_id),
+                SystemRole.code == SystemRolesEnum.PLATFORM_ADMIN.code,
+            )
+        )
+        return (await self.session.execute(stmt)).first() is not None
 
     async def get_with_auth_context(self, id: UUID) -> User | None:
         """Fetch user with fully eagerly loaded RBAC, ReBAC, Tier and profile models."""

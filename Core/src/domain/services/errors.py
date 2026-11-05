@@ -91,6 +91,11 @@ class FormStructureConflictError(FormError):
     status_code = 409  # Conflict
     message = "Duplicate codes were found within the submitted form structure."
 
+class FormHierarchyError(FormError):
+    status_code = 422
+    message = "The form must be organized as Component > Variable > Indicator > Question."
+
+
 class FormForbiddenError(FormError):
     status_code = 403
     message = "Only an administrator can delete forms."
@@ -101,6 +106,43 @@ class AssignmentForbiddenError(FormError):
     message = "Only an administrator can assign forms."
 
 
+class AssignmentNotFoundError(FormError):
+    status_code = 404
+    message = "The assignment could not be found."
+
+
 class AssignmentTargetNotFoundError(FormError):
     status_code = 404
     message = "The user or the form to assign could not be found."
+
+
+class SubmissionError(BaseDomainError):
+    """Base error for submission (form answers) domain logic."""
+
+    status_code = 400
+    message = "An error occurred in the Submission service."
+
+
+class SubmissionFormNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The form being answered could not be found."
+
+
+class SubmissionActorMissingError(SubmissionError):
+    status_code = 403
+    message = "The authenticated user is not linked to any entity, so it cannot submit answers."
+
+
+class SubmissionAlreadySubmittedError(SubmissionError):
+    status_code = 409
+    message = "This entity already submitted this form; it can no longer be modified."
+
+
+class SubmissionInvalidError(SubmissionError):
+    status_code = 422
+    message = "The submitted answers do not match the form."
+
+
+class SubmissionNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The submission could not be found."

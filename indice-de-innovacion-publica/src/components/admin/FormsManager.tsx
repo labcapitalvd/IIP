@@ -31,7 +31,14 @@ import { IIPForm } from '../../types';
 import { FormBuilderModal } from './FormBuilderModal';
 import { coreService } from '../../services/coreService';
 import { FormTreeView } from './FormTreeView';
-import { countIndicators, countQuestions } from '../../utils/formTree';
+import {
+  countIndicators,
+  countQuestions,
+  countVariables,
+  formWeight,
+  formatWeight,
+  weightIsComplete,
+} from '../../utils/formTree';
 
 interface FormsManagerProps {
   onGoToAssign?: (formId: string) => void;
@@ -296,7 +303,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                   <div className="space-y-0.5">
                     <div className="font-semibold text-slate-900">Vigencia {form.year}</div>
                     <div className="text-[11px] text-slate-400">
-                      {form.sections.length} variables • {countIndicators(form)} indicadores • {totalQuestions} preguntas
+                      {form.sections.length} componentes • {countVariables(form)} variables • {countIndicators(form)} indicadores • {totalQuestions} preguntas • pesos {formatWeight(formWeight(form))}/100{weightIsComplete(formWeight(form)) ? '' : ' ⚠'}
                     </div>
                   </div>
 

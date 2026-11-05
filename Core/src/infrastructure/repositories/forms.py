@@ -79,6 +79,7 @@ class FormRepository(BaseRepository[Form]):
             .where(Section.form_id == form_id)
             .options(
                 selectinload(Section.type),
+                selectinload(Section.questions).selectinload(Question.criteria),
                 fields.selectinload(Field.field_type),
                 fields.selectinload(Field.field_choices),
                 fields.selectinload(Field.field_rules).selectinload(FieldRule.rule),

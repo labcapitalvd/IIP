@@ -250,6 +250,10 @@ export interface FormQuestion {
   question_kind?: QuestionKind;
   is_required?: boolean;
   depends_on?: QuestionDependency | null;
+  /** Peso en la calificación manual (puntos sobre 100 en todo el formulario). */
+  weight?: number;
+  /** Guía para el calificador: qué verificar para puntuar esta pregunta. */
+  grading_guide?: string;
   card_template: CardTemplate;
 }
 
@@ -261,7 +265,11 @@ export interface FormSection {
   help_text?: string;
   order_index: number;
   icon_name?: string;
-  /** En una Variable (sección raíz): sus Indicadores. */
+  /**
+   * Jerarquía: Componente (raíz) → Variable → Indicador → Preguntas.
+   * `children` son las Variables de un Componente o los Indicadores de una Variable;
+   * solo los Indicadores tienen `questions`.
+   */
   children?: FormSection[];
   questions?: FormQuestion[];
 }
@@ -340,6 +348,8 @@ export interface QuestionTree {
   required: boolean;
   is_loop: boolean;
   display_order: number;
+  weight?: number;
+  grading_guide?: string | null;
   depends_on: { question_id: string; expected_value: boolean } | null;
   card_template: {
     id: string;
@@ -400,9 +410,21 @@ export interface DateAnswer {
 }
 
 export interface SingleChoiceAnswer {
-  type: 'singlechoice';
+  type: 'single_choice';
   field_id: string;
   value: string; // UUID of chosen field_choice
+}
+
+export interface MultiChoiceAnswer {
+  type: 'multi_choice';
+  field_id: string;
+  value: string[]; // UUIDs of the checked field_choices
+}
+
+export interface FileAnswer {
+  type: 'file';
+  field_id: string;
+  value: string | null; // UUID of an already uploaded file
 }
 
 export interface CardEntryAnswer {
@@ -420,7 +442,9 @@ export type SubmissionValueAnswer =
   | TextAnswer
   | NumericAnswer
   | DateAnswer
-  | SingleChoiceAnswer;
+  | SingleChoiceAnswer
+  | MultiChoiceAnswer
+  | FileAnswer;
 
 export type SubmissionItem =
   | SubmissionValueAnswer
@@ -434,14 +458,28 @@ export interface EntitySubmission {
   actor_id: string;
   actor_label: string;
   actor_segment_label?: string;
-  submitted_by: string;
+  /** El backend no guarda qué usuario radicó, solo la entidad. */
+  submitted_by?: string;
   submitted_at: string;
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  /** Código del estado en el backend (reference.submission_status_types). */
+  status_code?: string;
+  /** Aún no existe calificación en el backend; queda indefinido hasta que exista. */
   score?: number;
+  answer_count?: number;
+  card_count?: number;
+  /** Etiquetas y valores legibles por campo (vienen del detalle del servidor). */
+  field_labels?: Record<string, string>;
+  display_values?: Record<string, string>;
+  /** true cuando raw_answers / card_entries ya se cargaron del servidor. */
+  detail_loaded?: boolean;
   completion_percentage: number;
   payload: SubmissionItem[];
   raw_answers: Record<string, any>;
-  card_entries?: Record<string, Array<{ id: string; title: string; answers: Record<string, any> }>>;
+  card_entries?: Record<
+    string,
+    Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string> }>
+  >;
 }
 
 // System configuration and logs
