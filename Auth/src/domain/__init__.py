@@ -1,7 +1,9 @@
 from .errors import (
     ActorNotFoundError,
+    AdminRegistrationDisabled,
     AuthError,
     DefaultRoleDoesntExist,
+    InvalidAdminRegistrationKey,
     InvalidCredentials,
     TokenError,
     TokenExpired,
@@ -21,7 +23,9 @@ __all__ = [
     "TokenError",
     # Specific Exceptions
     "ActorNotFoundError",
+    "AdminRegistrationDisabled",
     "DefaultRoleDoesntExist",
+    "InvalidAdminRegistrationKey",
     "InvalidCredentials",
     "TokenExpired",
     "TokenMalformed",
