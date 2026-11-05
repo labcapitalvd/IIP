@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
   FileCheck2,
@@ -17,15 +17,29 @@ import {
 import { EntitySubmission } from '../../types';
 
 export const SubmissionsMonitor: React.FC = () => {
-  const { submissions, actors } = useApp();
+  const { submissions, loadSubmissionDetail } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSub, setSelectedSub] = useState<EntitySubmission | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const selectedSub: EntitySubmission | null = submissions.find((s) => s.id === selectedId) ?? null;
+  const setSelectedSub = (sub: EntitySubmission | null) => setSelectedId(sub?.id ?? null);
+
+  // Las respuestas no vienen en la lista: se piden al servidor al inspeccionar un radicado.
+  useEffect(() => {
+    if (!selectedId) return;
+    const current = submissions.find((s) => s.id === selectedId);
+    if (!current || current.detail_loaded) return;
+    setDetailError(null);
+    loadSubmissionDetail(selectedId).catch((err: any) =>
+      setDetailError(err?.message || 'No se pudo cargar el detalle del radicado.')
+    );
+  }, [selectedId]);
 
   const filteredSubmissions = submissions.filter((s) => {
     return (
       s.actor_label.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.form_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.submitted_by.toLowerCase().includes(searchTerm.toLowerCase())
+      (s.submitted_by ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 
@@ -48,17 +62,11 @@ export const SubmissionsMonitor: React.FC = () => {
             <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
               Monitoreo y Auditoría de Evidencias
             </span>
-            <span
-              className="text-[10px] px-2 py-0.5 rounded font-semibold bg-amber-50 text-amber-800 border border-amber-200"
-              title="El backend todavía no expone un endpoint para listar envíos (no hay GET /submissions). Esta tabla solo muestra radicaciones hechas en este navegador durante la sesión, más datos de ejemplo."
-            >
-              Vista local — sin GET /submissions en el backend
-            </span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-0.5">Diagnósticos IIP Radicados</h2>
           <p className="text-xs text-slate-500">
-            Registro consolidado de envíos hechos desde este navegador. El backend aún no tiene un endpoint
-            para listar radicaciones existentes, así que esta tabla no refleja envíos hechos desde otros equipos.
+            Registro consolidado de los radicados guardados en el servidor. El detalle de respuestas se
+            consulta al inspeccionar cada radicado.
           </p>
         </div>
 
@@ -67,7 +75,7 @@ export const SubmissionsMonitor: React.FC = () => {
           className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-2 self-start"
         >
           <Download className="w-4 h-4" />
-          <span>Exportar Todo (JSON)</span>
+          <span>Exportar lista (JSON)</span>
         </button>
       </div>
 
@@ -100,12 +108,14 @@ export const SubmissionsMonitor: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredSubmissions.map((sub) => {
-                const numCards = sub.card_entries
-                  ? Object.values(sub.card_entries).reduce(
-                      (acc: number, arr: Array<any>) => acc + (arr?.length || 0),
-                      0
-                    )
-                  : 0;
+                const numCards =
+                  sub.card_count ??
+                  (sub.card_entries
+                    ? Object.values(sub.card_entries).reduce(
+                        (acc: number, arr: Array<any>) => acc + (arr?.length || 0),
+                        0
+                      )
+                    : 0);
 
                 return (
                   <tr key={sub.id} className="hover:bg-slate-50/70 transition-colors">
@@ -128,10 +138,10 @@ export const SubmissionsMonitor: React.FC = () => {
                     <td className="px-6 py-4 font-mono text-slate-500">
                       {new Date(sub.submitted_at).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 font-mono text-slate-600">{sub.submitted_by}</td>
+                    <td className="px-6 py-4 font-mono text-slate-600">{sub.submitted_by || '—'}</td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-emerald-50 text-emerald-700">
-                        {sub.score ? `${sub.score} pts` : '100%'}
+                        {sub.score !== undefined ? `${sub.score} pts` : 'Sin calificar'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -190,9 +200,16 @@ export const SubmissionsMonitor: React.FC = () => {
                   <p className="text-[11px] text-emerald-700">Calculado para el Índice de Innovación</p>
                 </div>
                 <div className="text-xl font-bold text-emerald-700 font-mono">
-                  {selectedSub.score ?? 85.0} / 100
+                  {selectedSub.score !== undefined ? `${selectedSub.score} / 100` : 'Sin calificar'}
                 </div>
               </div>
+
+              {detailError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700">{detailError}</div>
+              )}
+              {!selectedSub.detail_loaded && !detailError && (
+                <div className="p-3 text-slate-500">Cargando respuestas del servidor…</div>
+              )}
 
               {/* Repeatable Cards */}
               {selectedSub.card_entries && Object.keys(selectedSub.card_entries).length > 0 && (
@@ -203,7 +220,7 @@ export const SubmissionsMonitor: React.FC = () => {
                   </h4>
                   <div className="space-y-3">
                     {Object.entries(selectedSub.card_entries).map(([qId, entries]) =>
-                      (entries as Array<{ id: string; title: string; answers: Record<string, any> }>).map((entry, idx) => (
+                      (entries as Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string> }>).map((entry, idx) => (
                         <div
                           key={entry.id}
                           className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2"
@@ -219,8 +236,8 @@ export const SubmissionsMonitor: React.FC = () => {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700 pt-1">
                             {Object.entries(entry.answers).map(([fieldKey, val]) => (
                               <div key={fieldKey} className="bg-white p-2 rounded-lg border border-slate-100">
-                                <span className="text-[10px] text-slate-400 block font-mono">{fieldKey}</span>
-                                <span className="font-medium text-slate-800">{String(val)}</span>
+                                <span className="text-[10px] text-slate-400 block">{selectedSub.field_labels?.[fieldKey] ?? fieldKey}</span>
+                                <span className="font-medium text-slate-800">{entry.display?.[fieldKey] ?? String(val)}</span>
                               </div>
                             ))}
                           </div>
@@ -240,9 +257,9 @@ export const SubmissionsMonitor: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {Object.entries(selectedSub.raw_answers).map(([fKey, val]) => (
                     <div key={fKey} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                      <span className="font-mono text-[10px] text-slate-400 block truncate">{fKey}</span>
+                      <span className="text-[10px] text-slate-400 block truncate">{selectedSub.field_labels?.[fKey] ?? fKey}</span>
                       <span className="font-semibold text-slate-800 block mt-0.5">
-                        {typeof val === 'boolean' ? (val ? 'Sí' : 'No') : String(val)}
+                        {selectedSub.display_values?.[fKey] ?? (typeof val === 'boolean' ? (val ? 'Sí' : 'No') : String(val))}
                       </span>
                     </div>
                   ))}

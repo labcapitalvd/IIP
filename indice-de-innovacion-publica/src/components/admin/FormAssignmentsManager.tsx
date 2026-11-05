@@ -80,7 +80,7 @@ export const FormAssignmentsManager: React.FC<FormAssignmentsManagerProps> = ({
   const inProgressCount = assignments.filter((a) => a.status === 'in_progress').length;
   const pendingCount = assignments.filter((a) => a.status === 'pending').length;
 
-  const handleCreateAssignment = (e: React.FormEvent) => {
+  const handleCreateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
 
@@ -94,13 +94,18 @@ export const FormAssignmentsManager: React.FC<FormAssignmentsManagerProps> = ({
         return;
       }
 
-      createAssignment({
-        form_id: form.id,
-        user_id: user.id,
-        actor_id: user.actor_id,
-        due_date: `${dueDate}T23:59:59Z`,
-        notes: notes.trim() || undefined,
-      });
+      try {
+        await createAssignment({
+          form_id: form.id,
+          user_id: user.id,
+          actor_id: user.actor_id,
+          due_date: `${dueDate}T23:59:59Z`,
+          notes: notes.trim() || undefined,
+        });
+      } catch (err: any) {
+        setFeedback({ success: false, message: err?.message || 'No se pudo guardar la asignación.' });
+        return;
+      }
 
       setFeedback({
         success: true,
@@ -120,11 +125,16 @@ export const FormAssignmentsManager: React.FC<FormAssignmentsManagerProps> = ({
         return;
       }
 
-      batchAssignForm(
-        form.id,
-        sectorUsers.map((u) => u.id),
-        `${dueDate}T23:59:59Z`
-      );
+      try {
+        await batchAssignForm(
+          form.id,
+          sectorUsers.map((u) => u.id),
+          `${dueDate}T23:59:59Z`
+        );
+      } catch (err: any) {
+        setFeedback({ success: false, message: err?.message || 'No se pudo guardar la asignación.' });
+        return;
+      }
 
       const sector = segments.find((s) => s.id === targetSectorId);
       setFeedback({
@@ -140,11 +150,16 @@ export const FormAssignmentsManager: React.FC<FormAssignmentsManagerProps> = ({
         return;
       }
 
-      batchAssignForm(
-        form.id,
-        entityUsers.map((u) => u.id),
-        `${dueDate}T23:59:59Z`
-      );
+      try {
+        await batchAssignForm(
+          form.id,
+          entityUsers.map((u) => u.id),
+          `${dueDate}T23:59:59Z`
+        );
+      } catch (err: any) {
+        setFeedback({ success: false, message: err?.message || 'No se pudo guardar la asignación.' });
+        return;
+      }
 
       setFeedback({
         success: true,
@@ -155,9 +170,12 @@ export const FormAssignmentsManager: React.FC<FormAssignmentsManagerProps> = ({
     setShowAssignModal(false);
   };
 
-  const handleRemoveAssignment = (id: string, actorLabel: string) => {
-    if (confirm(`¿Desea revocar la asignación de este formulario para ${actorLabel}?`)) {
-      removeAssignment(id);
+  const handleRemoveAssignment = async (id: string, actorLabel: string) => {
+    if (!confirm(`¿Desea revocar la asignación de este formulario para ${actorLabel}?`)) return;
+    try {
+      await removeAssignment(id);
+    } catch (err: any) {
+      setFeedback({ success: false, message: err?.message || 'No se pudo revocar la asignación.' });
     }
   };
 

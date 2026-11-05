@@ -168,32 +168,45 @@ export const EntityUsersManager: React.FC<EntityUsersManagerProps> = ({
     }
   };
 
-  const handleApproveUser = (targetUser: AuthUser) => {
-    updateEntityUser(targetUser.id, {
-      is_active: true,
-      approval_status: 'approved',
-    });
+  const handleApproveUser = async (targetUser: AuthUser) => {
+    try {
+      await updateEntityUser(targetUser.id, {
+        is_active: true,
+        approval_status: 'approved',
+      });
+    } catch (err: any) {
+      setFeedback({ success: false, message: err?.message || 'No se pudo actualizar el usuario.' });
+      return;
+    }
     setFeedback({
       success: true,
       message: `Permiso concedido exitosamente: El usuario "${targetUser.username}" ahora puede ingresar a la plataforma para representar a ${targetUser.actor_label}.`,
     });
   };
 
-  const handleToggleUserStatus = (user: AuthUser) => {
+  const handleToggleUserStatus = async (user: AuthUser) => {
     const nextStatus = !user.is_active;
-    updateEntityUser(user.id, {
-      is_active: nextStatus,
-      approval_status: nextStatus ? 'approved' : 'rejected',
-    });
+    try {
+      await updateEntityUser(user.id, {
+        is_active: nextStatus,
+        approval_status: nextStatus ? 'approved' : 'rejected',
+      });
+    } catch (err: any) {
+      setFeedback({ success: false, message: err?.message || 'No se pudo actualizar el usuario.' });
+      return;
+    }
     setFeedback({
       success: true,
       message: `Estado del usuario "${user.username}" actualizado a ${nextStatus ? 'Activo / Autorizado' : 'Inactivo / Suspendido'}.`,
     });
   };
 
-  const handleDeleteUser = (userId: string, userName: string) => {
-    if (confirm(`¿Está seguro de eliminar el usuario "${userName}"?`)) {
-      deleteEntityUser(userId);
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`¿Está seguro de eliminar el usuario "${userName}"?`)) return;
+    try {
+      await deleteEntityUser(userId);
+    } catch (err: any) {
+      setFeedback({ success: false, message: err?.message || 'No se pudo eliminar el usuario.' });
     }
   };
 
