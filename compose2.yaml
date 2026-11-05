@@ -1,0 +1,129 @@
+services:
+  nginx:
+    container_name: iip_nginx
+    image: nginx:latest
+    env_file: ./.env
+    restart: unless-stopped
+    secrets:
+      - https_public
+      - https_private
+    networks:
+      - iip_nginx
+    ports:
+      - "${PORT_AUTH}:${PORT_AUTH}"
+      - "${PORT_CORE}:${PORT_CORE}"
+      - "${PORT_IA_AGENT}:${PORT_IA_AGENT}"
+      - "${PORT_STATS}:${PORT_STATS}"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+  db:
+    container_name: iip_db
+    image: postgres:18-bookworm
+    env_file: ./.env
+    secrets:
+      - postgres_password
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    networks:
+      - iip_db_net
+      - pgadmin_net
+    volumes:
+      - postgresql:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  persister:
+    container_name: iip_persister
+    image: labcapital/apps:app-persister
+    env_file: ./.env
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - postgres_password
+      - fernet_password
+      - github_token_commons
+      - github_token_iip
+      - github_token_seeds
+      - users_file
+    networks:
+      - iip_db_net
+
+  front_stats:
+    container_name: iip_stats
+    image: labcapital/apps:app-frontend
+    env_file: ./.env
+    networks:
+      - iip_nginx
+
+  api_auth:
+    container_name: iip_api_auth
+    image: labcapital/apps:app-auth
+    env_file: ./.env
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - postgres_password
+      - fernet_password
+    networks:
+      - iip_db_net
+      - iip_nginx
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api_core:
+    container_name: iip_api_core
+    image: labcapital/apps:app-core
+    env_file: ./.env
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - postgres_password
+      - fernet_password
+    networks:
+      - iip_db_net
+      - iip_nginx
+
+
+networks:
+  iip_db_net:
+    driver: bridge
+    name: iip_db_network
+
+  iip_nginx:
+    driver: bridge
+    name: iip_nginx_network
+
+  pgadmin_net:
+    name: pgadmin_network
+    external: true
+
+volumes:
+  postgresql:
+    name: stats_vol_pg
+
+secrets:
+  postgres_password:
+    file: /Secrets/postgres_password
+  fernet_password:
+    file: /Secrets/fernet_password
+  github_token_commons:
+    file: /Secrets/github_token_commons
+  github_token_iip:
+    file: /Secrets/github_token_iip
+  github_token_seeds:
+    file: /Secrets/github_token_seeds
+  jwt_public_key:
+    file: /Secrets/jwt_public.pem
+  jwt_private_key:
+    file: /Secrets/jwt_private.pem
+  users_file:
+    file: /Secrets/users.toml
+  https_public:
+    file: /Secrets/vd-cert.crt
+  https_private:
+    file: /Secrets/vd-cert.key
