@@ -87,6 +87,31 @@ class QuestionSourceError(FormError):
     message = "The source question of a linked loop question is invalid."
 
 
+class FormEditionClosedError(FormError):
+    status_code = 409
+    message = "The edition of this form is closed, so its structure can no longer be modified."
+
+
+class FormEditionOpenError(FormError):
+    status_code = 409
+    message = "Close the edition of the form before downloading templates or loading historical data."
+
+
+class FormEditionHasDataError(FormError):
+    status_code = 409
+    message = "The form already has responses or results loaded, so its edition cannot be reopened."
+
+
+class HistoricalForbiddenError(FormError):
+    status_code = 403
+    message = "Only administrators can manage historical data."
+
+
+class HistoricalFileError(FormError):
+    status_code = 422
+    message = "The uploaded file is not a valid template of this form."
+
+
 class RelationalOperatorNotFoundError(FormError):
     status_code = 500
     message = "The 'eq' relational operator is not seeded."

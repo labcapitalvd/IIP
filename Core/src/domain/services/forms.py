@@ -15,6 +15,7 @@ from shared.models import (
     FieldRule,
     FileType,
     Form,
+    FormResult,
     Question,
     Section,
     Submission,
@@ -45,6 +46,7 @@ from .errors import (
     InvalidFieldTypeReferenceError,
     QuestionDependencyError,
     QuestionSourceError,
+    FormEditionClosedError,
     RelationalOperatorNotFoundError,
     SectionTypeNotFoundError,
 )
@@ -149,6 +151,12 @@ class FormService:
             raise FormHasSubmissionsError(
                 "This form already has submissions, so it can no longer be deleted."
             )
+        if await uow.session.scalar(
+            select(func.count()).select_from(FormResult).where(FormResult.form_id == form.id)
+        ):
+            raise FormHasSubmissionsError(
+                "This form already has historical results loaded, so it can no longer be deleted."
+            )
 
         # Mismo orden que update_form: preguntas, luego secciones (su FK al
         # formulario no tiene cascade), y por último el formulario. Las
@@ -171,6 +179,8 @@ class FormService:
         if not form:
             raise FormNotFoundError(f"Form '{form_id}' not found.")
 
+        if form.edition_closed_at is not None:
+            raise FormEditionClosedError()
         if await self.has_submissions(uow, form.id):
             raise FormHasSubmissionsError(
                 "This form already has submissions, so it can no longer be modified."

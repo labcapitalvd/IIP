@@ -312,6 +312,35 @@ export interface FormStatus {
   label: string;
   updated_at: string;
   has_submissions: boolean;
+  /** Fecha de cierre de la edición: con ella la estructura ya no se puede modificar. */
+  edition_closed_at?: string | null;
+}
+
+// GET /public/forms/historical — formulario con su estado de edición y datos históricos cargados.
+export interface HistoricalForm {
+  id: string;
+  code: string;
+  label: string;
+  year?: number | null;
+  is_active: boolean;
+  edition_closed_at?: string | null;
+  submission_count: number;
+  result_count: number;
+}
+
+export interface HistoricalIssue {
+  sheet: string;
+  row?: number | null;
+  column?: string | null;
+  message: string;
+}
+
+export interface HistoricalReport {
+  dry_run: boolean;
+  committed: boolean;
+  errors: HistoricalIssue[];
+  warnings: HistoricalIssue[];
+  summary: Record<string, number>;
 }
 
 // GET /public/forms — una fila por formulario guardado en el backend.

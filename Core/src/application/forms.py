@@ -79,6 +79,7 @@ class FormAppService:
                 label=form.label,
                 updated_at=form.updated_at,
                 has_submissions=has_submissions,
+                edition_closed_at=form.edition_closed_at,
             )
 
     async def list_forms(self) -> list[ResponseFormSummary]:
@@ -128,6 +129,7 @@ def _summary(form: Form, has_submissions: bool) -> ResponseFormSummary:
         is_active=form.is_active,
         updated_at=form.updated_at,
         has_submissions=has_submissions,
+        edition_closed_at=form.edition_closed_at,
     )
 
 

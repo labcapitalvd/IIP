@@ -8,8 +8,10 @@ import { FormAssignmentsManager } from './FormAssignmentsManager';
 import { SubmissionsMonitor } from './SubmissionsMonitor';
 import { ActorsManager } from './ActorsManager';
 import { ParametersManager } from './ParametersManager';
+import { HistoricalLoadManager } from './HistoricalLoadManager';
 import {
   Building2,
+  FileSpreadsheet,
   FileCheck2,
   FileText,
   BarChart3,
@@ -27,6 +29,7 @@ const NAV: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: 'assignments', label: 'Asignaciones', icon: FileCheck2 },
   { id: 'submissions', label: 'Monitor de radicados', icon: BarChart3 },
   { id: 'actors', label: 'Entidades y sectores', icon: Building2 },
+  { id: 'historical', label: 'Cargas históricas', icon: FileSpreadsheet },
   { id: 'parameters', label: 'Parámetros', icon: SlidersHorizontal },
 ];
 
@@ -112,6 +115,7 @@ export const AdminApp: React.FC<{ pathname: string }> = ({ pathname }) => {
         {tab === 'assignments' && <FormAssignmentsManager />}
         {tab === 'submissions' && <SubmissionsMonitor />}
         {tab === 'actors' && <ActorsManager />}
+        {tab === 'historical' && <HistoricalLoadManager />}
         {tab === 'parameters' && <ParametersManager pathname={pathname} />}
       </main>
     </div>

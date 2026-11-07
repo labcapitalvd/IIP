@@ -11,6 +11,8 @@ import {
   FormStatus,
   FormSummary,
   FormTree,
+  HistoricalForm,
+  HistoricalReport,
   IIPForm,
   SubmissionItem,
 } from '../types';
@@ -322,6 +324,69 @@ export const coreService = {
       method: 'GET',
       requiresAuth: true,
     });
+    return data;
+  },
+
+  // ---------------------------------------------------------------- cargas históricas (solo admin)
+
+  /** GET /public/forms/historical — formularios con estado de edición y datos cargados. */
+  async listHistoricalForms(): Promise<HistoricalForm[]> {
+    const { data } = await apiClient.request<HistoricalForm[]>('core', '/public/forms/historical', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** POST /public/forms/{id}/edition/close — da por terminada la edición (habilita las plantillas). */
+  async closeFormEdition(formId: string): Promise<HistoricalForm> {
+    const { data } = await apiClient.request<HistoricalForm>('core', `/public/forms/${formId}/edition/close`, {
+      method: 'POST',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** POST /public/forms/{id}/edition/reopen — solo si no hay respuestas ni resultados cargados. */
+  async reopenFormEdition(formId: string): Promise<HistoricalForm> {
+    const { data } = await apiClient.request<HistoricalForm>('core', `/public/forms/${formId}/edition/reopen`, {
+      method: 'POST',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** Descarga la plantilla Excel de respuestas o de resultados del formulario. */
+  async downloadHistoricalTemplate(formId: string, kind: 'responses' | 'results'): Promise<{ blob: Blob; filename: string }> {
+    const { data, headers } = await apiClient.request<Blob>(
+      'core',
+      `/public/forms/${formId}/historical/templates/${kind}`,
+      { method: 'GET', requiresAuth: true, asBlob: true }
+    );
+    const disposition = headers.get('content-disposition') ?? '';
+    const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? `plantilla_${kind}.xlsx`;
+    return { blob: data, filename };
+  },
+
+  /**
+   * Valida (dry_run) o carga un Excel de respuestas / resultados históricos.
+   * Con errores no se guarda nada: el reporte indica hoja, fila y columna.
+   */
+  async uploadHistorical(
+    formId: string,
+    kind: 'responses' | 'results',
+    file: File,
+    opts: { dryRun: boolean; replace?: boolean }
+  ): Promise<HistoricalReport> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const qs = new URLSearchParams({ dry_run: String(opts.dryRun) });
+    if (kind === 'responses' && opts.replace) qs.set('replace', 'true');
+    const { data } = await apiClient.request<HistoricalReport>(
+      'core',
+      `/public/forms/${formId}/historical/${kind}?${qs.toString()}`,
+      { method: 'POST', requiresAuth: true, formData }
+    );
     return data;
   },
 

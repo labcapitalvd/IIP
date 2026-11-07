@@ -265,6 +265,9 @@ class ResponseFormStatus(UuidSchema):
     label: str
     updated_at: datetime
     has_submissions: bool = Field(..., description="True si ya existen respuestas")
+    edition_closed_at: datetime | None = Field(
+        default=None, description="Fecha de cierre de la edición (la estructura ya no se puede modificar)."
+    )
 
 
 class ResponseFormCreate(UuidSchema):
@@ -288,6 +291,10 @@ class ResponseFormSummary(UuidSchema):
     is_active: bool
     updated_at: datetime
     has_submissions: bool = Field(..., description="True si ya existen respuestas")
+    edition_closed_at: datetime | None = Field(
+        default=None,
+        description="Fecha en que se terminó la edición de la estructura (habilita las cargas históricas).",
+    )
 
 
 class ResponseFieldChoiceTree(UuidSchema):

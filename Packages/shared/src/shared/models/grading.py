@@ -101,6 +101,55 @@ class Grade(Base):
     )
 
 
+class FormResult(Base):
+    """
+    Resultado histórico de una entidad en un formulario (puntos tal como se presentaron en su
+    época). Es independiente de los radicados: puede existir sin respuestas cargadas.
+    Los valores no se validan contra los pesos del formulario.
+    """
+
+    __tablename__ = TargetTable.FORM_RESULTS.table
+    __table_args__ = (
+        UniqueConstraint("form_id", "actor_id", name="uq_form_results_form_actor"),
+        {"schema": TargetTable.FORM_RESULTS.schema},
+    )
+
+    form_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.FORMS.fq_name}.id", ondelete="CASCADE", nullable=False
+    )
+    actor_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ACTORS.fq_name}.id", ondelete="CASCADE", nullable=False
+    )
+    total: Mapped[Optional[Decimal]] = column_decimal(precision=14, scale=4, nullable=True)
+    updated_at: Mapped[datetime] = column_updated_at()
+
+    sections: Mapped[List["SectionResult"]] = relationship(
+        "SectionResult", back_populates="form_result", cascade="all, delete-orphan"
+    )
+
+
+class SectionResult(Base):
+    """Puntaje de una entidad en un componente, variable o indicador de un formulario."""
+
+    __tablename__ = TargetTable.SECTION_RESULTS.table
+    __table_args__ = (
+        UniqueConstraint(
+            "form_result_id", "section_id", name="uq_section_results_result_section"
+        ),
+        {"schema": TargetTable.SECTION_RESULTS.schema},
+    )
+
+    form_result_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.FORM_RESULTS.fq_name}.id", ondelete="CASCADE", nullable=False
+    )
+    section_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.SECTIONS.fq_name}.id", ondelete="CASCADE", nullable=False
+    )
+    score: Mapped[Optional[Decimal]] = column_decimal(precision=14, scale=4, nullable=True)
+
+    form_result: Mapped["FormResult"] = relationship("FormResult", back_populates="sections")
+
+
 class Result(Base):
     """
     The final aggregated and weighted summary record computed for an individual Submission block.

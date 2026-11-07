@@ -68,9 +68,18 @@ class SubmissionService:
             await uow.session.delete(previous)
         await uow.session.flush()
 
-        submission = Submission(
-            actor_id=actor_link.actor_id, form_id=form_id, status_id=status.id
+        submission = self.build_submission(
+            actor_link.actor_id, form_id, status.id, items
         )
+        uow.submissions.add(submission)
+        await uow.session.flush()
+        return submission
+
+    def build_submission(
+        self, actor_id: UUID, form_id: UUID, status_id: UUID, items: list[SubmissionItemIn]
+    ) -> Submission:
+        """Arma el radicado (sin guardarlo) con sus respuestas, tarjetas y vínculos."""
+        submission = Submission(actor_id=actor_id, form_id=form_id, status_id=status_id)
         # Las tarjetas hijas se insertan después de su padre (FK parent_entry_id).
         created: dict[str, AnswerCardEntry] = {}
         for item in self._parents_first(items):
@@ -89,9 +98,6 @@ class SubmissionService:
                     child.submission = submission
                     child.card_entry = answer  # type: ignore[assignment]
                     submission.answers.append(child)
-
-        uow.submissions.add(submission)
-        await uow.session.flush()
         return submission
 
     @staticmethod
