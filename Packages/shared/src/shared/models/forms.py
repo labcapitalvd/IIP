@@ -11,8 +11,8 @@ from shared.db import (
     column_short_text,
     column_updated_at,
 )
-from sqlalchemy import Index, UniqueConstraint, text
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy import DateTime, Index, UniqueConstraint, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .targets import TargetTable
 
@@ -192,6 +192,11 @@ class Form(Base):
     year: Mapped[int | None] = column_integer(nullable=True)
     version: Mapped[str | None] = column_short_text(length=20, nullable=True)
     is_active: Mapped[bool] = column_bool(default=True, server_default=text("true"))
+    # Fecha en que se dio por terminada la edición de la estructura. Solo con la edición
+    # cerrada se pueden descargar las plantillas y cargar los datos históricos.
+    edition_closed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     updated_at: Mapped[datetime] = column_updated_at()
 
     sections: Mapped[List["Section"]] = relationship("Section", back_populates="form")
@@ -222,6 +227,10 @@ class Question(Base):
     display_order: Mapped[int] = column_integer(default=0)
     required: Mapped[bool] = column_bool()
     is_loop: Mapped[bool] = column_bool()
+    # Pregunta bucle cuyas tarjetas cuelgan de las tarjetas de otra pregunta bucle.
+    source_question_id: Mapped[Optional[UUID]] = column_fk(
+        target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="SET NULL", nullable=True
+    )
     updated_at: Mapped[datetime] = column_updated_at()
 
     section: Mapped["Section"] = relationship("Section", back_populates="questions")

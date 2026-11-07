@@ -79,6 +79,7 @@ class FormAppService:
                 label=form.label,
                 updated_at=form.updated_at,
                 has_submissions=has_submissions,
+                edition_closed_at=form.edition_closed_at,
             )
 
     async def list_forms(self) -> list[ResponseFormSummary]:
@@ -128,6 +129,7 @@ def _summary(form: Form, has_submissions: bool) -> ResponseFormSummary:
         is_active=form.is_active,
         updated_at=form.updated_at,
         has_submissions=has_submissions,
+        edition_closed_at=form.edition_closed_at,
     )
 
 
@@ -170,6 +172,7 @@ def _section_tree(sections: list[Section]) -> list[ResponseSectionTree]:
             display_order=q.display_order,
             weight=float(sum((c.weight for c in q.criteria), 0)),
             grading_guide=next((c.description for c in q.criteria if c.description), None),
+            source_question_id=q.source_question_id,
             depends_on=depends_on,
             card_template=ResponseCardTemplateTree(
                 id=ct.id,

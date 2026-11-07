@@ -13,6 +13,7 @@ import {
   Check,
   CornerDownRight,
   Repeat,
+  Link2,
 } from 'lucide-react';
 import { FORM_ICONS, FormIcon } from '../common/formIcons';
 import {
@@ -38,6 +39,8 @@ import {
   questionFields,
   findFormIssue,
   scaleWeightsTo100,
+  sourceCandidates,
+  type SourceCandidate,
   sectionWeight,
   weightIsComplete,
 } from '../../utils/formTree';
@@ -311,10 +314,11 @@ const QuestionEditor: React.FC<{
   siblings: FormQuestion[];
   index: number;
   total: number;
+  sources: SourceCandidate[];
   onChange: (q: FormQuestion) => void;
   onMove: (dir: 'up' | 'down') => void;
   onRemove: () => void;
-}> = ({ highlighted, question, number, siblings, index, total, onChange, onMove, onRemove }) => {
+}> = ({ highlighted, question, number, siblings, index, total, sources, onChange, onMove, onRemove }) => {
   const kind = kindOf(question);
   const fields = questionFields(question);
   const isLoop = kind === 'loop';
@@ -347,6 +351,7 @@ const QuestionEditor: React.FC<{
       grading_guide: question.grading_guide,
       is_required: question.is_required,
       depends_on: next === 'loop' ? (question.depends_on ?? (parents.length ? { question_id: parents[parents.length - 1].id, value: true } : null)) : null,
+      source_question_id: next === 'loop' ? (question.source_question_id ?? null) : null,
     });
   };
 
@@ -498,6 +503,43 @@ const QuestionEditor: React.FC<{
                       <option value="no">No</option>
                     </select>
                     <span>{question.depends_on ? '; en caso contrario pasa a la siguiente pregunta.' : ''}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-white border border-sky-200 space-y-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-sky-800">
+                  <Link2 className="w-3.5 h-3.5" /> Tarjetas vinculadas a otra pregunta bucle
+                </div>
+                {sources.length === 0 && !question.source_question_id ? (
+                  <p className="text-[11px] text-slate-600">
+                    Sin vínculo: las tarjetas son independientes. Para que cada tarjeta se refiera a una tarjeta de otra
+                    pregunta bucle (en cualquier componente), cree antes esa otra pregunta bucle.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 text-[11px] text-slate-700">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>Cada tarjeta se refiere a una tarjeta de</span>
+                      <select
+                        className={`${inputCls} !w-auto max-w-full`}
+                        value={question.source_question_id ?? ''}
+                        onChange={(e) => onChange({ ...question, source_question_id: e.target.value || null })}
+                      >
+                        <option value="">— ninguna (tarjetas independientes) —</option>
+                        {sources.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {`${s.label.slice(0, 60)} (${s.path})`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {question.source_question_id && (
+                      <p className="text-slate-500">
+                        La entidad elige a cuáles tarjetas de esa pregunta responde y puede registrar varias por cada
+                        una. En cada tarjeta se muestra el nombre de la tarjeta a la que se refiere. Si una tarjeta
+                        origen se elimina, se eliminan también las que cuelgan de ella.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -685,6 +727,22 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
     setDraft((d) => {
       const copy = structuredClone(d.sections);
       fn(copy);
+      // Una pregunta eliminada deja sin efecto los vínculos que apuntaban a ella.
+      const ids = new Set<string>();
+      const loops: FormQuestion[] = [];
+      copy.forEach((c) =>
+        getVariables(c).forEach((v) =>
+          getIndicators(v).forEach((i) =>
+            (i.questions ?? []).forEach((q) => {
+              ids.add(q.id);
+              loops.push(q);
+            })
+          )
+        )
+      );
+      loops.forEach((q) => {
+        if (q.source_question_id && !ids.has(q.source_question_id)) q.source_question_id = null;
+      });
       return { ...d, sections: copy };
     });
 
@@ -1088,6 +1146,7 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
                       siblings={questions}
                       index={qi}
                       total={questions.length}
+                      sources={kindOf(q) === 'loop' ? sourceCandidates(draftForm, q) : []}
                       onChange={(next) => patchQuestions((qs) => void (qs[qi] = next))}
                       onMove={(dir) => patchQuestions((qs) => void move(qs, qi, dir))}
                       onRemove={() => {

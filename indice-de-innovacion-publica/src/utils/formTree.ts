@@ -163,6 +163,48 @@ export const allIndicators = (form: IIPForm): FormSection[] =>
 /** Todas las preguntas del formulario (de todos los indicadores), en orden. */
 export const allQuestions = (form: IIPForm): FormQuestion[] => allIndicators(form).flatMap((i) => i.questions ?? []);
 
+export interface SourceCandidate {
+  id: string;
+  label: string;
+  /** Ubicación legible: «Componente 1 · Variable 2 · Indicador 1». */
+  path: string;
+}
+
+/**
+ * Preguntas bucle que `q` puede usar como origen de sus tarjetas: cualquier otro bucle del
+ * formulario (de cualquier componente) que no dependa, directa o indirectamente, de `q`.
+ */
+export const sourceCandidates = (form: IIPForm, q: FormQuestion): SourceCandidate[] => {
+  const all = new Map<string, FormQuestion>();
+  const out: SourceCandidate[] = [];
+  form.sections.forEach((c, ci) =>
+    getVariables(c).forEach((v, vi) =>
+      getIndicators(v).forEach((ind, ii) =>
+        (ind.questions ?? []).forEach((x) => {
+          all.set(x.id, x);
+          if (kindOf(x) === 'loop' && x.id !== q.id)
+            out.push({
+              id: x.id,
+              label: x.label.trim() || 'Sin enunciado',
+              path: `Componente ${ci + 1} · Variable ${vi + 1} · Indicador ${ii + 1}`,
+            });
+        })
+      )
+    )
+  );
+  const dependsOnQ = (x: FormQuestion): boolean => {
+    const seen = new Set<string>();
+    let node: FormQuestion | undefined = x;
+    while (node && !seen.has(node.id)) {
+      if (node.id === q.id) return true;
+      seen.add(node.id);
+      node = node.source_question_id ? all.get(node.source_question_id) : undefined;
+    }
+    return false;
+  };
+  return out.filter((c) => !dependsOnQ(all.get(c.id)!));
+};
+
 export const countComponents = (form: IIPForm): number => form.sections.length;
 export const countVariables = (form: IIPForm): number =>
   form.sections.reduce((acc, c) => acc + getVariables(c).length, 0);
@@ -317,6 +359,19 @@ export interface FormIssue {
  * Los pesos de todas las preguntas deben sumar exactamente 100.
  */
 export const findFormIssue = (form: IIPForm): FormIssue | null => {
+  const byId = new Map<string, FormQuestion>();
+  allIndicators(form).forEach((ind) => (ind.questions ?? []).forEach((q) => byId.set(q.id, q)));
+  const sourceOf = (q: FormQuestion) => (q.source_question_id ? byId.get(q.source_question_id) : undefined);
+  /** Cadena de preguntas origen a partir de q (se detiene al repetir). */
+  const sourceChain = (q: FormQuestion): string[] => {
+    const out: string[] = [];
+    let node = sourceOf(q);
+    while (node && !out.includes(node.id)) {
+      out.push(node.id);
+      node = sourceOf(node);
+    }
+    return out;
+  };
   if (!form.sections.length) return { message: 'El formulario necesita al menos un componente.', c: 0, v: null, i: null };
   const labelOk = (s: string | undefined | null) => !!s && s.trim().length > 0 && s.length <= 255;
   for (const [ci, c] of form.sections.entries()) {
@@ -352,6 +407,13 @@ export const findFormIssue = (form: IIPForm): FormIssue | null => {
               const parent = qs.find((p) => p.id === q.depends_on!.question_id);
               if (!parent || kindOf(parent) !== 'boolean' || qs.indexOf(parent) > qs.indexOf(q))
                 return at(`${qn}: la pregunta Sí/No de la que depende debe estar antes, en el mismo indicador.`, q.id);
+            }
+            if (q.source_question_id) {
+              const src = sourceOf(q);
+              if (!src || kindOf(src) !== 'loop' || src.id === q.id)
+                return at(`${qn}: la pregunta origen de las tarjetas no existe o no es una pregunta bucle.`, q.id);
+              if (sourceChain(q).includes(q.id))
+                return at(`${qn}: las preguntas origen forman un ciclo.`, q.id);
             }
             if (!fields.length) return at(`${qn}: agregue al menos un campo a la tarjeta.`, q.id);
           }
@@ -395,6 +457,8 @@ const FIELD_TYPE_API: Record<FormField['field_type_code'], string> = {
 
 /** IIPForm → cuerpo de POST /public/forms (CreateFormRequest del Core). */
 export const toCreateFormRequest = (form: IIPForm) => {
+  const codeOfQuestion = new Map<string, string>();
+  allIndicators(form).forEach((ind) => (ind.questions ?? []).forEach((q) => codeOfQuestion.set(q.id, q.code)));
   const questionReq = (q: FormQuestion, order: number, siblings: FormQuestion[]) => {
     const parent = q.depends_on ? siblings.find((p) => p.id === q.depends_on!.question_id) : undefined;
     const kind = kindOf(q);
@@ -409,6 +473,7 @@ export const toCreateFormRequest = (form: IIPForm) => {
       weight: Number((q.weight ?? 0).toFixed(2)),
       grading_guide: q.grading_guide?.trim() || null,
       depends_on: parent ? { question_code: parent.code, expected_value: q.depends_on!.value } : null,
+      source_question_code: kind === 'loop' && q.source_question_id ? codeOfQuestion.get(q.source_question_id) ?? null : null,
       card_template: {
         code: q.card_template.code,
         label: q.card_template.label || q.label,
@@ -503,6 +568,7 @@ export const fromFormTree = (tree: FormTree): IIPForm => {
       question_kind: q.is_loop ? 'loop' : fieldTypeToKind(firstType),
       is_required: q.required,
       depends_on: q.depends_on ? { question_id: q.depends_on.question_id, value: q.depends_on.expected_value } : null,
+      source_question_id: q.source_question_id ?? null,
       card_template: {
         id: q.card_template?.id ?? uid('ct'),
         code: q.card_template?.code ?? `CT_${q.code}`,
@@ -562,7 +628,8 @@ export const normalizeCodes = (form: IIPForm): IIPForm => ({
             code: `${vcode}_I${ii + 1}`,
             order_index: ii + 1,
             questions: (ind.questions ?? []).map((q, qi) => {
-              const qcode = `Q${qi + 1}`;
+              // Único en todo el formulario: otras preguntas lo usan como pregunta origen.
+              const qcode = `${vcode}_I${ii + 1}_Q${qi + 1}`;
               return {
                 ...q,
                 code: qcode,

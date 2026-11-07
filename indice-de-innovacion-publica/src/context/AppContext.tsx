@@ -336,6 +336,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let savedId: string;
     if (existing) {
       if (existing.has_submissions) throw new FormHasSubmissionsError();
+      if (existing.edition_closed_at)
+        throw new Error('La edición de este formulario está cerrada: ya no se puede modificar.');
       try {
         savedId = (await coreService.updateForm(existing.id, normalized)).id;
       } catch (err: any) {

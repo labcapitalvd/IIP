@@ -113,6 +113,12 @@ class AnswerCardEntry(Answer):
     )
     title: Mapped[str] = column_short_text(length=255)
     card_index: Mapped[int] = column_integer(default=0)
+    # Tarjeta de la pregunta origen de la que cuelga esta (borrado en cascada).
+    parent_entry_id: Mapped[Optional[UUID]] = column_fk(
+        target=f"{TargetTable.ANSWERS_CARD_ENTRY.fq_name}.id",
+        ondelete="CASCADE",
+        nullable=True,
+    )
 
     # Relationships
     card_template: Mapped["CardTemplate"] = relationship(
