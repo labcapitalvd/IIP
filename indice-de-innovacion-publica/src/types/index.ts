@@ -254,6 +254,11 @@ export interface FormQuestion {
   weight?: number;
   /** Guía para el calificador: qué verificar para puntuar esta pregunta. */
   grading_guide?: string;
+  /**
+   * Solo preguntas bucle: id de otra pregunta bucle (de cualquier componente) de cuyas tarjetas
+   * cuelgan las de esta. Cada tarjeta se refiere a una tarjeta de la pregunta origen.
+   */
+  source_question_id?: string | null;
   card_template: CardTemplate;
 }
 
@@ -350,6 +355,7 @@ export interface QuestionTree {
   display_order: number;
   weight?: number;
   grading_guide?: string | null;
+  source_question_id?: string | null;
   depends_on: { question_id: string; expected_value: boolean } | null;
   card_template: {
     id: string;
@@ -434,6 +440,10 @@ export interface CardEntryAnswer {
   card_template_id: string;
   title: string;
   card_index: number;
+  /** Identificador temporal de la tarjeta dentro del envío (para que otras cuelguen de ella). */
+  ref?: string;
+  /** `ref` de la tarjeta (de la pregunta origen) de la que cuelga esta. */
+  parent_ref?: string;
   answers: SubmissionValueAnswer[];
 }
 
@@ -478,7 +488,15 @@ export interface EntitySubmission {
   raw_answers: Record<string, any>;
   card_entries?: Record<
     string,
-    Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string> }>
+    Array<{
+      id: string;
+      title: string;
+      answers: Record<string, any>;
+      display?: Record<string, string>;
+      /** Tarjeta de la pregunta origen de la que cuelga y su nombre (referencia). */
+      parent_id?: string | null;
+      parent_title?: string | null;
+    }>
   >;
 }
 

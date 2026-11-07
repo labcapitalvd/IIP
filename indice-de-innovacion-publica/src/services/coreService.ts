@@ -44,6 +44,8 @@ interface SubmissionDetailApi extends SubmissionSummaryApi {
     question_id: string;
     title: string;
     card_index: number;
+    parent_id?: string | null;
+    parent_title?: string | null;
     answers: AnswerApi[];
   }>;
 }
@@ -89,7 +91,14 @@ const mapSubmissionDetail = (d: SubmissionDetailApi): EntitySubmission => {
       answers[a.field_id] = a.value;
       display[a.field_id] = a.display;
     });
-    (card_entries[c.question_id] ??= []).push({ id: c.id, title: c.title, answers, display });
+    (card_entries[c.question_id] ??= []).push({
+      id: c.id,
+      title: c.title,
+      answers,
+      display,
+      parent_id: c.parent_id ?? null,
+      parent_title: c.parent_title ?? null,
+    });
   });
   return {
     ...mapSubmissionSummary(d),

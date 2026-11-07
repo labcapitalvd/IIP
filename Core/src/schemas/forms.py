@@ -167,6 +167,14 @@ class CreateQuestionRequest(BaseSchema):
         max_length=4096,
         description="Guía para el calificador: qué debe verificar para puntuar esta pregunta.",
     )
+    source_question_code: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50,
+        description="Código de otra pregunta bucle del formulario (en cualquier componente) "
+        "de cuyas tarjetas cuelgan las de esta: cada tarjeta de esta pregunta se refiere a una "
+        "tarjeta de la pregunta origen (se muestra su nombre). Requiere `is_loop`.",
+    )
     depends_on: "QuestionDependencyRequest | None" = Field(
         default=None,
         description="Si se envía, la pregunta solo se muestra cuando la pregunta padre "
@@ -332,6 +340,9 @@ class ResponseQuestionTree(UuidSchema):
     display_order: int
     weight: float = Field(default=0, description="Suma de los pesos de sus criterios de calificación")
     grading_guide: str | None = None
+    source_question_id: UUID | None = Field(
+        default=None, description="Pregunta bucle de cuyas tarjetas cuelgan las de esta."
+    )
     depends_on: ResponseQuestionDependency | None = None
     card_template: ResponseCardTemplateTree | None = None
 

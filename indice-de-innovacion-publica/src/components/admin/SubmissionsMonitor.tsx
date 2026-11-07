@@ -318,7 +318,7 @@ export const SubmissionsMonitor: React.FC = () => {
                   </h4>
                   <div className="space-y-3">
                     {Object.entries(selectedSub.card_entries).map(([qId, entries]) =>
-                      (entries as Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string> }>).map((entry, idx) => (
+                      (entries as Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string>; parent_title?: string | null }>).map((entry, idx) => (
                         <div
                           key={entry.id}
                           className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2"
@@ -326,6 +326,11 @@ export const SubmissionsMonitor: React.FC = () => {
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-slate-900 text-xs">
                               Iniciativa #{idx + 1}: {entry.title}
+                              {entry.parent_title && (
+                                <span className="ml-2 text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                  Referencia: {entry.parent_title}
+                                </span>
+                              )}
                             </span>
                             <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-semibold">
                               card_entry

@@ -87,6 +87,19 @@ class CardEntryAnswerIn(_AnswerIn):
     card_template_id: UUID
     title: str = Field(min_length=1, max_length=255)
     card_index: int = Field(default=0, ge=0)
+    ref: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="Identificador temporal (elegido por el cliente) de esta tarjeta dentro del envío.",
+    )
+    parent_ref: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="`ref` de la tarjeta (de la pregunta origen) de la que cuelga esta. "
+        "Obligatorio si la pregunta tiene pregunta origen; prohibido si no la tiene.",
+    )
     answers: list[
         Annotated[ValueAnswerIn, BeforeValidator(_normalize_type)]
     ] = Field(default_factory=list)
@@ -154,6 +167,12 @@ class ResponseCardOut(BaseSchema):
     card_template_id: UUID
     title: str
     card_index: int
+    parent_id: UUID | None = Field(
+        default=None, description="Tarjeta de la pregunta origen de la que cuelga."
+    )
+    parent_title: str | None = Field(
+        default=None, description="Nombre de la tarjeta de la que cuelga (referencia)."
+    )
     answers: list[ResponseAnswerOut]
 
 

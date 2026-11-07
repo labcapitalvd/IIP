@@ -82,6 +82,11 @@ class QuestionDependencyError(FormError):
     message = "The question dependency refers to a question that does not exist or is not a Yes/No question."
 
 
+class QuestionSourceError(FormError):
+    status_code = 422
+    message = "The source question of a linked loop question is invalid."
+
+
 class RelationalOperatorNotFoundError(FormError):
     status_code = 500
     message = "The 'eq' relational operator is not seeded."

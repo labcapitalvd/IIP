@@ -44,6 +44,7 @@ from .errors import (
     FormStructureConflictError,
     InvalidFieldTypeReferenceError,
     QuestionDependencyError,
+    QuestionSourceError,
     RelationalOperatorNotFoundError,
     SectionTypeNotFoundError,
 )
@@ -91,6 +92,7 @@ class FormService:
             await uow.session.flush()
             await self._create_dependencies(uow, pending)
             self._create_criteria(uow, criteria)
+            self._link_sources(criteria)
             await uow.session.flush()
         except IntegrityError as e:
             logger.error(f"Form creation integrity error: {e.orig}")
@@ -204,6 +206,7 @@ class FormService:
             await uow.session.flush()
             await self._create_dependencies(uow, pending)
             self._create_criteria(uow, criteria)
+            self._link_sources(criteria)
             await uow.session.flush()
         except IntegrityError as e:
             logger.error(f"Form update integrity error: {e.orig}")
@@ -271,6 +274,51 @@ class FormService:
                     display_order=0,
                 )
             )
+
+    def _link_sources(self, built: list) -> None:
+        """
+        Resuelve `source_question_code` -> `questions.source_question_id`. La pregunta origen
+        debe ser un bucle distinto, de código único en el formulario, y las referencias no
+        pueden formar ciclos (A -> B -> A). Se puede encadenar (C -> B -> A).
+        """
+        by_code: dict[str, list[Question]] = {}
+        for question, _ in built:
+            by_code.setdefault(question.code, []).append(question)
+
+        parent_of: dict[int, Question] = {}
+        for question, data in built:
+            code = data.source_question_code
+            if not code:
+                continue
+            if not question.is_loop:
+                raise QuestionSourceError(
+                    f"Question '{data.code}' has a source question, so it must be a loop question."
+                )
+            candidates = by_code.get(code, [])
+            if len(candidates) != 1:
+                raise QuestionSourceError(
+                    f"Question '{data.code}': source question '{code}' "
+                    + ("does not exist." if not candidates else "is ambiguous (repeated code).")
+                )
+            source = candidates[0]
+            if source is question:
+                raise QuestionSourceError(f"Question '{data.code}' cannot be its own source.")
+            if not source.is_loop:
+                raise QuestionSourceError(
+                    f"Question '{data.code}': source question '{code}' must be a loop question."
+                )
+            question.source_question_id = source.id
+            parent_of[id(question)] = source
+
+        for question, data in built:
+            seen, node = {id(question)}, parent_of.get(id(question))
+            while node is not None:
+                if id(node) in seen:
+                    raise QuestionSourceError(
+                        f"Question '{data.code}' has a circular chain of source questions."
+                    )
+                seen.add(id(node))
+                node = parent_of.get(id(node))
 
     async def _build_section(
         self, uow: FormDesignUoW, section_data: CreateSectionRequest, form_id: UUID,

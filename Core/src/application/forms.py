@@ -170,6 +170,7 @@ def _section_tree(sections: list[Section]) -> list[ResponseSectionTree]:
             display_order=q.display_order,
             weight=float(sum((c.weight for c in q.criteria), 0)),
             grading_guide=next((c.description for c in q.criteria if c.description), None),
+            source_question_id=q.source_question_id,
             depends_on=depends_on,
             card_template=ResponseCardTemplateTree(
                 id=ct.id,

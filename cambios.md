@@ -332,3 +332,14 @@ Cosas encontradas durante la revisión que quedan documentadas para no perderlas
 - **`persister` (Docker) no tiene `CMD`**: se opera solo vía `Scripts/launcher.sh` (`--setup`, `--schemer`, `--migrator`, `--seeder`, `--populator`). Si alguien intenta `docker compose up persister` esperando que corra solo, no pasa nada.
 - **Tokens de GitHub en `Secrets/`**: son placeholders (mismo valor que `POSTGRES_PASSWORD`), no PATs reales. No hay código que los use hoy, pero si se activa el seeding vía GitHub habrá que reemplazarlos.
 - **Selector de "entidad" en el registro del frontend**: el backend ahora sí soporta `actor_id` en el registro (ver §6), pero el campo `actor_label` que manda el frontend se ignora (es solo para mostrarlo en la UI) — no hace falta cambiar nada, es el comportamiento esperado.
+
+
+## Preguntas bucle vinculadas (tarjetas que cuelgan de otra pregunta bucle)
+
+Una pregunta bucle B puede tener como **pregunta origen** otra pregunta bucle A (en cualquier componente). Cada tarjeta de B se refiere a una tarjeta de A (se muestra su nombre) y se puede encadenar (C → B → A).
+
+- **BD** (migración `9f5a3b6c1e54`, hay que correr `alembic upgrade head`): `forms.questions.source_question_id` (FK a la pregunta origen, `ON DELETE SET NULL`) y `submissions.answers_card_entry.parent_entry_id` (FK a la tarjeta padre, `ON DELETE CASCADE`: borrar una tarjeta borra las que cuelgan de ella, también al eliminar un radicado o reemplazar un borrador).
+- **Formularios**: `CreateQuestionRequest.source_question_code` y `ResponseQuestionTree.source_question_id`. Valida que la pregunta sea bucle, que el origen exista, sea bucle, tenga código único en el formulario, no sea ella misma y no haya ciclos (422 `QuestionSourceError`). Los códigos de pregunta ahora son únicos por formulario (`C1_V1_I1_Q1`) al guardar desde el front.
+- **Envíos**: `CardEntryAnswerIn.ref` / `parent_ref` (ids temporales del cliente). Las preguntas con origen exigen `parent_ref` de una tarjeta del mismo envío y de su pregunta origen; las demás no pueden traerlo. Opcional: la entidad elige a qué tarjetas del origen responde y puede poner varias por cada una. El detalle devuelve `parent_id` y `parent_title` por tarjeta.
+- **Front**: constructor (selector «Tarjetas vinculadas a otra pregunta bucle», excluye candidatas que dependan de la actual; al borrar una pregunta se limpian los vínculos), vista de árbol, portal de la entidad (una caja por tarjeta origen con «Registrar para esta iniciativa» y etiqueta «Referencia: …»; al eliminar una tarjeta origen avisa y borra en cascada las dependientes), monitor e historial (muestran la referencia).
+- **Probado**: A → B (otro componente) → C creado, validaciones 422 (sin padre, padre en pregunta equivocada, A con padre, origen inexistente, auto-referencia, ciclo), envío desordenado (hijas antes que padres) guardado en orden, cascada en BD, ida y vuelta del front con el servidor. No probado con clics en el navegador.

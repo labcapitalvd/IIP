@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { IIPForm, FormQuestion } from '../../types';
-import { ChevronDown, ChevronRight, CornerDownRight, Repeat } from 'lucide-react';
+import { ChevronDown, ChevronRight, CornerDownRight, Link2, Repeat } from 'lucide-react';
 import { FormIcon } from '../common/formIcons';
 import {
   QUESTION_KINDS,
@@ -18,6 +18,10 @@ const kindLabel = (q: FormQuestion) => QUESTION_KINDS.find((k) => k.value === ki
 /** Vista de solo lectura: Componentes → Variables → Indicadores → Preguntas (con su peso). */
 export const FormTreeView: React.FC<{ form: IIPForm }> = ({ form }) => {
   const [open, setOpen] = useState<Record<string, boolean>>({ [form.sections[0]?.id ?? '']: true });
+  const allQs = form.sections.flatMap((c) =>
+    (c.children ?? []).flatMap((v) => (v.children ?? []).flatMap((i) => i.questions ?? []))
+  );
+  const sourceLabel = (id: string) => allQs.find((x) => x.id === id)?.label || 'pregunta eliminada';
 
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
   const weightTag = (w: number) => (
@@ -130,6 +134,12 @@ export const FormTreeView: React.FC<{ form: IIPForm }> = ({ form }) => {
                                           <div className="flex items-center gap-1 text-[11px] text-amber-800">
                                             <CornerDownRight className="w-3 h-3" />
                                             Si la pregunta {nums[parent.id]} es {q.depends_on!.value ? 'Sí' : 'No'}; de lo contrario continúa.
+                                          </div>
+                                        )}
+                                        {isLoop && q.source_question_id && (
+                                          <div className="flex items-center gap-1 text-[11px] text-sky-800">
+                                            <Link2 className="w-3 h-3" />
+                                            Cada tarjeta se refiere a una tarjeta de: {sourceLabel(q.source_question_id)}
                                           </div>
                                         )}
                                         {isLoop && (

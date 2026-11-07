@@ -326,8 +326,13 @@ class SubmissionAppService:
                     children.setdefault(a.card_entry_id, []).append(convert(a))
 
             qlabels = {v[2]: v[3] for v in fields.values()}
+            titles = {
+                x.id: x.title for x in answers if isinstance(x, AnswerCardEntry)
+            }
             cards = [
                 ResponseCardOut(
+                    parent_id=a.parent_entry_id,
+                    parent_title=titles.get(a.parent_entry_id),
                     id=a.id,
                     question_id=a.question_id,
                     question_label=qlabels.get(a.question_id, ""),
