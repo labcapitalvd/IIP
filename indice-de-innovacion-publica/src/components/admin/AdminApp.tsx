@@ -6,6 +6,7 @@ import { FormsManager } from './FormsManager';
 import { EntityUsersManager } from './EntityUsersManager';
 import { FormAssignmentsManager } from './FormAssignmentsManager';
 import { SubmissionsMonitor } from './SubmissionsMonitor';
+import { RecordInspector } from './RecordInspector';
 import { ActorsManager } from './ActorsManager';
 import { ParametersManager } from './ParametersManager';
 import { HistoricalLoadManager } from './HistoricalLoadManager';
@@ -48,6 +49,11 @@ export const AdminApp: React.FC<{ pathname: string }> = ({ pathname }) => {
   const { setActiveFormById } = useApp();
   const tab = adminTabFromPath(pathname) ?? 'forms';
   const setTab = (t: AdminTab) => navigate(ROUTES.admin[t]);
+  // /admin/monitor-radicados/<formulario>/<entidad> → pantalla de inspección
+  const inspectParts = pathname.startsWith(`${ROUTES.admin.submissions}/`)
+    ? pathname.slice(ROUTES.admin.submissions.length + 1).split('/')
+    : [];
+  const inspect = inspectParts.length === 2 && inspectParts.every(Boolean) ? (inspectParts as [string, string]) : null;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased flex flex-col md:flex-row">
@@ -113,7 +119,8 @@ export const AdminApp: React.FC<{ pathname: string }> = ({ pathname }) => {
         )}
         {tab === 'users' && <EntityUsersManager onAssignFormToUser={() => setTab('assignments')} />}
         {tab === 'assignments' && <FormAssignmentsManager />}
-        {tab === 'submissions' && <SubmissionsMonitor />}
+        {tab === 'submissions' &&
+          (inspect ? <RecordInspector key={`${inspect[0]}:${inspect[1]}`} formId={inspect[0]} actorId={inspect[1]} /> : <SubmissionsMonitor />)}
         {tab === 'actors' && <ActorsManager />}
         {tab === 'historical' && <HistoricalLoadManager />}
         {tab === 'parameters' && <ParametersManager pathname={pathname} />}

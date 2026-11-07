@@ -11,7 +11,9 @@ import {
   FormStatus,
   FormSummary,
   FormTree,
+  EntityResults,
   HistoricalForm,
+  MonitorRecord,
   HistoricalReport,
   IIPForm,
   SubmissionItem,
@@ -336,6 +338,25 @@ export const coreService = {
       requiresAuth: true,
     });
     return data;
+  },
+
+  /** GET /public/forms/historical/records — entidad × formulario con respuestas y/o resultados. */
+  async listRecords(): Promise<MonitorRecord[]> {
+    const { data } = await apiClient.request<MonitorRecord[]>('core', '/public/forms/historical/records', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** GET /public/forms/{form}/historical/results/{actor} — resultado estadístico cargado (solo admin). */
+  async getEntityResults(formId: string, actorId: string): Promise<EntityResults> {
+    const { data } = await apiClient.request<EntityResults>(
+      'core',
+      `/public/forms/${formId}/historical/results/${actorId}`,
+      { method: 'GET', requiresAuth: true }
+    );
+    return { ...data, sections: data.sections ?? [] };
   },
 
   /** POST /public/forms/{id}/edition/close — da por terminada la edición (habilita las plantillas). */

@@ -355,3 +355,10 @@ Solo administradores. Menú nuevo **Cargas históricas** (`/admin/cargas-histori
 - **Carga** (`POST .../historical/responses|results?dry_run=`): la entidad se identifica por `actor_id`. Con `dry_run=true` solo valida y devuelve el reporte (hoja, fila, columna, mensaje) sin escribir; con errores no se guarda nada; todo en una sola transacción. Respuestas: no se exigen campos obligatorios; los radicados quedan «enviados»; si la entidad ya tiene uno, error salvo `replace=true` (borra el anterior con sus calificaciones). Resultados: reemplazan los de la entidad con aviso.
 - **Migración** `a06b4c7d2f65` (hay que correr `alembic upgrade head`).
 - **Probado**: ciclo completo en local (cerrar, plantillas, reporte de errores con 4 tipos de error, carga, repetición con y sin `replace`, reabrir con datos → 409, resultados con valores negativos/grandes, vínculos entre tarjetas, bloqueo a no admin). No probado con clics en el navegador.
+
+
+## Monitor de radicados por entidad × formulario + pantalla de inspección
+
+- El monitor lista una fila por **entidad × formulario** con respuestas (radicado) y/o resultado cargado (`GET /public/forms/historical/records`); el filtro de formularios muestra **todos** los del servidor (antes solo los que tenían radicados). Filtros por entidad, formulario y cobertura (con respuestas y resultado / sin resultado / solo resultado).
+- «Inspeccionar» abre una **pantalla propia** (`/admin/monitor-radicados/<formulario>/<entidad>`, ya no un popup) con el resultado estadístico cargado (total y puntaje por componente, variable e indicador; `GET /public/forms/{form}/historical/results/{actor}`) y las respuestas por componente > variable > indicador > pregunta, con las tarjetas y su «Referencia».
+- No requiere asignar el formulario: las asignaciones solo sirven para que una entidad lo diligencie desde su portal.

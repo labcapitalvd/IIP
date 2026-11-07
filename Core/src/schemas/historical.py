@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import Field
 
@@ -17,6 +18,39 @@ class ResponseHistoricalForm(UuidSchema):
     )
     submission_count: int = Field(description="Radicados (respuestas) ya guardados.")
     result_count: int = Field(description="Entidades con resultados cargados.")
+
+
+class ResponseRecord(BaseSchema):
+    """Una fila del monitor: entidad × formulario, con respuestas y/o resultados cargados."""
+
+    form_id: UUID
+    form_code: str
+    form_label: str
+    form_year: int | None = None
+    actor_id: UUID
+    actor_label: str
+    actor_segment_label: str | None = None
+    submission_id: UUID | None = Field(default=None, description="Radicado; None si solo hay resultados.")
+    status: str | None = None
+    updated_at: datetime | None = None
+    answer_count: int = 0
+    card_count: int = 0
+    has_results: bool = False
+    total: float | None = Field(default=None, description="Total del resultado cargado.")
+
+
+class ResponseSectionScore(BaseSchema):
+    section_id: UUID
+    score: float | None = None
+
+
+class ResponseEntityResults(BaseSchema):
+    """Resultado estadístico (el que se subió) de una entidad en un formulario."""
+
+    has_results: bool
+    total: float | None = None
+    sections: list[ResponseSectionScore] = Field(default_factory=list)
+    updated_at: datetime | None = None
 
 
 class ResponseHistoricalIssue(BaseSchema):

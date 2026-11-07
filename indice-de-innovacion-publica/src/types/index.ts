@@ -328,6 +328,33 @@ export interface HistoricalForm {
   result_count: number;
 }
 
+// GET /public/forms/historical/records — una fila por entidad × formulario con respuestas y/o resultados.
+export interface MonitorRecord {
+  form_id: string;
+  form_code: string;
+  form_label: string;
+  form_year?: number | null;
+  actor_id: string;
+  actor_label: string;
+  actor_segment_label?: string | null;
+  /** Radicado de la entidad; ausente si solo hay resultados cargados. */
+  submission_id?: string | null;
+  status?: string | null;
+  updated_at?: string | null;
+  answer_count: number;
+  card_count: number;
+  has_results: boolean;
+  total?: number | null;
+}
+
+// GET /public/forms/{form}/historical/results/{actor} — resultado estadístico cargado.
+export interface EntityResults {
+  has_results: boolean;
+  total?: number | null;
+  sections: Array<{ section_id: string; score?: number | null }>;
+  updated_at?: string | null;
+}
+
 export interface HistoricalIssue {
   sheet: string;
   row?: number | null;

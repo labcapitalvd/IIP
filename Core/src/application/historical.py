@@ -44,12 +44,16 @@ from domain.services.errors import (
     HistoricalFileError,
     HistoricalForbiddenError,
 )
+from application.submissions import SubmissionAppService
 from domain.services.submissions import SubmissionService
 from infrastructure.repositories.forms import FormRepository
 from schemas.historical import (
+    ResponseEntityResults,
     ResponseHistoricalForm,
     ResponseHistoricalIssue,
     ResponseHistoricalReport,
+    ResponseRecord,
+    ResponseSectionScore,
 )
 from schemas.submissions import (
     BooleanAnswerIn,
@@ -375,6 +379,94 @@ class HistoricalAppService:
             raise FormEditionOpenError()
         sections = await FormRepository(session).list_sections_tree(form.id)
         return _build_structure(form, sections)
+
+    # -------------------------------------------------------------- monitor
+
+    async def list_records(self, requester_id: UUID) -> list[ResponseRecord]:
+        """Entidad × formulario con respuestas (radicado) y/o resultados cargados."""
+        async with UnitOfWork() as uow:
+            s = uow.session
+            await self._admin(s, requester_id)
+            sub_rows = (
+                await s.execute(SubmissionAppService._summary_query().order_by(Submission.updated_at.desc()))
+            ).all()
+            res_rows = (
+                await s.execute(
+                    select(FormResult, Form, Actor)
+                    .join(Form, Form.id == FormResult.form_id)
+                    .join(Actor, Actor.id == FormResult.actor_id)
+                )
+            ).all()
+            segments = await SubmissionAppService._segment_labels(
+                s, {r[2].id for r in sub_rows} | {r[2].id for r in res_rows}
+            )
+
+            records: dict[tuple, dict] = {}
+            for row in sub_rows:
+                base = SubmissionAppService._to_summary(row, segments.get(row[2].id))
+                key = (base["form_id"], base["actor_id"])
+                if key in records:  # un entidad puede tener varios radicados: se muestra el más reciente
+                    continue
+                records[key] = dict(
+                    form_id=base["form_id"],
+                    form_code=base["form_code"],
+                    form_label=base["form_label"],
+                    form_year=row[1].year,
+                    actor_id=base["actor_id"],
+                    actor_label=base["actor_label"],
+                    actor_segment_label=base["actor_segment_label"],
+                    submission_id=base["id"],
+                    status=base["status"],
+                    updated_at=base["updated_at"],
+                    answer_count=base["answer_count"],
+                    card_count=base["card_count"],
+                )
+            for fr, form, actor in res_rows:
+                key = (form.id, actor.id)
+                rec = records.setdefault(
+                    key,
+                    dict(
+                        form_id=form.id,
+                        form_code=form.code,
+                        form_label=form.label,
+                        form_year=form.year,
+                        actor_id=actor.id,
+                        actor_label=actor.label,
+                        actor_segment_label=segments.get(actor.id),
+                        updated_at=fr.updated_at,
+                    ),
+                )
+                rec["has_results"] = True
+                rec["total"] = float(fr.total) if fr.total is not None else None
+            return [ResponseRecord(**r) for r in records.values()]
+
+    async def entity_results(
+        self, requester_id: UUID, form_id: UUID, actor_id: UUID
+    ) -> ResponseEntityResults:
+        async with UnitOfWork() as uow:
+            s = uow.session
+            await self._admin(s, requester_id)
+            fr = await s.scalar(
+                select(FormResult).where(FormResult.form_id == form_id, FormResult.actor_id == actor_id)
+            )
+            if fr is None:
+                return ResponseEntityResults(has_results=False)
+            rows = (
+                await s.execute(
+                    select(SectionResult.section_id, SectionResult.score).where(
+                        SectionResult.form_result_id == fr.id
+                    )
+                )
+            ).all()
+            return ResponseEntityResults(
+                has_results=True,
+                total=float(fr.total) if fr.total is not None else None,
+                sections=[
+                    ResponseSectionScore(section_id=sid, score=float(sc) if sc is not None else None)
+                    for sid, sc in rows
+                ],
+                updated_at=fr.updated_at,
+            )
 
     # -------------------------------------------------------------- lista y estado
 

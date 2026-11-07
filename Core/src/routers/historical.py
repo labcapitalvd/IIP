@@ -5,7 +5,12 @@ from shared.utils import AccessContext, get_claims
 
 from application.historical import XLSX_MEDIA_TYPE, HistoricalAppService
 from domain.services.errors import HistoricalFileError
-from schemas.historical import ResponseHistoricalForm, ResponseHistoricalReport
+from schemas.historical import (
+    ResponseEntityResults,
+    ResponseHistoricalForm,
+    ResponseHistoricalReport,
+    ResponseRecord,
+)
 
 router = APIRouter(tags=["Cargas históricas"], prefix="/forms")
 
@@ -48,6 +53,36 @@ async def list_historical_forms(
     service: HistoricalAppService = Depends(get_historical_service),
 ):
     return await service.list_forms(requester_id=_user(ctx))
+
+
+@router.get(
+    "/historical/records",
+    response_model=list[ResponseRecord],
+    response_model_exclude_none=True,
+    operation_id="list_records",
+    summary="Entidad × formulario con respuestas y/o resultados cargados (solo admin)",
+)
+async def list_records(
+    ctx: AccessContext = Depends(),
+    service: HistoricalAppService = Depends(get_historical_service),
+):
+    return await service.list_records(requester_id=_user(ctx))
+
+
+@router.get(
+    "/{form_id}/historical/results/{actor_id}",
+    response_model=ResponseEntityResults,
+    response_model_exclude_none=True,
+    operation_id="get_entity_results",
+    summary="Resultado cargado de una entidad en un formulario (solo admin)",
+)
+async def get_entity_results(
+    form_id: UUID = Path(),
+    actor_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: HistoricalAppService = Depends(get_historical_service),
+):
+    return await service.entity_results(requester_id=_user(ctx), form_id=form_id, actor_id=actor_id)
 
 
 @router.post(
