@@ -1,10 +1,11 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 
 from shared.enums import SubmissionStatusesEnum
 from shared.models import (
     CardTemplate,
+    AnswerCardEntry,
     Field,
     FieldChoice,
     FieldGroup,
@@ -67,24 +68,54 @@ class SubmissionService:
             await uow.session.delete(previous)
         await uow.session.flush()
 
-        submission = Submission(
-            actor_id=actor_link.actor_id, form_id=form_id, status_id=status.id
+        submission = self.build_submission(
+            actor_link.actor_id, form_id, status.id, items
         )
-        for item in items:
+        uow.submissions.add(submission)
+        await uow.session.flush()
+        return submission
+
+    def build_submission(
+        self, actor_id: UUID, form_id: UUID, status_id: UUID, items: list[SubmissionItemIn]
+    ) -> Submission:
+        """Arma el radicado (sin guardarlo) con sus respuestas, tarjetas y vínculos."""
+        submission = Submission(actor_id=actor_id, form_id=form_id, status_id=status_id)
+        # Las tarjetas hijas se insertan después de su padre (FK parent_entry_id).
+        created: dict[str, AnswerCardEntry] = {}
+        for item in self._parents_first(items):
             answer = AnswerFactory.create_answer(item)
             answer.submission = submission
             submission.answers.append(answer)
 
             if isinstance(item, CardEntryAnswerIn):
+                answer.id = uuid4()
+                if item.ref:
+                    created[item.ref] = answer  # type: ignore[assignment]
+                if item.parent_ref:
+                    answer.parent_entry_id = created[item.parent_ref].id  # type: ignore[attr-defined]
                 for child_item in item.answers:
                     child = AnswerFactory.create_answer(child_item)
                     child.submission = submission
                     child.card_entry = answer  # type: ignore[assignment]
                     submission.answers.append(child)
-
-        uow.submissions.add(submission)
-        await uow.session.flush()
         return submission
+
+    @staticmethod
+    def _parents_first(items: list[SubmissionItemIn]) -> list[SubmissionItemIn]:
+        """Ordena para que cada tarjeta venga después de la tarjeta de la que cuelga."""
+        by_ref = {i.ref: i for i in items if isinstance(i, CardEntryAnswerIn) and i.ref}
+
+        def depth(item) -> int:
+            d, node, seen = 0, item, set()
+            while isinstance(node, CardEntryAnswerIn) and node.parent_ref:
+                if node.parent_ref in seen:
+                    break
+                seen.add(node.parent_ref)
+                node = by_ref.get(node.parent_ref)
+                d += 1
+            return d
+
+        return sorted(items, key=depth)  # sorted es estable: conserva el orden entre iguales
 
     # ------------------------------------------------------------------ validation
 
@@ -185,3 +216,55 @@ class SubmissionService:
             )
             if file_ids - found:
                 raise SubmissionInvalidError("A referenced file does not exist.")
+
+        await self._validate_links(uow, form_id, items)
+
+    async def _validate_links(
+        self, uow: SubmissionUoW, form_id: UUID, items: list[SubmissionItemIn]
+    ) -> None:
+        """
+        Las preguntas con pregunta origen exigen que cada tarjeta indique (`parent_ref`)
+        una tarjeta del mismo envío que pertenezca a esa pregunta origen; las demás
+        preguntas no pueden traer `parent_ref`. `ref` no puede repetirse.
+        """
+        cards = [i for i in items if isinstance(i, CardEntryAnswerIn)]
+        if not cards:
+            return
+
+        refs: dict[str, CardEntryAnswerIn] = {}
+        for c in cards:
+            if c.ref:
+                if c.ref in refs:
+                    raise SubmissionInvalidError(f"Card reference '{c.ref}' is repeated.")
+                refs[c.ref] = c
+
+        sources = dict(
+            (
+                await uow.session.execute(
+                    select(Question.id, Question.source_question_id)
+                    .join(Section, Section.id == Question.section_id)
+                    .where(
+                        Section.form_id == form_id,
+                        Question.id.in_({c.question_id for c in cards}),
+                    )
+                )
+            ).all()
+        )
+
+        for c in cards:
+            source = sources.get(c.question_id)
+            if source is None:
+                if c.parent_ref:
+                    raise SubmissionInvalidError(
+                        f"Card '{c.title}' cannot hang from another card: its question has no source question."
+                    )
+                continue
+            parent = refs.get(c.parent_ref) if c.parent_ref else None
+            if parent is None:
+                raise SubmissionInvalidError(
+                    f"Card '{c.title}' must reference a card (`parent_ref`) of its source question."
+                )
+            if parent.question_id != source:
+                raise SubmissionInvalidError(
+                    f"Card '{c.title}' references a card that is not from its source question."
+                )

@@ -17,6 +17,8 @@ interface CardEntryItem {
   id: string;
   title: string;
   answers: Record<string, any>;
+  /** Tarjeta (de la pregunta origen) de la que cuelga esta. */
+  parent_id?: string | null;
 }
 
 interface FormSubmissionContextType {
@@ -34,8 +36,10 @@ interface FormSubmissionContextType {
   nextSection: () => void;
   prevSection: () => void;
   setFieldValue: (fieldId: string, value: any) => void;
-  addCardEntry: (questionId: string, templateId: string, initialTitle?: string) => string;
+  addCardEntry: (questionId: string, templateId: string, initialTitle?: string, parentId?: string | null) => string;
   removeCardEntry: (questionId: string, entryId: string) => void;
+  /** Cuántas tarjetas (directas e indirectas) se eliminarían junto con esta. */
+  countDependentCards: (entryId: string) => number;
   setCardEntryFieldValue: (questionId: string, entryId: string, fieldId: string, value: any) => void;
   setCardEntryTitle: (questionId: string, entryId: string, title: string) => void;
   validateCurrentSection: () => boolean;
@@ -86,7 +90,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       // Seed an initial empty card for repeatable templates if none exists
       activeForm.sections.forEach((sec) => {
         sec.questions?.forEach((q) => {
-          if (q.card_template.is_repeatable) {
+          // Las tarjetas vinculadas a otra pregunta solo existen colgando de una tarjeta origen.
+          if (q.card_template.is_repeatable && !q.source_question_id) {
             setCardEntries((prev) => {
               if (!prev[q.id] || prev[q.id].length === 0) {
                 return {
@@ -183,7 +188,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     });
   }, []);
 
-  const addCardEntry = useCallback((questionId: string, _templateId: string, initialTitle?: string) => {
+  const addCardEntry = useCallback((questionId: string, _templateId: string, initialTitle?: string, parentId?: string | null) => {
     const newId = `card-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setCardEntries((prev) => {
       const current = prev[questionId] || [];
@@ -192,6 +197,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         id: newId,
         title: initialTitle || `Iniciativa de Innovación #${count}`,
         answers: {},
+        parent_id: parentId ?? null,
       };
       return {
         ...prev,
@@ -201,13 +207,37 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     return newId;
   }, []);
 
+  /** Ids de las tarjetas que cuelgan (directa o indirectamente) de `entryId`. */
+  const dependentsOf = (all: Record<string, CardEntryItem[]>, entryId: string): Set<string> => {
+    const found = new Set<string>();
+    let frontier = [entryId];
+    while (frontier.length) {
+      const next: string[] = [];
+      Object.values(all).forEach((list) =>
+        list.forEach((e) => {
+          if (e.parent_id && frontier.includes(e.parent_id) && !found.has(e.id)) {
+            found.add(e.id);
+            next.push(e.id);
+          }
+        })
+      );
+      frontier = next;
+    }
+    return found;
+  };
+
+  const countDependentCards = useCallback((entryId: string) => dependentsOf(cardEntries, entryId).size, [cardEntries]);
+
+  // Al quitar una tarjeta se quitan en cascada las que cuelgan de ella.
   const removeCardEntry = useCallback((questionId: string, entryId: string) => {
     setCardEntries((prev) => {
-      const current = prev[questionId] || [];
-      return {
-        ...prev,
-        [questionId]: current.filter((e) => e.id !== entryId),
-      };
+      const gone = dependentsOf(prev, entryId);
+      gone.add(entryId);
+      const next: Record<string, CardEntryItem[]> = {};
+      (Object.entries(prev) as [string, CardEntryItem[]][]).forEach(([qid, list]) => {
+        next[qid] = list.filter((e) => !gone.has(e.id));
+      });
+      return next;
     });
   }, []);
 
@@ -394,6 +424,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
               card_template_id: q.card_template.id,
               title: entry.title || `Iniciativa #${index + 1}`,
               card_index: index,
+              ref: entry.id,
+              ...(entry.parent_id ? { parent_ref: entry.parent_id } : {}),
               answers: nestedAnswers,
             };
             payload.push(cardEntryPayload);
@@ -508,6 +540,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         setFieldValue,
         addCardEntry,
         removeCardEntry,
+        countDependentCards,
         setCardEntryFieldValue,
         setCardEntryTitle,
         validateCurrentSection,

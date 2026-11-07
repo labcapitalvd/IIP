@@ -124,6 +124,13 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
           alert('Este formulario ya tiene respuestas, por lo que no se puede modificar.');
           return;
         }
+        if (status?.edition_closed_at) {
+          alert(
+            'La edición de este formulario está cerrada, por lo que no se puede modificar. ' +
+              'Si aún no tiene datos históricos cargados, puede reabrirla en «Cargas históricas».'
+          );
+          return;
+        }
         // Se edita la última versión del servidor (pudo cambiar desde otro equipo).
         if (status) toEdit = await coreService.getForm(status.id);
       } catch (err: any) {

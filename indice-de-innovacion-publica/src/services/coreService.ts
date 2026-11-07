@@ -11,6 +11,10 @@ import {
   FormStatus,
   FormSummary,
   FormTree,
+  EntityResults,
+  HistoricalForm,
+  MonitorRecord,
+  HistoricalReport,
   IIPForm,
   SubmissionItem,
 } from '../types';
@@ -44,6 +48,8 @@ interface SubmissionDetailApi extends SubmissionSummaryApi {
     question_id: string;
     title: string;
     card_index: number;
+    parent_id?: string | null;
+    parent_title?: string | null;
     answers: AnswerApi[];
   }>;
 }
@@ -89,7 +95,14 @@ const mapSubmissionDetail = (d: SubmissionDetailApi): EntitySubmission => {
       answers[a.field_id] = a.value;
       display[a.field_id] = a.display;
     });
-    (card_entries[c.question_id] ??= []).push({ id: c.id, title: c.title, answers, display });
+    (card_entries[c.question_id] ??= []).push({
+      id: c.id,
+      title: c.title,
+      answers,
+      display,
+      parent_id: c.parent_id ?? null,
+      parent_title: c.parent_title ?? null,
+    });
   });
   return {
     ...mapSubmissionSummary(d),
@@ -313,6 +326,88 @@ export const coreService = {
       method: 'GET',
       requiresAuth: true,
     });
+    return data;
+  },
+
+  // ---------------------------------------------------------------- cargas históricas (solo admin)
+
+  /** GET /public/forms/historical — formularios con estado de edición y datos cargados. */
+  async listHistoricalForms(): Promise<HistoricalForm[]> {
+    const { data } = await apiClient.request<HistoricalForm[]>('core', '/public/forms/historical', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** GET /public/forms/historical/records — entidad × formulario con respuestas y/o resultados. */
+  async listRecords(): Promise<MonitorRecord[]> {
+    const { data } = await apiClient.request<MonitorRecord[]>('core', '/public/forms/historical/records', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** GET /public/forms/{form}/historical/results/{actor} — resultado estadístico cargado (solo admin). */
+  async getEntityResults(formId: string, actorId: string): Promise<EntityResults> {
+    const { data } = await apiClient.request<EntityResults>(
+      'core',
+      `/public/forms/${formId}/historical/results/${actorId}`,
+      { method: 'GET', requiresAuth: true }
+    );
+    return { ...data, sections: data.sections ?? [] };
+  },
+
+  /** POST /public/forms/{id}/edition/close — da por terminada la edición (habilita las plantillas). */
+  async closeFormEdition(formId: string): Promise<HistoricalForm> {
+    const { data } = await apiClient.request<HistoricalForm>('core', `/public/forms/${formId}/edition/close`, {
+      method: 'POST',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** POST /public/forms/{id}/edition/reopen — solo si no hay respuestas ni resultados cargados. */
+  async reopenFormEdition(formId: string): Promise<HistoricalForm> {
+    const { data } = await apiClient.request<HistoricalForm>('core', `/public/forms/${formId}/edition/reopen`, {
+      method: 'POST',
+      requiresAuth: true,
+    });
+    return data;
+  },
+
+  /** Descarga la plantilla Excel de respuestas o de resultados del formulario. */
+  async downloadHistoricalTemplate(formId: string, kind: 'responses' | 'results'): Promise<{ blob: Blob; filename: string }> {
+    const { data, headers } = await apiClient.request<Blob>(
+      'core',
+      `/public/forms/${formId}/historical/templates/${kind}`,
+      { method: 'GET', requiresAuth: true, asBlob: true }
+    );
+    const disposition = headers.get('content-disposition') ?? '';
+    const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? `plantilla_${kind}.xlsx`;
+    return { blob: data, filename };
+  },
+
+  /**
+   * Valida (dry_run) o carga un Excel de respuestas / resultados históricos.
+   * Con errores no se guarda nada: el reporte indica hoja, fila y columna.
+   */
+  async uploadHistorical(
+    formId: string,
+    kind: 'responses' | 'results',
+    file: File,
+    opts: { dryRun: boolean; replace?: boolean }
+  ): Promise<HistoricalReport> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const qs = new URLSearchParams({ dry_run: String(opts.dryRun) });
+    if (kind === 'responses' && opts.replace) qs.set('replace', 'true');
+    const { data } = await apiClient.request<HistoricalReport>(
+      'core',
+      `/public/forms/${formId}/historical/${kind}?${qs.toString()}`,
+      { method: 'POST', requiresAuth: true, formData }
+    );
     return data;
   },
 

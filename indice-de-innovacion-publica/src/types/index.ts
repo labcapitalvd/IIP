@@ -254,6 +254,11 @@ export interface FormQuestion {
   weight?: number;
   /** Guía para el calificador: qué verificar para puntuar esta pregunta. */
   grading_guide?: string;
+  /**
+   * Solo preguntas bucle: id de otra pregunta bucle (de cualquier componente) de cuyas tarjetas
+   * cuelgan las de esta. Cada tarjeta se refiere a una tarjeta de la pregunta origen.
+   */
+  source_question_id?: string | null;
   card_template: CardTemplate;
 }
 
@@ -307,6 +312,62 @@ export interface FormStatus {
   label: string;
   updated_at: string;
   has_submissions: boolean;
+  /** Fecha de cierre de la edición: con ella la estructura ya no se puede modificar. */
+  edition_closed_at?: string | null;
+}
+
+// GET /public/forms/historical — formulario con su estado de edición y datos históricos cargados.
+export interface HistoricalForm {
+  id: string;
+  code: string;
+  label: string;
+  year?: number | null;
+  is_active: boolean;
+  edition_closed_at?: string | null;
+  submission_count: number;
+  result_count: number;
+}
+
+// GET /public/forms/historical/records — una fila por entidad × formulario con respuestas y/o resultados.
+export interface MonitorRecord {
+  form_id: string;
+  form_code: string;
+  form_label: string;
+  form_year?: number | null;
+  actor_id: string;
+  actor_label: string;
+  actor_segment_label?: string | null;
+  /** Radicado de la entidad; ausente si solo hay resultados cargados. */
+  submission_id?: string | null;
+  status?: string | null;
+  updated_at?: string | null;
+  answer_count: number;
+  card_count: number;
+  has_results: boolean;
+  total?: number | null;
+}
+
+// GET /public/forms/{form}/historical/results/{actor} — resultado estadístico cargado.
+export interface EntityResults {
+  has_results: boolean;
+  total?: number | null;
+  sections: Array<{ section_id: string; score?: number | null }>;
+  updated_at?: string | null;
+}
+
+export interface HistoricalIssue {
+  sheet: string;
+  row?: number | null;
+  column?: string | null;
+  message: string;
+}
+
+export interface HistoricalReport {
+  dry_run: boolean;
+  committed: boolean;
+  errors: HistoricalIssue[];
+  warnings: HistoricalIssue[];
+  summary: Record<string, number>;
 }
 
 // GET /public/forms — una fila por formulario guardado en el backend.
@@ -350,6 +411,7 @@ export interface QuestionTree {
   display_order: number;
   weight?: number;
   grading_guide?: string | null;
+  source_question_id?: string | null;
   depends_on: { question_id: string; expected_value: boolean } | null;
   card_template: {
     id: string;
@@ -434,6 +496,10 @@ export interface CardEntryAnswer {
   card_template_id: string;
   title: string;
   card_index: number;
+  /** Identificador temporal de la tarjeta dentro del envío (para que otras cuelguen de ella). */
+  ref?: string;
+  /** `ref` de la tarjeta (de la pregunta origen) de la que cuelga esta. */
+  parent_ref?: string;
   answers: SubmissionValueAnswer[];
 }
 
@@ -478,7 +544,15 @@ export interface EntitySubmission {
   raw_answers: Record<string, any>;
   card_entries?: Record<
     string,
-    Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string> }>
+    Array<{
+      id: string;
+      title: string;
+      answers: Record<string, any>;
+      display?: Record<string, string>;
+      /** Tarjeta de la pregunta origen de la que cuelga y su nombre (referencia). */
+      parent_id?: string | null;
+      parent_title?: string | null;
+    }>
   >;
 }
 

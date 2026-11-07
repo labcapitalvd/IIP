@@ -139,6 +139,10 @@ class ApiClient {
       headers?: Record<string, string>;
       requiresAuth?: boolean;
       isAuthAction?: 'login' | 'reauth' | 'logout' | 'register' | null;
+      /** Cuerpo multipart (carga de archivos): no se fuerza Content-Type JSON. */
+      formData?: FormData;
+      /** La respuesta es un archivo: se devuelve como Blob. */
+      asBlob?: boolean;
       /** interno: ya se reintentó tras renovar el token */
       _retried?: boolean;
     } = {}
@@ -155,6 +159,8 @@ class ApiClient {
       'X-Platform': this.config.platform,
       ...(options.headers || {}),
     };
+
+    if (options.formData) delete headers['Content-Type'];
 
     // Attach Authorization Bearer token if required or available
     if (options.requiresAuth && this.accessToken) {
@@ -176,7 +182,9 @@ class ApiClient {
         headers,
       };
 
-      if (options.body && method !== 'GET') {
+      if (options.formData) {
+        fetchOptions.body = options.formData;
+      } else if (options.body && method !== 'GET') {
         fetchOptions.body = JSON.stringify(options.body);
       }
 
@@ -190,7 +198,9 @@ class ApiClient {
 
       let responseData: any = null;
       const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
+      if (options.asBlob && res.ok) {
+        responseData = await res.blob();
+      } else if (contentType && contentType.includes('application/json')) {
         try {
           responseData = await res.json();
         } catch {
@@ -208,7 +218,7 @@ class ApiClient {
         headers,
         body: options.body,
         status: res.status,
-        response: responseData,
+        response: responseData instanceof Blob ? `[archivo ${responseData.size} bytes]` : responseData,
         durationMs,
       };
       this.addLog(log);

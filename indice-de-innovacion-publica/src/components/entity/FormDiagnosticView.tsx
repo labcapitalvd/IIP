@@ -22,7 +22,7 @@ import {
   HelpCircle,
   FolderOpen,
 } from 'lucide-react';
-import { FormField } from '../../types';
+import { FormField, FormQuestion } from '../../types';
 
 interface FormDiagnosticViewProps {
   onBackToDashboard: () => void;
@@ -43,6 +43,7 @@ export const FormDiagnosticView: React.FC<FormDiagnosticViewProps> = ({ onBackTo
     setFieldValue,
     addCardEntry,
     removeCardEntry,
+    countDependentCards,
     setCardEntryFieldValue,
     setCardEntryTitle,
     validateCurrentSection,
@@ -89,6 +90,94 @@ export const FormDiagnosticView: React.FC<FormDiagnosticViewProps> = ({ onBackTo
   };
 
   // Render individual form field
+  const allQuestions = activeForm.sections.flatMap((sec) => sec.questions ?? []);
+
+  /** Quita una tarjeta; si otras cuelgan de ella se avisa que también se eliminan. */
+  const handleRemoveCard = (question: FormQuestion, entry: { id: string; title: string }) => {
+    const dependents = countDependentCards(entry.id);
+    if (
+      dependents > 0 &&
+      !confirm(
+        `Al eliminar «${entry.title || 'esta ficha'}» también se eliminarán ${dependents} tarjeta(s) de otras preguntas que se refieren a ella. ¿Continuar?`
+      )
+    )
+      return;
+    removeCardEntry(question.id, entry.id);
+  };
+
+  const renderCard = (
+    question: FormQuestion,
+    entry: { id: string; title: string; answers: Record<string, any>; parent_id?: string | null },
+    entryIndex: number,
+    canRemove: boolean,
+    referenceTitle?: string
+  ) => (
+          <div
+            key={entry.id}
+            className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 space-y-4 relative group hover:border-slate-300 transition-colors"
+          >
+            <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+              <div className="flex items-center gap-2.5 flex-1">
+                <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                  {entryIndex + 1}
+                </span>
+                <input
+                  type="text"
+                  value={entry.title}
+                  onChange={(e) => setCardEntryTitle(question.id, entry.id, e.target.value)}
+                  placeholder={`Título de la Iniciativa #${entryIndex + 1}`}
+                  className="font-bold text-slate-900 text-sm bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full max-w-lg"
+                />
+                {referenceTitle && (
+                  <span className="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-lg">
+                    Referencia: {referenceTitle}
+                  </span>
+                )}
+              </div>
+
+              {canRemove && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveCard(question, entry)}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                  title="Eliminar esta ficha"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Fields inside card */}
+            <div className="space-y-4">
+              {question.card_template.field_groups.map((fg) => (
+                <div key={fg.id} className="space-y-3">
+                  {fg.label && (
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {fg.label}
+                    </span>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {fg.fields.map((field) => (
+                      <div
+                        key={field.id}
+                        className={field.field_type_code === 'text' ? 'md:col-span-2' : ''}
+                      >
+                        {renderField(
+                          field,
+                          entry.answers[field.id],
+                          (val) =>
+                            setCardEntryFieldValue(question.id, entry.id, field.id, val),
+                          `${entry.id}_${field.id}`
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+  );
+
   const renderField = (
     field: FormField,
     value: any,
@@ -400,6 +489,73 @@ export const FormDiagnosticView: React.FC<FormDiagnosticViewProps> = ({ onBackTo
           {activeSection.questions?.map((question) => {
             const isRepeatable = question.card_template.is_repeatable;
 
+            const sourceQuestion = question.source_question_id
+              ? allQuestions.find((x) => x.id === question.source_question_id)
+              : undefined;
+
+            if (isRepeatable && sourceQuestion) {
+              // Tarjetas vinculadas: cada una cuelga de una tarjeta de la pregunta origen.
+              const sourceEntries = cardEntries[sourceQuestion.id] || [];
+              const mine = cardEntries[question.id] || [];
+              return (
+                <div key={question.id} className="pt-6 first:pt-0 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Rocket className="w-4 h-4 text-indigo-600" />
+                      {question.label}
+                    </h4>
+                    {question.description && (
+                      <p className="text-xs text-slate-500 mt-0.5">{question.description}</p>
+                    )}
+                    <p className="text-[11px] text-sky-800 mt-1">
+                      Responda solo para las iniciativas que apliquen; puede registrar varias por cada una. Las
+                      iniciativas provienen de: «{sourceQuestion.label}».
+                    </p>
+                  </div>
+
+                  {errors[question.id] && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{errors[question.id]}</span>
+                    </div>
+                  )}
+
+                  {sourceEntries.length === 0 ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
+                      Aún no hay iniciativas para referenciar. Primero registre al menos una en «{sourceQuestion.label}».
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {sourceEntries.map((src, srcIndex) => {
+                        const linked = mine.filter((e) => e.parent_id === src.id);
+                        return (
+                          <div key={src.id} className="border border-sky-200 rounded-2xl bg-sky-50/30 p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs font-bold text-sky-900">
+                                {srcIndex + 1}. {src.title || 'Iniciativa sin nombre'}
+                                <span className="ml-2 font-normal text-sky-700">
+                                  {linked.length === 0 ? 'Sin registros' : `${linked.length} registro(s)`}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => addCardEntry(question.id, question.card_template.id, undefined, src.id)}
+                                className="px-3 py-1.5 bg-white hover:bg-sky-100 border border-sky-200 text-sky-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span>Registrar para esta iniciativa</span>
+                              </button>
+                            </div>
+                            {linked.map((entry, i) => renderCard(question, entry, i, true, src.title || 'Iniciativa sin nombre'))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             if (isRepeatable) {
               // Dimensión 4: Repeatable Initiatives Card Entries
               const entries = cardEntries[question.id] || [];
@@ -435,67 +591,9 @@ export const FormDiagnosticView: React.FC<FormDiagnosticViewProps> = ({ onBackTo
 
                   {/* Cards List */}
                   <div className="space-y-4">
-                    {entries.map((entry, entryIndex) => (
-                      <div
-                        key={entry.id}
-                        className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 space-y-4 relative group hover:border-slate-300 transition-colors"
-                      >
-                        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
-                          <div className="flex items-center gap-2.5 flex-1">
-                            <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
-                              {entryIndex + 1}
-                            </span>
-                            <input
-                              type="text"
-                              value={entry.title}
-                              onChange={(e) => setCardEntryTitle(question.id, entry.id, e.target.value)}
-                              placeholder={`Título de la Iniciativa #${entryIndex + 1}`}
-                              className="font-bold text-slate-900 text-sm bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 outline-none w-full max-w-lg"
-                            />
-                          </div>
-
-                          {entries.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeCardEntry(question.id, entry.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                              title="Eliminar esta ficha"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Fields inside card */}
-                        <div className="space-y-4">
-                          {question.card_template.field_groups.map((fg) => (
-                            <div key={fg.id} className="space-y-3">
-                              {fg.label && (
-                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                                  {fg.label}
-                                </span>
-                              )}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {fg.fields.map((field) => (
-                                  <div
-                                    key={field.id}
-                                    className={field.field_type_code === 'text' ? 'md:col-span-2' : ''}
-                                  >
-                                    {renderField(
-                                      field,
-                                      entry.answers[field.id],
-                                      (val) =>
-                                        setCardEntryFieldValue(question.id, entry.id, field.id, val),
-                                      `${entry.id}_${field.id}`
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                    {entries.map((entry, entryIndex) =>
+                      renderCard(question, entry, entryIndex, entries.length > 1)
+                    )}
                   </div>
                 </div>
               );
