@@ -8,7 +8,9 @@ from shared.enums import SystemRolesEnum
 from shared.models import (
     Actor,
     Form,
+    Section,
     Submission,
+    SubmissionReopenRequest,
     SubmissionStatusType,
     User,
     UserActorLink,
@@ -19,7 +21,9 @@ from shared.models import (
 from domain.services.errors import (
     AssignmentForbiddenError,
     AssignmentNotFoundError,
+    AssignmentNotOwnedError,
     AssignmentTargetNotFoundError,
+    InvalidComponentSelectionError,
 )
 from ._access import is_admin
 from schemas.assignments import (
@@ -60,6 +64,21 @@ class AssignmentAppService:
         if status_code == "draft":
             return "in_progress", _DRAFT_PROGRESS, submission
         return "submitted", 100, submission
+
+    @staticmethod
+    async def _reopen(session, actor: Actor | None, form_id: UUID):
+        """(estado, nota) de la última solicitud de modificación de la entidad para el formulario."""
+        if actor is None:
+            return None, None
+        last = await session.scalar(
+            select(SubmissionReopenRequest)
+            .where(
+                SubmissionReopenRequest.actor_id == actor.id,
+                SubmissionReopenRequest.form_id == form_id,
+            )
+            .order_by(SubmissionReopenRequest.requested_at.desc())
+        )
+        return (last.status, last.resolution_note) if last else (None, None)
 
     async def list_all(self, requester_id: UUID) -> list[ResponseAssignmentAdmin]:
         async with UnitOfWork() as uow:
@@ -109,6 +128,7 @@ class AssignmentAppService:
                         status=status,
                         completion_percentage=pct,
                         submission_id=submission.id if submission else None,
+                        selected_component_ids=assignment.selected_component_ids,
                     )
                 )
             return result
@@ -174,6 +194,7 @@ class AssignmentAppService:
             result: list[ResponseAssignment] = []
             for assignment, form in rows:
                 status, pct, submission = await self._progress(session, actor, form.id)
+                reopen_status, reopen_note = await self._reopen(session, actor, form.id)
 
                 result.append(
                     ResponseAssignment(
@@ -190,6 +211,39 @@ class AssignmentAppService:
                         status=status,
                         completion_percentage=pct,
                         submission_id=submission.id if submission else None,
+                        selected_component_ids=assignment.selected_component_ids,
+                        reopen_status=reopen_status,
+                        reopen_note=reopen_note,
                     )
                 )
             return result
+
+    async def select_components(
+        self, user_id: UUID, assignment_id: UUID, component_ids: list[UUID]
+    ) -> list[UUID]:
+        """Guarda los componentes que la entidad elige responder (solo el dueño de la asignación)."""
+        async with UnitOfWork() as uow:
+            session = uow.session
+            assignment = await session.get(UserFormAssignment, assignment_id)
+            if assignment is None:
+                raise AssignmentNotFoundError()
+            if assignment.user_id != user_id:
+                raise AssignmentNotOwnedError()
+
+            unique_ids = list(dict.fromkeys(component_ids))
+            valid = set(
+                (
+                    await session.scalars(
+                        select(Section.id).where(
+                            Section.form_id == assignment.form_id,
+                            Section.parent_id.is_(None),
+                            Section.id.in_(unique_ids),
+                        )
+                    )
+                ).all()
+            )
+            if len(valid) != len(unique_ids):
+                raise InvalidComponentSelectionError()
+
+            assignment.selected_component_ids = unique_ids
+            return unique_ids

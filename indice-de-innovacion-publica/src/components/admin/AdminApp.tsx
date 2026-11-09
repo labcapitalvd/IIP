@@ -10,6 +10,7 @@ import { RecordInspector } from './RecordInspector';
 import { ActorsManager } from './ActorsManager';
 import { ParametersManager } from './ParametersManager';
 import { HistoricalLoadManager } from './HistoricalLoadManager';
+import { ReopenRequestsManager } from './ReopenRequestsManager';
 import {
   Building2,
   FileSpreadsheet,
@@ -20,6 +21,7 @@ import {
   LogOut,
   ShieldCheck,
   SlidersHorizontal,
+  Unlock,
 } from 'lucide-react';
 
 type AdminTab = keyof typeof ROUTES.admin;
@@ -29,6 +31,7 @@ const NAV: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: 'users', label: 'Usuarios de entidades', icon: Users },
   { id: 'assignments', label: 'Asignaciones', icon: FileCheck2 },
   { id: 'submissions', label: 'Monitor de radicados', icon: BarChart3 },
+  { id: 'reopen', label: 'Solicitudes de modificación', icon: Unlock },
   { id: 'actors', label: 'Entidades y sectores', icon: Building2 },
   { id: 'historical', label: 'Cargas históricas', icon: FileSpreadsheet },
   { id: 'parameters', label: 'Parámetros', icon: SlidersHorizontal },
@@ -121,6 +124,7 @@ export const AdminApp: React.FC<{ pathname: string }> = ({ pathname }) => {
         {tab === 'assignments' && <FormAssignmentsManager />}
         {tab === 'submissions' &&
           (inspect ? <RecordInspector key={`${inspect[0]}:${inspect[1]}`} formId={inspect[0]} actorId={inspect[1]} /> : <SubmissionsMonitor />)}
+        {tab === 'reopen' && <ReopenRequestsManager />}
         {tab === 'actors' && <ActorsManager />}
         {tab === 'historical' && <HistoricalLoadManager />}
         {tab === 'parameters' && <ParametersManager pathname={pathname} />}

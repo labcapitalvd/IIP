@@ -22,6 +22,12 @@ class RequestAssignForm(BaseSchema):
     notes: str | None = Field(default=None, max_length=2048)
 
 
+class RequestSelectComponents(BaseSchema):
+    """Componentes del formulario que la entidad elige responder."""
+
+    component_ids: list[UUID] = Field(min_length=1, description="Ids de los componentes elegidos.")
+
+
 ##############################################################################################
 # Responses
 ##############################################################################################
@@ -43,6 +49,13 @@ class ResponseAssignment(BaseSchema):
     status: AssignmentStatus
     completion_percentage: int = Field(ge=0, le=100)
     submission_id: UUID | None = None
+    selected_component_ids: list[UUID] | None = Field(
+        default=None, description="Componentes elegidos por la entidad; null si aún no elige."
+    )
+    reopen_status: Literal["pending", "approved", "rejected"] | None = Field(
+        default=None, description="Última solicitud de modificación de la entidad para este formulario."
+    )
+    reopen_note: str | None = Field(default=None, description="Nota del administrador a esa solicitud.")
 
 
 class ResponseAssignmentAdmin(ResponseAssignment):

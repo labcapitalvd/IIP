@@ -141,6 +141,16 @@ class AssignmentNotFoundError(FormError):
     message = "The assignment could not be found."
 
 
+class AssignmentNotOwnedError(FormError):
+    status_code = 403
+    message = "The assignment belongs to another user."
+
+
+class InvalidComponentSelectionError(FormError):
+    status_code = 422
+    message = "One or more selected components do not belong to the assigned form."
+
+
 class AssignmentTargetNotFoundError(FormError):
     status_code = 404
     message = "The user or the form to assign could not be found."
@@ -186,3 +196,28 @@ class SubmissionForbiddenError(SubmissionError):
 class SubmissionHasGradesError(SubmissionError):
     status_code = 409
     message = "This submission already has grades; confirm to delete it together with them."
+
+
+class ReopenForbiddenError(SubmissionError):
+    status_code = 403
+    message = "Only an administrator can resolve reopen requests."
+
+
+class ReopenRequestNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The reopen request could not be found."
+
+
+class ReopenNotAllowedError(SubmissionError):
+    status_code = 409
+    message = "Only a form that was already submitted can be reopened."
+
+
+class ReopenAlreadyPendingError(SubmissionError):
+    status_code = 409
+    message = "There is already a pending reopen request for this form."
+
+
+class ReopenAlreadyResolvedError(SubmissionError):
+    status_code = 409
+    message = "This reopen request was already resolved."

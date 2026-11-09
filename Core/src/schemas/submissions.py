@@ -120,6 +120,19 @@ SubmissionItemIn = Annotated[
     BeforeValidator(_normalize_type),
 ]
 
+class RequestReopen(BaseSchema):
+    """La entidad pide modificar un formulario ya enviado."""
+
+    reason: str = Field(min_length=10, max_length=2000, description="Motivo de la modificación.")
+
+
+class RequestResolveReopen(BaseSchema):
+    """El administrador aprueba o rechaza la solicitud."""
+
+    approve: bool
+    note: str | None = Field(default=None, max_length=2000)
+
+
 ##############################################################################################
 # Responses
 ##############################################################################################
@@ -179,3 +192,21 @@ class ResponseCardOut(BaseSchema):
 class ResponseSubmissionDetail(ResponseSubmissionSummary):
     answers: list[ResponseAnswerOut]
     cards: list[ResponseCardOut]
+
+
+ReopenStatus = Literal["pending", "approved", "rejected"]
+
+
+class ResponseReopenRequest(BaseSchema):
+    id: UUID
+    form_id: UUID
+    form_code: str
+    form_label: str
+    actor_id: UUID
+    actor_label: str
+    requested_by_name: str | None = None
+    reason: str
+    status: ReopenStatus
+    requested_at: datetime
+    resolved_at: datetime | None = None
+    resolution_note: str | None = None

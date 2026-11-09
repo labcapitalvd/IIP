@@ -1,4 +1,5 @@
 import { flattenForEntity } from '../utils/formTree';
+import { isQuestionActive, selectedComponents } from '../utils/guidedForm';
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   CardEntryAnswer,
@@ -48,6 +49,15 @@ interface FormSubmissionContextType {
   submitForm: () => Promise<EntitySubmission>;
   resetFormState: () => void;
   loadSubmissionForReview: (sub: EntitySubmission) => void;
+  /** Componentes elegidos por la entidad (null = aún no eligió: aplican todos). */
+  selectedComponentIds: string[] | null;
+  setSelectedComponentIds: (ids: string[] | null) => void;
+  /** Reemplaza los errores de validación mostrados (clave = field.id, `${card}_${field.id}` o question.id). */
+  setFormErrors: (errors: Record<string, string>) => void;
+  /** Guarda el borrador en el servidor (POST ?as_draft=true) y devuelve el id del radicado en borrador. */
+  saveDraft: () => Promise<string>;
+  isSavingDraft: boolean;
+  lastDraftSavedAt: Date | null;
 }
 
 const FormSubmissionContext = createContext<FormSubmissionContextType | undefined>(undefined);
@@ -62,8 +72,14 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     completeAssignmentSubmission,
   } = useApp();
   const { user } = useAuth();
-  // El portal de entidades aún usa el diseño anterior: Variable → preguntas planas.
-  const activeForm = useMemo(() => flattenForEntity(rawActiveForm), [rawActiveForm]);
+  const [selectedComponentIds, setSelectedComponentIds] = useState<string[] | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<Date | null>(null);
+  // Cada Variable agrupa las preguntas de sus Indicadores; solo cuentan los componentes elegidos.
+  const activeForm = useMemo(
+    () => flattenForEntity({ ...rawActiveForm, sections: selectedComponents(rawActiveForm, selectedComponentIds) }),
+    [rawActiveForm, selectedComponentIds]
+  );
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -87,6 +103,9 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         // start clean
       }
     } else {
+      // Sin borrador local: se parte limpio (no arrastrar respuestas de otro formulario).
+      setAnswers({});
+      setCardEntries({});
       // Seed an initial empty card for repeatable templates if none exists
       activeForm.sections.forEach((sec) => {
         sec.questions?.forEach((q) => {
@@ -406,6 +425,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
 
     activeForm.sections.forEach((sec) => {
       sec.questions?.forEach((q) => {
+        if (!isQuestionActive(q, sec.questions ?? [], answers)) return;
         if (q.card_template.is_repeatable) {
           const entries = cardEntries[q.id] || [];
           entries.forEach((entry, index) => {
@@ -491,6 +511,17 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     }
   };
 
+  const saveDraft = async (): Promise<string> => {
+    setIsSavingDraft(true);
+    try {
+      const saved = await coreService.submitForm(activeForm.id, compileSubmissionPayload(), true);
+      setLastDraftSavedAt(new Date());
+      return saved.submission_id;
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
   const nextSection = () => {
     if (activeSectionIndex < activeForm.sections.length - 1) {
       setActiveSectionIndex((prev) => prev + 1);
@@ -549,6 +580,12 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         submitForm,
         resetFormState,
         loadSubmissionForReview,
+        selectedComponentIds,
+        setSelectedComponentIds,
+        setFormErrors: setErrors,
+        saveDraft,
+        isSavingDraft,
+        lastDraftSavedAt,
       }}
     >
       {children}
