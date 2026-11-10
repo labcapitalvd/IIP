@@ -1,0 +1,204 @@
+services:
+  nginx:
+    container_name: app_nginx
+    image: docker.io/nginx:stable-alpine
+    env_file: ./.env
+    restart: unless-stopped
+    depends_on:
+      - auth
+      - core
+    secrets:
+      - https_public
+      - https_private
+    networks:
+      - app_nginx
+    ports:
+      - "${PORT_AUTH:-8000}:${PORT_AUTH:-8000}"
+      - "${PORT_CORE:-8001}:${PORT_CORE:-8001}"
+    volumes:
+      - "./Secrets/nginx.conf:/etc/nginx/nginx.conf:ro"
+
+  db:
+    container_name: app_db
+    image: docker.io/postgres:18
+    env_file: ./.env
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres_user}
+      POSTGRES_DB: ${POSTGRES_DB:-app_db}
+    ports:
+      - "5432:5432" # Eliminar luego para no exponer a host.
+    networks:
+      - app_db_net
+    volumes:
+      - "postgresql:/var/lib/postgresql"
+      - "./Persistence/src/backups:/backups"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER:-postgres_user} -d $${POSTGRES_DB:-app_db}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  cache:
+    container_name: app_cache
+    image: docker.io/valkey/valkey:alpine
+    env_file: ./.env
+    restart: unless-stopped
+    command: >
+      sh -c "valkey-server 
+      --requirepass \"$$VALKEY_PASSWORD\" 
+      --user default on \"\>$$VALKEY_PASSWORD\" ~* +@all 
+      --user \"$${VALKEY_USER:-valkey_user}\" on \"\>$$VALKEY_PASSWORD\" ~* +@all"
+    ports:
+      - "6379:6379"
+    networks:
+      - app_cache_net
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'valkey-cli -a "$$VALKEY_PASSWORD" ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  base:
+    container_name: app_base
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: docker.io/labcapital/apps:app-base
+    env_file: ./.env
+
+  persister:
+    container_name: app_persister
+    build:
+      context: .
+      dockerfile: Persistence/Dockerfile
+    image: docker.io/labcapital/apps:app-persister
+    depends_on:
+      - core
+    env_file: ./.env
+    volumes:
+      - "./Persistence/src/migrator/alembic/versions:/api/migrator/alembic/versions"
+      - "./Persistence/src/scripts/extracted:/api/scripts/extracted"
+      - "./Persistence/src/backups:/backups"
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - postgres_password
+      - valkey_password
+      - fernet_password
+      - github_token_commons
+      - github_token_iip
+      - github_token_seeds
+      - users_file
+    networks:
+      - app_db_net
+
+  auth:
+    container_name: app_auth
+    build:
+      context: .
+      dockerfile: Auth/Dockerfile
+      args:
+        PORT_AUTH: ${PORT_AUTH:-8000}
+    image: docker.io/labcapital/apps:app-auth
+    depends_on:
+      base:
+        condition: service_started
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    env_file: ./.env
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - postgres_password
+      - valkey_password
+      - fernet_password
+    networks:
+      - app_db_net
+      - app_nginx
+      - app_cache_net
+
+  core:
+    container_name: app_core
+    build:
+      context: .
+      dockerfile: Core/Dockerfile
+      args:
+        PORT_CORE: ${PORT_CORE:-8000}
+    image: docker.io/labcapital/apps:app-core
+    depends_on:
+      - auth
+    env_file: ./.env
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - postgres_password
+      - valkey_password
+      - fernet_password
+    networks:
+      - app_db_net
+      - app_nginx
+      - app_cache_net
+
+  frontend:
+    container_name: app_frontend
+    build:
+      context: ./indice-de-innovacion-publica
+      dockerfile: Dockerfile
+    image: docker.io/labcapital/apps:app-frontend
+    restart: unless-stopped
+    depends_on:
+      - auth
+      - core
+    ports:
+      - "4287:4287"
+    networks:
+      - app_nginx
+
+networks:
+  app_db_net:
+    driver: bridge
+    name: app_db_network
+
+  app_nginx:
+    driver: bridge
+    name: app_nginx_network
+
+  app_cache_net:
+    driver: bridge
+    name: app_cache_network
+
+volumes:
+  postgresql:
+    name: pg
+
+secrets:
+  postgres_password:
+    file: ./Secrets/postgres_password
+  valkey_password:
+    file: ./Secrets/valkey_password
+  fernet_password:
+    file: ./Secrets/fernet_password
+  github_token_commons:
+    file: ./Secrets/github_token_commons
+  github_token_iip:
+    file: ./Secrets/github_token_iip
+  github_token_seeds:
+    file: ./Secrets/github_token_seeds
+  jwt_public_key:
+    file: ./Secrets/jwt_public.pem
+  jwt_private_key:
+    file: ./Secrets/jwt_private.pem
+  users_file:
+    file: ./Secrets/users.toml
+  https_public:
+    file: ./Secrets/cert.crt
+  https_private:
+    file: ./Secrets/cert.key
