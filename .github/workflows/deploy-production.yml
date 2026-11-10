@@ -1,4 +1,3 @@
-
 name: Deploy IIP Production
 
 on:
@@ -41,14 +40,22 @@ jobs:
           echo "2. Validando Docker Compose"
           docker compose config -q
 
-          echo "3. Actualizando servicios de aplicación"
-          docker compose up -d --build --no-deps \
-            auth core frontend nginx
+          echo "3. Construyendo imagen base"
+          docker compose build base
 
-          echo "4. Verificando contenedores"
+          echo "4. Construyendo imágenes de aplicación"
+          docker compose build core auth frontend
+
+          echo "5. Ejecutando migraciones de base de datos"
+          docker compose run --rm --no-deps persister sh -c "cd /api/migrator && alembic upgrade head"
+
+          echo "6. Levantando servicios de aplicación"
+          docker compose up -d --no-deps core auth frontend
+
+          echo "7. Verificando contenedores"
           docker compose ps
 
-          echo "5. Verificando endpoint HTTPS"
+          echo "8. Verificando endpoint HTTPS"
           curl -kfsS --max-time 20 \
             https://127.0.0.1:4290/ \
             -o /dev/null
@@ -56,3 +63,4 @@ jobs:
           echo "================================"
           echo "DESPLIEGUE FINALIZADO"
           echo "================================"
+          
