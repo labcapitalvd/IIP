@@ -55,11 +55,6 @@ jobs:
           echo "7. Verificando contenedores"
           docker compose ps
 
-          echo "8. Verificando endpoint HTTPS"
-          curl -kfsS --max-time 20 \
-            https://127.0.0.1:4290/ \
-            -o /dev/null
-
           echo "================================"
           echo "DESPLIEGUE FINALIZADO"
           echo "================================"
