@@ -40,20 +40,31 @@ jobs:
           echo "2. Validando Docker Compose"
           docker compose config -q
 
-          echo "3. Construyendo imagen base"
+          echo "3. Deteniendo servicios de aplicación"
+          docker compose stop core auth frontend
+
+          echo "4. Construyendo imagen base"
           docker compose build base
 
-          echo "4. Construyendo imágenes de aplicación"
+          echo "5. Construyendo imágenes de aplicación"
           docker compose build core auth frontend
 
-          echo "5. Ejecutando migraciones de base de datos"
+          echo "6. Ejecutando migraciones Alembic"
           docker compose run --rm --no-deps persister sh -c "cd /api/migrator && alembic upgrade head"
 
-          echo "6. Levantando servicios de aplicación"
+          echo "7. Levantando servicios de aplicación"
           docker compose up -d --no-deps core auth frontend
 
-          echo "7. Verificando contenedores"
+          echo "8. Recreando Nginx"
+          docker compose up -d --no-deps --force-recreate nginx
+
+          echo "9. Verificando contenedores"
           docker compose ps
+
+          echo "10. Verificando endpoint HTTPS"
+          curl -kfsS --max-time 30 \
+            https://127.0.0.1:4290/ \
+            -o /dev/null
 
           echo "================================"
           echo "DESPLIEGUE FINALIZADO"
