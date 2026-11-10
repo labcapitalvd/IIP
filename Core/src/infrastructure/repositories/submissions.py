@@ -32,8 +32,18 @@ class SubmissionRepository(BaseRepository[Submission]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_status_by_label(self, label: str) -> SubmissionStatusType | None:
-        print(f"DEBUG: Looking for label: '{label}'")
-        stmt = select(SubmissionStatusType).where(SubmissionStatusType.label == label)
+    async def get_status_by_code(self, code: str) -> SubmissionStatusType | None:
+        stmt = select(SubmissionStatusType).where(SubmissionStatusType.code == code)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_for_actor_form(
+        self, actor_id: UUID, form_id: UUID
+    ) -> list[tuple[Submission, str]]:
+        """Existing submissions of this entity for this form, with their status code."""
+        stmt = (
+            select(Submission, SubmissionStatusType.code)
+            .join(SubmissionStatusType, SubmissionStatusType.id == Submission.status_id)
+            .where(Submission.actor_id == actor_id, Submission.form_id == form_id)
+        )
+        return [(sub, code) for sub, code in (await self.session.execute(stmt)).all()]

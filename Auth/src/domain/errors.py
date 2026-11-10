@@ -53,11 +53,39 @@ class ActorNotFoundError(AuthError):
     message = "Actor not found."
 
 
+class AdminRequiredError(AuthError):
+    """The caller is not a platform administrator."""
+
+    status_code = 403
+    message = "Only an administrator can manage users."
+
+
+class InvalidUserOperation(AuthError):
+    """The requested admin operation on a user is not allowed."""
+
+    status_code = 400
+    message = "Invalid user operation."
+
+
 class DefaultRoleDoesntExist(AuthError):
     """System configuration error - missing the standard_user system role in DB."""
 
     status_code = 500
     message = "Default system role not found, cannot register user."
+
+
+class AdminRegistrationDisabled(AuthError):
+    """ADMIN_REGISTRATION_KEY is not configured, so admin self-registration is off."""
+
+    status_code = 403
+    message = "Admin registration is disabled."
+
+
+class InvalidAdminRegistrationKey(AuthError):
+    """The registration key sent doesn't match ADMIN_REGISTRATION_KEY."""
+
+    status_code = 403
+    message = "Invalid admin registration key."
 
 
 # -----------------------------------------------------------------------------

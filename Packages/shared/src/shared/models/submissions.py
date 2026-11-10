@@ -75,7 +75,7 @@ class Answer(Base):
 class AnswerBoolean(Answer):
     __tablename__ = TargetTable.ANSWERS_BOOLEAN.table
     __table_args__ = {"schema": TargetTable.ANSWERS_BOOLEAN.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.BOOLEAN.value}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.BOOLEAN.code}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -99,7 +99,7 @@ class AnswerCardEntry(Answer):
     )
 
     __mapper_args__ = {
-        "polymorphic_identity": AnswerType.CARD.value,
+        "polymorphic_identity": AnswerType.CARD.code,
         "inherit_condition": id == Answer.id,
     }
 
@@ -113,6 +113,12 @@ class AnswerCardEntry(Answer):
     )
     title: Mapped[str] = column_short_text(length=255)
     card_index: Mapped[int] = column_integer(default=0)
+    # Tarjeta de la pregunta origen de la que cuelga esta (borrado en cascada).
+    parent_entry_id: Mapped[Optional[UUID]] = column_fk(
+        target=f"{TargetTable.ANSWERS_CARD_ENTRY.fq_name}.id",
+        ondelete="CASCADE",
+        nullable=True,
+    )
 
     # Relationships
     card_template: Mapped["CardTemplate"] = relationship(
@@ -127,7 +133,7 @@ class AnswerCardEntry(Answer):
 class AnswerDate(Answer):
     __tablename__ = TargetTable.ANSWERS_DATE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_DATE.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.DATE.value}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.DATE.code}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -138,7 +144,7 @@ class AnswerDate(Answer):
 class AnswerFile(Answer):
     __tablename__ = TargetTable.ANSWERS_FILE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_FILE.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.FILE.value}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.FILE.code}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -153,7 +159,7 @@ class AnswerFile(Answer):
 class AnswerMultiChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_MULTI_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_MULTI_CHOICE.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.MULTI_CHOICE.value}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.MULTI_CHOICE.code}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -166,7 +172,7 @@ class AnswerMultiChoice(Answer):
 class AnswerNumeric(Answer):
     __tablename__ = TargetTable.ANSWERS_NUMERIC.table
     __table_args__ = {"schema": TargetTable.ANSWERS_NUMERIC.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.NUMERIC.value}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.NUMERIC.code}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -178,7 +184,7 @@ class AnswerNumeric(Answer):
 class AnswerSingleChoice(Answer):
     __tablename__ = TargetTable.ANSWERS_SINGLE_CHOICE.table
     __table_args__ = {"schema": TargetTable.ANSWERS_SINGLE_CHOICE.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.SINGLE_CHOICE.value}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.SINGLE_CHOICE.code}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -193,7 +199,7 @@ class AnswerSingleChoice(Answer):
 class AnswerText(Answer):
     __tablename__ = TargetTable.ANSWERS_TEXT.table
     __table_args__ = {"schema": TargetTable.ANSWERS_TEXT.schema}
-    __mapper_args__ = {"polymorphic_identity": AnswerType.TEXT.value}
+    __mapper_args__ = {"polymorphic_identity": AnswerType.TEXT.code}
 
     id: Mapped[UUID] = column_fk(
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
@@ -232,6 +238,6 @@ class Submission(Base):
     # Updated viewonly collection to isolate instanced canvas groupings safely
     card_entries: Mapped[List["AnswerCardEntry"]] = relationship(
         "AnswerCardEntry",
-        primaryjoin="and_(Submission.id == AnswerCardEntry.submission_id, AnswerCardEntry.discriminator == 'CARD')",
+        primaryjoin="and_(Submission.id == AnswerCardEntry.submission_id, AnswerCardEntry.discriminator == 'card')",
         viewonly=True,
     )

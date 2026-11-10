@@ -8,7 +8,9 @@ from shared.enums import SystemRolesEnum
 from shared.models import (
     Actor,
     Form,
+    Section,
     Submission,
+    SubmissionReopenRequest,
     SubmissionStatusType,
     User,
     UserActorLink,
@@ -18,9 +20,17 @@ from shared.models import (
 
 from domain.services.errors import (
     AssignmentForbiddenError,
+    AssignmentNotFoundError,
+    AssignmentNotOwnedError,
     AssignmentTargetNotFoundError,
+    InvalidComponentSelectionError,
 )
-from schemas.assignments import RequestAssignForm, ResponseAssignment
+from ._access import is_admin
+from schemas.assignments import (
+    RequestAssignForm,
+    ResponseAssignment,
+    ResponseAssignmentAdmin,
+)
 
 # Porcentaje mostrado según el estado del radicado de la entidad para ese formulario.
 _DRAFT_PROGRESS = 50
@@ -29,21 +39,113 @@ _DRAFT_PROGRESS = 50
 class AssignmentAppService:
     """Asignación de formularios IIP a usuarios de entidad y consulta de lo asignado."""
 
+    @staticmethod
+    async def _require_admin(session, requester_id: UUID) -> None:
+        if not await is_admin(session, requester_id):
+            raise AssignmentForbiddenError()
+
+    @staticmethod
+    async def _progress(session, actor: Actor | None, form_id: UUID):
+        """(estado, porcentaje, radicado) de la entidad para ese formulario."""
+        if actor is None:
+            return "pending", 0, None
+        submission = await session.scalar(
+            select(Submission)
+            .where(Submission.actor_id == actor.id, Submission.form_id == form_id)
+            .order_by(Submission.updated_at.desc())
+        )
+        if submission is None:
+            return "pending", 0, None
+        status_code = await session.scalar(
+            select(SubmissionStatusType.code).where(
+                SubmissionStatusType.id == submission.status_id
+            )
+        )
+        if status_code == "draft":
+            return "in_progress", _DRAFT_PROGRESS, submission
+        return "submitted", 100, submission
+
+    @staticmethod
+    async def _reopen(session, actor: Actor | None, form_id: UUID):
+        """(estado, nota) de la última solicitud de modificación de la entidad para el formulario."""
+        if actor is None:
+            return None, None
+        last = await session.scalar(
+            select(SubmissionReopenRequest)
+            .where(
+                SubmissionReopenRequest.actor_id == actor.id,
+                SubmissionReopenRequest.form_id == form_id,
+            )
+            .order_by(SubmissionReopenRequest.requested_at.desc())
+        )
+        return (last.status, last.resolution_note) if last else (None, None)
+
+    async def list_all(self, requester_id: UUID) -> list[ResponseAssignmentAdmin]:
+        async with UnitOfWork() as uow:
+            session = uow.session
+            await self._require_admin(session, requester_id)
+
+            rows = (
+                await session.execute(
+                    select(UserFormAssignment, Form, User)
+                    .join(Form, Form.id == UserFormAssignment.form_id)
+                    .join(User, User.id == UserFormAssignment.user_id)
+                    .order_by(UserFormAssignment.assigned_at.desc())
+                )
+            ).all()
+
+            links = (
+                await session.execute(
+                    select(UserActorLink).options(
+                        joinedload(UserActorLink.actor).joinedload(Actor.actor_segment)
+                    )
+                )
+            ).scalars().all()
+            actor_by_user = {l.user_id: l.actor for l in links}
+
+            result: list[ResponseAssignmentAdmin] = []
+            for assignment, form, user in rows:
+                actor = actor_by_user.get(user.id)
+                status, pct, submission = await self._progress(session, actor, form.id)
+                segment = actor.actor_segment if actor else None
+                result.append(
+                    ResponseAssignmentAdmin(
+                        id=assignment.id,
+                        form_id=form.id,
+                        form_code=form.code,
+                        form_label=form.label,
+                        form_description=form.description,
+                        form_year=getattr(form, "year", None),
+                        user_id=user.id,
+                        user_name=user.username,
+                        user_email=user.email,
+                        actor_id=actor.id if actor else None,
+                        actor_label=actor.label if actor else None,
+                        actor_segment_label=segment.label if segment else None,
+                        assigned_at=assignment.assigned_at,
+                        due_date=assignment.due_date,
+                        notes=assignment.notes,
+                        status=status,
+                        completion_percentage=pct,
+                        submission_id=submission.id if submission else None,
+                        selected_component_ids=assignment.selected_component_ids,
+                    )
+                )
+            return result
+
+    async def delete(self, requester_id: UUID, assignment_id: UUID) -> None:
+        async with UnitOfWork() as uow:
+            session = uow.session
+            await self._require_admin(session, requester_id)
+            assignment = await session.get(UserFormAssignment, assignment_id)
+            if assignment is None:
+                raise AssignmentNotFoundError()
+            await session.delete(assignment)
+
     async def assign(self, requester_id: UUID, data: RequestAssignForm) -> None:
         async with UnitOfWork() as uow:
             session = uow.session
-            is_admin = await session.scalar(
-                select(UserSystemRoleLink.id)
-                .join(UserSystemRoleLink.system_role)
-                .where(
-                    UserSystemRoleLink.user_id == requester_id,
-                    UserSystemRoleLink.system_role.has(
-                        code=SystemRolesEnum.PLATFORM_ADMIN.code
-                    ),
-                )
-            )
-            if not is_admin:
-                raise AssignmentForbiddenError()
+            await self._require_admin(session, requester_id)
 
             if not await session.get(User, data.user_id):
                 raise AssignmentTargetNotFoundError()
@@ -91,30 +193,8 @@ class AssignmentAppService:
 
             result: list[ResponseAssignment] = []
             for assignment, form in rows:
-                submission = None
-                status_code = None
-                if actor:
-                    submission = await session.scalar(
-                        select(Submission)
-                        .where(
-                            Submission.actor_id == actor.id,
-                            Submission.form_id == form.id,
-                        )
-                        .order_by(Submission.updated_at.desc())
-                    )
-                    if submission:
-                        status_code = await session.scalar(
-                            select(SubmissionStatusType.code).where(
-                                SubmissionStatusType.id == submission.status_id
-                            )
-                        )
-
-                if submission is None:
-                    status, pct = "pending", 0
-                elif status_code == "draft":
-                    status, pct = "in_progress", _DRAFT_PROGRESS
-                else:
-                    status, pct = "submitted", 100
+                status, pct, submission = await self._progress(session, actor, form.id)
+                reopen_status, reopen_note = await self._reopen(session, actor, form.id)
 
                 result.append(
                     ResponseAssignment(
@@ -131,6 +211,39 @@ class AssignmentAppService:
                         status=status,
                         completion_percentage=pct,
                         submission_id=submission.id if submission else None,
+                        selected_component_ids=assignment.selected_component_ids,
+                        reopen_status=reopen_status,
+                        reopen_note=reopen_note,
                     )
                 )
             return result
+
+    async def select_components(
+        self, user_id: UUID, assignment_id: UUID, component_ids: list[UUID]
+    ) -> list[UUID]:
+        """Guarda los componentes que la entidad elige responder (solo el dueño de la asignación)."""
+        async with UnitOfWork() as uow:
+            session = uow.session
+            assignment = await session.get(UserFormAssignment, assignment_id)
+            if assignment is None:
+                raise AssignmentNotFoundError()
+            if assignment.user_id != user_id:
+                raise AssignmentNotOwnedError()
+
+            unique_ids = list(dict.fromkeys(component_ids))
+            valid = set(
+                (
+                    await session.scalars(
+                        select(Section.id).where(
+                            Section.form_id == assignment.form_id,
+                            Section.parent_id.is_(None),
+                            Section.id.in_(unique_ids),
+                        )
+                    )
+                ).all()
+            )
+            if len(valid) != len(unique_ids):
+                raise InvalidComponentSelectionError()
+
+            assignment.selected_component_ids = unique_ids
+            return unique_ids

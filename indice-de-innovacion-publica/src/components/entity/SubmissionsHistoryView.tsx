@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useFormSubmission } from '../../context/FormSubmissionContext';
@@ -27,15 +27,28 @@ export const SubmissionsHistoryView: React.FC<SubmissionsHistoryViewProps> = ({
   onContinueEditing,
 }) => {
   const { user } = useAuth();
-  const { submissions, actors } = useApp();
+  const { submissions, actors, loadSubmissionDetail } = useApp();
   const { loadSubmissionForReview } = useFormSubmission();
 
   const currentActor = actors.find((a) => a.id === user?.actor_id) || actors[0];
   const entitySubmissions = submissions.filter((s) => s.actor_id === currentActor?.id);
 
-  const [selectedSub, setSelectedSub] = useState<EntitySubmission | null>(
-    entitySubmissions[0] || null
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const selectedSub: EntitySubmission | null =
+    entitySubmissions.find((s) => s.id === selectedId) ?? entitySubmissions[0] ?? null;
+  const setSelectedSub = (sub: EntitySubmission | null) => setSelectedId(sub?.id ?? null);
+
+  // Las respuestas no vienen en la lista: se piden al servidor al seleccionar un radicado.
+  const selectedKey = selectedSub?.id;
+  const selectedLoaded = selectedSub?.detail_loaded;
+  useEffect(() => {
+    if (!selectedKey || selectedLoaded) return;
+    setDetailError(null);
+    loadSubmissionDetail(selectedKey).catch((err: any) =>
+      setDetailError(err?.message || 'No se pudo cargar el detalle del radicado.')
+    );
+  }, [selectedKey, selectedLoaded]);
 
   const handleDownload = (sub: EntitySubmission) => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(sub, null, 2));
@@ -114,8 +127,8 @@ export const SubmissionsHistoryView: React.FC<SubmissionsHistoryViewProps> = ({
                     <div className={`text-[11px] mt-1 flex items-center justify-between ${
                       isSelected ? 'text-indigo-200' : 'text-slate-500'
                     }`}>
-                      <span>Por: {sub.submitted_by}</span>
-                      <span className="font-semibold">{sub.score ? `${sub.score} pts` : '100%'}</span>
+                      <span>{sub.card_count ?? 0} iniciativa(s)</span>
+                      <span className="font-semibold">{sub.score !== undefined ? `${sub.score} pts` : 'Sin calificar'}</span>
                     </div>
                   </button>
                 );
@@ -164,9 +177,22 @@ export const SubmissionsHistoryView: React.FC<SubmissionsHistoryViewProps> = ({
                       </div>
                     </div>
                     <div className="text-2xl font-black text-emerald-700 font-mono">
-                      {selectedSub.score ?? 85.0} <span className="text-sm font-normal text-emerald-600">/ 100</span>
+                      {selectedSub.score !== undefined ? (
+                        <>
+                          {selectedSub.score} <span className="text-sm font-normal text-emerald-600">/ 100</span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-semibold text-emerald-600">Sin calificar</span>
+                      )}
                     </div>
                   </div>
+
+                  {detailError && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">{detailError}</div>
+                  )}
+                  {!selectedSub.detail_loaded && !detailError && (
+                    <div className="p-3 text-xs text-slate-500">Cargando respuestas del servidor…</div>
+                  )}
 
                   {/* Repeatable Cards Registered */}
                   {selectedSub.card_entries && Object.keys(selectedSub.card_entries).length > 0 && (
@@ -177,7 +203,7 @@ export const SubmissionsHistoryView: React.FC<SubmissionsHistoryViewProps> = ({
                       </h4>
                       <div className="space-y-3">
                         {Object.entries(selectedSub.card_entries).map(([qId, entries]) =>
-                          (entries as Array<{ id: string; title: string; answers: Record<string, any> }>).map((entry, idx) => (
+                          (entries as Array<{ id: string; title: string; answers: Record<string, any>; display?: Record<string, string>; parent_title?: string | null }>).map((entry, idx) => (
                             <div
                               key={entry.id}
                               className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2"
@@ -185,6 +211,11 @@ export const SubmissionsHistoryView: React.FC<SubmissionsHistoryViewProps> = ({
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-slate-900 text-xs">
                                   #{idx + 1}: {entry.title}
+                                  {entry.parent_title && (
+                                    <span className="ml-2 text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                      Referencia: {entry.parent_title}
+                                    </span>
+                                  )}
                                 </span>
                                 <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
                                   card_entry
@@ -193,8 +224,8 @@ export const SubmissionsHistoryView: React.FC<SubmissionsHistoryViewProps> = ({
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
                                 {Object.entries(entry.answers).map(([fieldKey, val]) => (
                                   <div key={fieldKey} className="bg-white p-2 rounded-lg border border-slate-100">
-                                    <span className="text-[10px] text-slate-400 block font-mono">{fieldKey}</span>
-                                    <span className="font-medium text-slate-800">{String(val)}</span>
+                                    <span className="text-[10px] text-slate-400 block">{selectedSub.field_labels?.[fieldKey] ?? fieldKey}</span>
+                                    <span className="font-medium text-slate-800">{entry.display?.[fieldKey] ?? String(val)}</span>
                                   </div>
                                 ))}
                               </div>
@@ -214,9 +245,9 @@ export const SubmissionsHistoryView: React.FC<SubmissionsHistoryViewProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {Object.entries(selectedSub.raw_answers).map(([fKey, val]) => (
                         <div key={fKey} className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 text-xs">
-                          <span className="font-mono text-[10px] text-slate-400 block truncate">{fKey}</span>
+                          <span className="text-[10px] text-slate-400 block truncate">{selectedSub.field_labels?.[fKey] ?? fKey}</span>
                           <span className="font-semibold text-slate-800 mt-0.5 block">
-                            {typeof val === 'boolean' ? (val ? 'Sí' : 'No') : String(val)}
+                            {selectedSub.display_values?.[fKey] ?? (typeof val === 'boolean' ? (val ? 'Sí' : 'No') : String(val))}
                           </span>
                         </div>
                       ))}

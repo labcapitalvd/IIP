@@ -24,6 +24,7 @@ export class FormHasSubmissionsError extends Error {
 }
 import { apiClient } from '../services/apiClient';
 import { coreService } from '../services/coreService';
+import { authService } from '../services/authService';
 
 interface AppContextType {
   actors: Actor[];
@@ -51,11 +52,11 @@ interface AppContextType {
   createForm: (form: IIPForm) => Promise<void>;
   updateForm: (form: IIPForm) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
-  duplicateForm: (id: string) => void;
+  duplicateForm: (id: string) => Promise<void>;
   // User Management (Admin creates users for entities)
   createEntityUser: (payload: CreateEntityUserPayload) => Promise<AuthUser>;
-  updateEntityUser: (id: string, updates: Partial<AuthUser>) => void;
-  deleteEntityUser: (id: string) => void;
+  updateEntityUser: (id: string, updates: Partial<AuthUser>) => Promise<void>;
+  deleteEntityUser: (id: string) => Promise<void>;
   // Form Assignments (Admin assigns forms to entities/users)
   createAssignment: (payload: {
     form_id: string;
@@ -63,9 +64,9 @@ interface AppContextType {
     actor_id: string;
     due_date: string;
     notes?: string;
-  }) => void;
-  batchAssignForm: (form_id: string, user_ids: string[], due_date: string) => void;
-  removeAssignment: (id: string) => void;
+  }) => Promise<void>;
+  batchAssignForm: (form_id: string, user_ids: string[], due_date: string) => Promise<void>;
+  removeAssignment: (id: string) => Promise<void>;
   updateAssignmentProgress: (
     actorId: string,
     formId: string,
@@ -77,14 +78,29 @@ interface AppContextType {
     formId: string,
     submissionId: string,
     radicado: string,
-    score: number
+    score?: number
   ) => void;
   // Submissions
   addSubmission: (submission: EntitySubmission) => void;
-  updateSubmissionStatus: (id: string, status: EntitySubmission['status']) => void;
+  loadSubmissionDetail: (id: string) => Promise<EntitySubmission>;
+  deleteSubmission: (id: string, force?: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// Legacy key: it used to hold every form; now only never-saved drafts.
+const FORM_DRAFTS_KEY = 'iip_all_forms';
+const ACTIVE_FORM_KEY = 'iip_active_form_id';
+
+const readFormDrafts = (): IIPForm[] => {
+  try {
+    const saved = localStorage.getItem(FORM_DRAFTS_KEY);
+    const parsed = saved ? (JSON.parse(saved) as IIPForm[]) : [];
+    return parsed.filter((f) => !f.is_synced_to_backend).map(migrateForm);
+  } catch {
+    return [];
+  }
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<ApiConfig>(() => apiClient.getConfig());
@@ -97,30 +113,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [actors, setActors] = useState<Actor[]>([]);
   const [segments, setSegments] = useState<ActorSegment[]>([]);
 
-  const [forms, setForms] = useState<IIPForm[]>(() => {
-    const saved = localStorage.getItem('iip_all_forms');
-    return (saved ? (JSON.parse(saved) as IIPForm[]) : [IIP_DEFAULT_FORM]).map(migrateForm);
+  // Forms live in the backend and are loaded by refreshData(). Only drafts that
+  // were never saved to the server (is_synced_to_backend = false) stay in this
+  // browser, so a new form isn't lost before its first save.
+  const [forms, setForms] = useState<IIPForm[]>(readFormDrafts);
+
+  const [activeFormId, setActiveFormId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_FORM_KEY);
+    } catch {
+      return null;
+    }
   });
 
-  const [activeForm, setActiveForm] = useState<IIPForm>(() => {
-    const saved = localStorage.getItem('iip_active_form');
-    return migrateForm(saved ? (JSON.parse(saved) as IIPForm) : IIP_DEFAULT_FORM);
-  });
+  // Placeholder template only while the backend has no forms yet.
+  const activeForm = forms.find((f) => f.id === activeFormId) ?? forms[0] ?? IIP_DEFAULT_FORM;
 
-  const [users, setUsers] = useState<AuthUser[]>(() => {
-    const saved = localStorage.getItem('iip_all_users');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Usuarios de entidad: viven en el servidor (GET /auth/users, solo admin).
+  const [users, setUsers] = useState<AuthUser[]>([]);
 
-  const [assignments, setAssignments] = useState<FormAssignment[]>(() => {
-    const saved = localStorage.getItem('iip_assignments');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Asignaciones: viven en el servidor (admin: todas; entidad: las suyas).
+  const [assignments, setAssignments] = useState<FormAssignment[]>([]);
 
-  const [submissions, setSubmissions] = useState<EntitySubmission[]>(() => {
-    const saved = localStorage.getItem('iip_submissions');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Radicados: viven en el servidor (admin: todos; entidad: los suyos). Sin borradores.
+  const [submissions, setSubmissions] = useState<EntitySubmission[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(false);
 
@@ -134,24 +150,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Save changes to localStorage
   useEffect(() => {
-    localStorage.setItem('iip_all_forms', JSON.stringify(forms));
+    try {
+      localStorage.setItem(
+        FORM_DRAFTS_KEY,
+        JSON.stringify(forms.filter((f) => !f.is_synced_to_backend))
+      );
+    } catch {
+      // Storage unavailable (private mode, quota): drafts just won't survive a reload.
+    }
   }, [forms]);
 
   useEffect(() => {
-    localStorage.setItem('iip_active_form', JSON.stringify(activeForm));
-  }, [activeForm]);
-
-  useEffect(() => {
-    localStorage.setItem('iip_all_users', JSON.stringify(users));
-  }, [users]);
-
-  useEffect(() => {
-    localStorage.setItem('iip_assignments', JSON.stringify(assignments));
-  }, [assignments]);
-
-  useEffect(() => {
-    localStorage.setItem('iip_submissions', JSON.stringify(submissions));
-  }, [submissions]);
+    try {
+      if (activeFormId) localStorage.setItem(ACTIVE_FORM_KEY, activeFormId);
+    } catch {
+      // Remembering the selection is only a convenience.
+    }
+  }, [activeFormId]);
 
   const updateConfig = useCallback((newConfig: Partial<ApiConfig>) => {
     apiClient.updateConfig(newConfig);
@@ -162,19 +177,90 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     apiClient.clearLogs();
   }, []);
 
+  const loadAssignmentsForRole = useCallback(async (u: typeof user): Promise<FormAssignment[] | null> => {
+    if (!u) return null;
+    try {
+      if (u.role === 'admin') return await coreService.listAssignments();
+      const mine = await coreService.getMyAssignments();
+      return mine.map((a) => ({
+        id: a.id,
+        form_id: a.form_id,
+        form_code: a.form_code,
+        form_title: a.form_label,
+        form_year: 0,
+        user_id: u.id,
+        user_name: u.username,
+        user_email: u.email,
+        actor_id: a.actor_id ?? u.actor_id ?? '',
+        actor_label: a.actor_label ?? u.actor_label ?? '',
+        assigned_at: a.assigned_at,
+        due_date: a.due_date ?? '',
+        status: a.status,
+        completion_percentage: a.completion_percentage,
+        submission_id: a.submission_id,
+        notes: a.notes,
+      }));
+    } catch (err) {
+      console.error('No se pudieron cargar las asignaciones del servidor:', err);
+      return null;
+    }
+  }, []);
+
+  const refreshAssignments = useCallback(async () => {
+    const fresh = await loadAssignmentsForRole(user);
+    if (fresh) setAssignments(fresh);
+  }, [user, loadAssignmentsForRole]);
+
   const refreshData = useCallback(async () => {
     setIsLoadingData(true);
     try {
-      const [fetchedActors, fetchedSegments] = await Promise.all([
+      const [fetchedActors, fetchedSegments, fetchedForms, fetchedUsers, fetchedAssignments, fetchedSubmissions] = await Promise.all([
         coreService.getActors().catch(() => [] as Actor[]),
         coreService.getSegments().catch(() => [] as ActorSegment[]),
+        coreService
+          .listForms()
+          .then((list) => Promise.all(list.map((f) => coreService.getForm(f.id))))
+          .catch((err) => {
+            console.error('No se pudieron cargar los formularios del servidor:', err);
+            return null;
+          }),
+        // Solo el admin puede listar usuarios; para una entidad el 403 es lo esperado.
+        user?.role === 'admin'
+          ? authService.listUsers().catch((err) => {
+              console.error('No se pudieron cargar los usuarios del servidor:', err);
+              return null;
+            })
+          : Promise.resolve(null),
+        loadAssignmentsForRole(user),
+        coreService
+          .listSubmissions()
+          .then((list) => list.filter((x) => x.status !== 'draft'))
+          .catch((err) => {
+            console.error('No se pudieron cargar los radicados del servidor:', err);
+            return null;
+          }),
       ]);
+      if (fetchedSubmissions) {
+        // Conserva el detalle ya cargado de los radicados que siguen existiendo.
+        setSubmissions((prev) =>
+          fetchedSubmissions.map((n) => prev.find((p) => p.id === n.id && p.detail_loaded) ?? n)
+        );
+      }
+      if (fetchedUsers) setUsers(fetchedUsers);
+      if (fetchedAssignments) setAssignments(fetchedAssignments);
       setActors(fetchedActors);
       setSegments(fetchedSegments);
+      if (fetchedForms) {
+        const serverCodes = new Set(fetchedForms.map((f) => f.code));
+        setForms((prev) => [
+          ...fetchedForms,
+          ...prev.filter((f) => !f.is_synced_to_backend && !serverCodes.has(f.code)),
+        ]);
+      }
     } finally {
       setIsLoadingData(false);
     }
-  }, []);
+  }, [user?.id, user?.role, loadAssignmentsForRole]);
 
   // Load backend data once there is an authenticated session.
   useEffect(() => {
@@ -182,6 +268,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     else {
       setActors([]);
       setSegments([]);
+      setUsers([]);
+      setAssignments([]);
+      setSubmissions([]);
     }
   }, [user?.id, refreshData]);
 
@@ -228,11 +317,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Forms Management
   const setActiveFormById = useCallback((formId: string) => {
-    const found = forms.find((f) => f.id === formId);
-    if (found) {
-      setActiveForm(found);
-    }
-  }, [forms]);
+    setActiveFormId(formId);
+  }, []);
 
   /**
    * Guarda en el backend: PUT si el formulario ya existe allí (por código), POST si no.
@@ -241,36 +327,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveFormDefinition = async (form: IIPForm): Promise<IIPForm> => {
     const normalized = normalizeCodes(form);
     const existing = await coreService.getFormStatus(normalized.code);
-    let updatedAt: string | undefined;
     if (existing && !form.is_synced_to_backend) {
       // Formulario nuevo (local) cuyo código ya existe en el servidor: no se sobrescribe en silencio.
       throw new Error(
         `Ya existe en el servidor un formulario con el código "${normalized.code}". Use otro código para este formulario.`
       );
     }
+    let savedId: string;
     if (existing) {
       if (existing.has_submissions) throw new FormHasSubmissionsError();
+      if (existing.edition_closed_at)
+        throw new Error('La edición de este formulario está cerrada: ya no se puede modificar.');
       try {
-        updatedAt = (await coreService.updateForm(existing.id, normalized)).updated_at;
+        savedId = (await coreService.updateForm(existing.id, normalized)).id;
       } catch (err: any) {
         throw err?.data?.code === 'FORM_HAS_SUBMISSIONS_ERROR' ? new FormHasSubmissionsError() : err;
       }
     } else {
-      updatedAt = (await coreService.createForm(normalized)).updated_at;
+      savedId = (await coreService.createForm(normalized)).id;
     }
-    const savedForm: IIPForm = {
-      ...normalized,
-      is_synced_to_backend: true,
-      updated_at: updatedAt ?? new Date().toISOString(),
-    };
-    const nextForms = forms.some((f) => f.id === savedForm.id)
-      ? forms.map((f) => (f.id === savedForm.id ? savedForm : f))
-      : [savedForm, ...forms];
-    // Persistir ya mismo: tras guardar la pantalla se recarga y no debe perderse nada.
-    localStorage.setItem('iip_all_forms', JSON.stringify(nextForms));
-    localStorage.setItem('iip_active_form', JSON.stringify(savedForm));
-    setActiveForm(savedForm);
-    setForms(nextForms);
+    // Re-read what the server stored: a PUT rebuilds the tree, so section,
+    // question and field ids change, and submissions must use the new ones.
+    const savedForm = await coreService.getForm(savedId);
+    setForms((prev) => [savedForm, ...prev.filter((f) => f.id !== form.id && f.id !== savedForm.id)]);
+    setActiveFormId(savedForm.id);
     return savedForm;
   };
 
@@ -283,166 +363,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteForm = async (id: string) => {
-    setForms((prev) => prev.filter((f) => f.id !== id));
-    if (activeForm.id === id) {
-      const remaining = forms.filter((f) => f.id !== id);
-      if (remaining.length > 0) {
-        setActiveForm(remaining[0]);
+    const target = forms.find((f) => f.id === id);
+    if (target?.is_synced_to_backend) {
+      try {
+        await coreService.deleteForm(id);
+      } catch (err: any) {
+        throw err?.data?.code === 'FORM_HAS_SUBMISSIONS_ERROR' ? new FormHasSubmissionsError() : err;
       }
     }
+    setForms((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const duplicateForm = useCallback((id: string) => {
+  /** Copia el formulario y la guarda en el servidor; si falla, queda como borrador local. */
+  const duplicateForm = async (id: string) => {
     const base = forms.find((f) => f.id === id);
     if (!base) return;
 
     const newForm: IIPForm = {
       ...JSON.parse(JSON.stringify(base)),
       id: `form-iip-${Date.now()}`,
-      code: `${base.code}_COPIA_${new Date().getFullYear()}`,
+      code: `${base.code}_COPIA_${new Date().getFullYear()}`.slice(0, 50),
       label: `${base.label} (Copia)`,
       version: `${base.version}.1`,
       is_active: false,
+      is_synced_to_backend: false,
+      updated_at: null,
     };
 
     setForms((prev) => [newForm, ...prev]);
-  }, [forms]);
+    await saveFormDefinition(newForm);
+  };
 
   // User Management for Entities
   const createEntityUser = async (payload: CreateEntityUserPayload): Promise<AuthUser> => {
-    const actor = actors.find((a) => a.id === payload.actor_id);
-    const newUser: AuthUser = {
-      id: `usr-entity-${Date.now()}`,
+    // El servidor crea la cuenta (con su vínculo a la entidad); luego se relee la lista
+    // para obtener el id real, que es el que usan las asignaciones.
+    await authService.register({
       username: payload.username.toLowerCase().trim(),
       email: payload.email.toLowerCase().trim(),
-      role: 'entity',
+      password: payload.password ?? '',
       actor_id: payload.actor_id,
-      actor_label: actor?.label || payload.actor_label || 'Entidad Distrital',
-      actor_segment_label: actor?.actor_segment?.label,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      phone: payload.phone,
       contact_person: payload.contact_person,
-    };
+      phone: payload.phone,
+    });
+    const fresh = await authService.listUsers();
+    setUsers(fresh);
+    const newUser = fresh.find((u) => u.username === payload.username.toLowerCase().trim());
+    if (!newUser) throw new Error('El usuario se creó pero no se pudo recuperar del servidor.');
 
-    setUsers((prev) => [newUser, ...prev]);
-
-    // If user requested to assign a form immediately upon user creation
+    // Si se pidió asignar un formulario al crear el usuario, se guarda en el servidor.
     if (payload.assign_form_id) {
       const targetForm = forms.find((f) => f.id === payload.assign_form_id) || activeForm;
-      const newAsg: FormAssignment = {
-        id: `asg-${Date.now()}`,
-        form_id: targetForm.id,
-        form_code: targetForm.code,
-        form_title: targetForm.label,
-        form_year: targetForm.year,
+      await coreService.assignForm({
         user_id: newUser.id,
-        user_name: newUser.username,
-        user_email: newUser.email,
-        actor_id: newUser.actor_id!,
-        actor_label: newUser.actor_label!,
-        actor_segment_label: newUser.actor_segment_label,
-        assigned_at: new Date().toISOString(),
-        due_date: payload.due_date || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'pending',
-        completion_percentage: 0,
-      };
-      setAssignments((prev) => [newAsg, ...prev]);
+        form_id: targetForm.id,
+        due_date: payload.due_date ? payload.due_date.slice(0, 10) : null,
+      });
+      await refreshAssignments();
     }
 
     return newUser;
   };
 
-  const updateEntityUser = useCallback((id: string, updates: Partial<AuthUser>) => {
+  const updateEntityUser = useCallback(async (id: string, updates: Partial<AuthUser>) => {
+    await authService.updateUser(id, {
+      is_active: updates.is_active,
+      contact_person: updates.contact_person,
+      phone: updates.phone,
+    });
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updates } : u)));
   }, []);
 
-  const deleteEntityUser = useCallback((id: string) => {
+  const deleteEntityUser = useCallback(async (id: string) => {
+    await authService.deleteUser(id);
     setUsers((prev) => prev.filter((u) => u.id !== id));
   }, []);
 
   // Form Assignments
   const createAssignment = useCallback(
-    (payload: {
+    async (payload: {
       form_id: string;
       user_id: string;
       actor_id: string;
       due_date: string;
       notes?: string;
     }) => {
-      const form = forms.find((f) => f.id === payload.form_id) || activeForm;
-      const userObj = users.find((u) => u.id === payload.user_id);
-      const actor = actors.find((a) => a.id === payload.actor_id);
-
-      const newAsg: FormAssignment = {
-        id: `asg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        form_id: form.id,
-        form_code: form.code,
-        form_title: form.label,
-        form_year: form.year,
+      await coreService.assignForm({
         user_id: payload.user_id,
-        user_name: userObj?.username || 'entidad.usuario',
-        user_email: userObj?.email || 'entidad@bogota.gov.co',
-        actor_id: payload.actor_id,
-        actor_label: actor?.label || userObj?.actor_label || 'Entidad Distrital',
-        actor_segment_label: actor?.actor_segment?.label,
-        assigned_at: new Date().toISOString(),
-        due_date: payload.due_date,
-        status: 'pending',
-        completion_percentage: 0,
+        form_id: payload.form_id,
+        due_date: payload.due_date.slice(0, 10),
         notes: payload.notes,
-      };
-
-      setAssignments((prev) => {
-        // Prevent exact duplicate for same form and user
-        const filtered = prev.filter(
-          (a) => !(a.form_id === payload.form_id && a.user_id === payload.user_id)
-        );
-        return [newAsg, ...filtered];
       });
+      await refreshAssignments();
     },
-    [forms, activeForm, users, actors]
+    [refreshAssignments]
   );
 
   const batchAssignForm = useCallback(
-    (form_id: string, user_ids: string[], due_date: string) => {
-      const form = forms.find((f) => f.id === form_id) || activeForm;
-      const newAsgs: FormAssignment[] = [];
-
-      for (const uid of user_ids) {
-        const u = users.find((usr) => usr.id === uid);
-        if (!u || !u.actor_id) continue;
-        const actor = actors.find((a) => a.id === u.actor_id);
-
-        newAsgs.push({
-          id: `asg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          form_id: form.id,
-          form_code: form.code,
-          form_title: form.label,
-          form_year: form.year,
-          user_id: u.id,
-          user_name: u.username,
-          user_email: u.email,
-          actor_id: u.actor_id,
-          actor_label: actor?.label || u.actor_label || 'Entidad Distrital',
-          actor_segment_label: actor?.actor_segment?.label,
-          assigned_at: new Date().toISOString(),
-          due_date: due_date,
-          status: 'pending',
-          completion_percentage: 0,
-        });
+    async (form_id: string, user_ids: string[], due_date: string) => {
+      const results = await Promise.allSettled(
+        user_ids.map((uid) =>
+          coreService.assignForm({ user_id: uid, form_id, due_date: due_date.slice(0, 10) })
+        )
+      );
+      await refreshAssignments();
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0) {
+        throw new Error(`No se pudo asignar a ${failed} de ${user_ids.length} usuarios.`);
       }
-
-      setAssignments((prev) => {
-        const existingKeys = new Set(newAsgs.map((na) => `${na.form_id}_${na.user_id}`));
-        const filtered = prev.filter((a) => !existingKeys.has(`${a.form_id}_${a.user_id}`));
-        return [...newAsgs, ...filtered];
-      });
     },
-    [forms, activeForm, users, actors]
+    [refreshAssignments]
   );
 
-  const removeAssignment = useCallback((id: string) => {
+  const removeAssignment = useCallback(async (id: string) => {
+    await coreService.deleteAssignment(id);
     setAssignments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
@@ -467,7 +501,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const completeAssignmentSubmission = useCallback(
-    (actorId: string, formId: string, submissionId: string, radicado: string, score: number) => {
+    (actorId: string, formId: string, submissionId: string, radicado: string, score?: number) => {
       setAssignments((prev) =>
         prev.map((a) => {
           if (a.actor_id === actorId && (a.form_id === formId || !formId)) {
@@ -488,13 +522,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     []
   );
 
+  /** Agrega (o reemplaza por id) un radicado recién creado en el servidor. */
   const addSubmission = useCallback((newSub: EntitySubmission) => {
-    setSubmissions((prev) => [newSub, ...prev]);
+    setSubmissions((prev) => [newSub, ...prev.filter((s) => s.id !== newSub.id)]);
   }, []);
 
-  const updateSubmissionStatus = useCallback((id: string, status: EntitySubmission['status']) => {
-    setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
+  /** Carga del servidor las respuestas de un radicado y las deja en la lista. */
+  const loadSubmissionDetail = useCallback(async (id: string): Promise<EntitySubmission> => {
+    const detail = await coreService.getSubmission(id);
+    setSubmissions((prev) => prev.map((s) => (s.id === id ? detail : s)));
+    return detail;
   }, []);
+
+  /** Borra el radicado en el servidor; la asignación de esa entidad vuelve a quedar pendiente. */
+  const deleteSubmission = useCallback(
+    async (id: string, force = false) => {
+      await coreService.deleteSubmission(id, force);
+      setSubmissions((prev) => prev.filter((s) => s.id !== id));
+      await refreshAssignments();
+    },
+    [refreshAssignments]
+  );
 
   return (
     <AppContext.Provider
@@ -531,7 +579,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAssignmentProgress,
         completeAssignmentSubmission,
         addSubmission,
-        updateSubmissionStatus,
+        loadSubmissionDetail,
+        deleteSubmission,
       }}
     >
       {children}

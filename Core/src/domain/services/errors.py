@@ -82,6 +82,36 @@ class QuestionDependencyError(FormError):
     message = "The question dependency refers to a question that does not exist or is not a Yes/No question."
 
 
+class QuestionSourceError(FormError):
+    status_code = 422
+    message = "The source question of a linked loop question is invalid."
+
+
+class FormEditionClosedError(FormError):
+    status_code = 409
+    message = "The edition of this form is closed, so its structure can no longer be modified."
+
+
+class FormEditionOpenError(FormError):
+    status_code = 409
+    message = "Close the edition of the form before downloading templates or loading historical data."
+
+
+class FormEditionHasDataError(FormError):
+    status_code = 409
+    message = "The form already has responses or results loaded, so its edition cannot be reopened."
+
+
+class HistoricalForbiddenError(FormError):
+    status_code = 403
+    message = "Only administrators can manage historical data."
+
+
+class HistoricalFileError(FormError):
+    status_code = 422
+    message = "The uploaded file is not a valid template of this form."
+
+
 class RelationalOperatorNotFoundError(FormError):
     status_code = 500
     message = "The 'eq' relational operator is not seeded."
@@ -91,11 +121,103 @@ class FormStructureConflictError(FormError):
     status_code = 409  # Conflict
     message = "Duplicate codes were found within the submitted form structure."
 
+class FormHierarchyError(FormError):
+    status_code = 422
+    message = "The form must be organized as Component > Variable > Indicator > Question."
+
+
+class FormForbiddenError(FormError):
+    status_code = 403
+    message = "Only an administrator can delete forms."
+
+
 class AssignmentForbiddenError(FormError):
     status_code = 403
     message = "Only an administrator can assign forms."
 
 
+class AssignmentNotFoundError(FormError):
+    status_code = 404
+    message = "The assignment could not be found."
+
+
+class AssignmentNotOwnedError(FormError):
+    status_code = 403
+    message = "The assignment belongs to another user."
+
+
+class InvalidComponentSelectionError(FormError):
+    status_code = 422
+    message = "One or more selected components do not belong to the assigned form."
+
+
 class AssignmentTargetNotFoundError(FormError):
     status_code = 404
     message = "The user or the form to assign could not be found."
+
+
+class SubmissionError(BaseDomainError):
+    """Base error for submission (form answers) domain logic."""
+
+    status_code = 400
+    message = "An error occurred in the Submission service."
+
+
+class SubmissionFormNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The form being answered could not be found."
+
+
+class SubmissionActorMissingError(SubmissionError):
+    status_code = 403
+    message = "The authenticated user is not linked to any entity, so it cannot submit answers."
+
+
+class SubmissionAlreadySubmittedError(SubmissionError):
+    status_code = 409
+    message = "This entity already submitted this form; it can no longer be modified."
+
+
+class SubmissionInvalidError(SubmissionError):
+    status_code = 422
+    message = "The submitted answers do not match the form."
+
+
+class SubmissionNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The submission could not be found."
+
+
+class SubmissionForbiddenError(SubmissionError):
+    status_code = 403
+    message = "Only an administrator can delete submissions."
+
+
+class SubmissionHasGradesError(SubmissionError):
+    status_code = 409
+    message = "This submission already has grades; confirm to delete it together with them."
+
+
+class ReopenForbiddenError(SubmissionError):
+    status_code = 403
+    message = "Only an administrator can resolve reopen requests."
+
+
+class ReopenRequestNotFoundError(SubmissionError):
+    status_code = 404
+    message = "The reopen request could not be found."
+
+
+class ReopenNotAllowedError(SubmissionError):
+    status_code = 409
+    message = "Only a form that was already submitted can be reopened."
+
+
+class ReopenAlreadyPendingError(SubmissionError):
+    status_code = 409
+    message = "There is already a pending reopen request for this form."
+
+
+class ReopenAlreadyResolvedError(SubmissionError):
+    status_code = 409
+    message = "This reopen request was already resolved."

@@ -6,10 +6,14 @@ import { FormsManager } from './FormsManager';
 import { EntityUsersManager } from './EntityUsersManager';
 import { FormAssignmentsManager } from './FormAssignmentsManager';
 import { SubmissionsMonitor } from './SubmissionsMonitor';
+import { RecordInspector } from './RecordInspector';
 import { ActorsManager } from './ActorsManager';
 import { ParametersManager } from './ParametersManager';
+import { HistoricalLoadManager } from './HistoricalLoadManager';
+import { ReopenRequestsManager } from './ReopenRequestsManager';
 import {
   Building2,
+  FileSpreadsheet,
   FileCheck2,
   FileText,
   BarChart3,
@@ -17,6 +21,7 @@ import {
   LogOut,
   ShieldCheck,
   SlidersHorizontal,
+  Unlock,
 } from 'lucide-react';
 
 type AdminTab = keyof typeof ROUTES.admin;
@@ -26,7 +31,9 @@ const NAV: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: 'users', label: 'Usuarios de entidades', icon: Users },
   { id: 'assignments', label: 'Asignaciones', icon: FileCheck2 },
   { id: 'submissions', label: 'Monitor de radicados', icon: BarChart3 },
+  { id: 'reopen', label: 'Solicitudes de modificación', icon: Unlock },
   { id: 'actors', label: 'Entidades y sectores', icon: Building2 },
+  { id: 'historical', label: 'Cargas históricas', icon: FileSpreadsheet },
   { id: 'parameters', label: 'Parámetros', icon: SlidersHorizontal },
 ];
 
@@ -45,6 +52,11 @@ export const AdminApp: React.FC<{ pathname: string }> = ({ pathname }) => {
   const { setActiveFormById } = useApp();
   const tab = adminTabFromPath(pathname) ?? 'forms';
   const setTab = (t: AdminTab) => navigate(ROUTES.admin[t]);
+  // /admin/monitor-radicados/<formulario>/<entidad> → pantalla de inspección
+  const inspectParts = pathname.startsWith(`${ROUTES.admin.submissions}/`)
+    ? pathname.slice(ROUTES.admin.submissions.length + 1).split('/')
+    : [];
+  const inspect = inspectParts.length === 2 && inspectParts.every(Boolean) ? (inspectParts as [string, string]) : null;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased flex flex-col md:flex-row">
@@ -110,8 +122,11 @@ export const AdminApp: React.FC<{ pathname: string }> = ({ pathname }) => {
         )}
         {tab === 'users' && <EntityUsersManager onAssignFormToUser={() => setTab('assignments')} />}
         {tab === 'assignments' && <FormAssignmentsManager />}
-        {tab === 'submissions' && <SubmissionsMonitor />}
+        {tab === 'submissions' &&
+          (inspect ? <RecordInspector key={`${inspect[0]}:${inspect[1]}`} formId={inspect[0]} actorId={inspect[1]} /> : <SubmissionsMonitor />)}
+        {tab === 'reopen' && <ReopenRequestsManager />}
         {tab === 'actors' && <ActorsManager />}
+        {tab === 'historical' && <HistoricalLoadManager />}
         {tab === 'parameters' && <ParametersManager pathname={pathname} />}
       </main>
     </div>

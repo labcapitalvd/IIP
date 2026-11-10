@@ -13,17 +13,24 @@ import {
   Check,
   CornerDownRight,
   Repeat,
+  Link2,
 } from 'lucide-react';
 import { FORM_ICONS, FormIcon } from '../common/formIcons';
 import {
   DEFAULT_MAX_FILE_SIZE,
   LOOP_FIELD_KINDS,
   QUESTION_KINDS,
+  TARGET_WEIGHT,
+  distributeWeightsEvenly,
+  formWeight,
+  formatWeight,
   getIndicators,
+  getVariables,
   isChoiceType,
   kindOf,
   newChoice,
   newField,
+  newComponent,
   newIndicator,
   newQuestion,
   newVariable,
@@ -31,6 +38,11 @@ import {
   numberQuestions,
   questionFields,
   findFormIssue,
+  scaleWeightsTo100,
+  sourceCandidates,
+  type SourceCandidate,
+  sectionWeight,
+  weightIsComplete,
 } from '../../utils/formTree';
 
 interface FormBuilderModalProps {
@@ -47,7 +59,8 @@ const formatSize = (bytes: number) => (bytes >= MB ? `${+(bytes / MB).toFixed(1)
 const formatDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' }) : null;
 
-type Selection = { v: number; i: number | null };
+/** Componente (c), y opcionalmente su variable (v) e indicador (i). */
+type Selection = { c: number; v: number | null; i: number | null };
 
 const inputCls =
   'w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-amber-500 focus:ring-1 focus:ring-amber-500';
@@ -60,7 +73,7 @@ const emptyDraft = () => ({
   year: new Date().getFullYear(),
   version: '1.0',
   isActive: true,
-  sections: [newVariable(1)] as FormSection[],
+  sections: [newComponent(1)] as FormSection[],
 });
 
 /* ------------------------------------------------------------------ */
@@ -87,7 +100,7 @@ const IconPicker: React.FC<{ value?: string; onChange: (v: string) => void }> = 
   </div>
 );
 
-/** Nombre, descripción, ayuda e ícono: lo que comparten Variables e Indicadores. */
+/** Nombre, descripción, ayuda e ícono: lo que comparten Componentes, Variables e Indicadores. */
 const SectionMeta: React.FC<{
   kindLabel: string;
   section: FormSection;
@@ -95,13 +108,19 @@ const SectionMeta: React.FC<{
 }> = ({ kindLabel, section, onChange }) => (
   <div className="space-y-3">
     <div>
-      <label className={labelCls}>Nombre de la {kindLabel.toLowerCase()} *</label>
+      <label className={labelCls}>Nombre {kindLabel === 'Componente' ? 'del' : 'de la'} {kindLabel.toLowerCase()} *</label>
       <input
         className={inputCls}
         value={section.label}
         maxLength={255}
         onChange={(e) => onChange({ label: e.target.value })}
-        placeholder={kindLabel === 'Variable' ? 'Ej. Capacidades institucionales' : 'Ej. Marco normativo de innovación'}
+        placeholder={
+          kindLabel === 'Componente'
+            ? 'Ej. Gestión de la innovación'
+            : kindLabel === 'Variable'
+              ? 'Ej. Capacidades institucionales'
+              : 'Ej. Marco normativo de innovación'
+        }
       />
     </div>
     <div>
@@ -295,10 +314,11 @@ const QuestionEditor: React.FC<{
   siblings: FormQuestion[];
   index: number;
   total: number;
+  sources: SourceCandidate[];
   onChange: (q: FormQuestion) => void;
   onMove: (dir: 'up' | 'down') => void;
   onRemove: () => void;
-}> = ({ highlighted, question, number, siblings, index, total, onChange, onMove, onRemove }) => {
+}> = ({ highlighted, question, number, siblings, index, total, sources, onChange, onMove, onRemove }) => {
   const kind = kindOf(question);
   const fields = questionFields(question);
   const isLoop = kind === 'loop';
@@ -327,8 +347,11 @@ const QuestionEditor: React.FC<{
       code: question.code,
       label: question.label,
       help_text: question.help_text,
+      weight: question.weight,
+      grading_guide: question.grading_guide,
       is_required: question.is_required,
       depends_on: next === 'loop' ? (question.depends_on ?? (parents.length ? { question_id: parents[parents.length - 1].id, value: true } : null)) : null,
+      source_question_id: next === 'loop' ? (question.source_question_id ?? null) : null,
     });
   };
 
@@ -406,6 +429,31 @@ const QuestionEditor: React.FC<{
             />
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-[9rem_1fr] gap-3 p-3 rounded-xl bg-emerald-50/50 border border-emerald-200">
+            <div>
+              <label className={labelCls}>Peso (de {TARGET_WEIGHT}) *</label>
+              <input
+                type="number"
+                min={0}
+                max={TARGET_WEIGHT}
+                step={0.01}
+                className={`${inputCls} font-mono`}
+                value={question.weight ?? 0}
+                onChange={(e) => onChange({ ...question, weight: e.target.value === '' ? 0 : Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Guía de calificación</label>
+              <textarea
+                className={`${inputCls} min-h-[48px]`}
+                maxLength={4096}
+                value={question.grading_guide ?? ''}
+                onChange={(e) => onChange({ ...question, grading_guide: e.target.value })}
+                placeholder="Qué debe verificar quien califique para dar el puntaje de esta pregunta"
+              />
+            </div>
+          </div>
+
           {!isLoop && <FieldTypeExtras field={fields[0]} onChange={(u) => updateField(fields[0].id, u)} />}
 
           {isLoop && (
@@ -455,6 +503,43 @@ const QuestionEditor: React.FC<{
                       <option value="no">No</option>
                     </select>
                     <span>{question.depends_on ? '; en caso contrario pasa a la siguiente pregunta.' : ''}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-white border border-sky-200 space-y-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-sky-800">
+                  <Link2 className="w-3.5 h-3.5" /> Tarjetas vinculadas a otra pregunta bucle
+                </div>
+                {sources.length === 0 && !question.source_question_id ? (
+                  <p className="text-[11px] text-slate-600">
+                    Sin vínculo: las tarjetas son independientes. Para que cada tarjeta se refiera a una tarjeta de otra
+                    pregunta bucle (en cualquier componente), cree antes esa otra pregunta bucle.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 text-[11px] text-slate-700">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>Cada tarjeta se refiere a una tarjeta de</span>
+                      <select
+                        className={`${inputCls} !w-auto max-w-full`}
+                        value={question.source_question_id ?? ''}
+                        onChange={(e) => onChange({ ...question, source_question_id: e.target.value || null })}
+                      >
+                        <option value="">— ninguna (tarjetas independientes) —</option>
+                        {sources.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {`${s.label.slice(0, 60)} (${s.path})`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {question.source_question_id && (
+                      <p className="text-slate-500">
+                        La entidad elige a cuáles tarjetas de esa pregunta responde y puede registrar varias por cada
+                        una. En cada tarjeta se muestra el nombre de la tarjeta a la que se refiere. Si una tarjeta
+                        origen se elimina, se eliminan también las que cuelgan de ella.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -581,7 +666,7 @@ const QuestionEditor: React.FC<{
 
 export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onClose, onSave, initialForm }) => {
   const [draft, setDraft] = useState(emptyDraft);
-  const [sel, setSel] = useState<Selection>({ v: 0, i: 0 });
+  const [sel, setSel] = useState<Selection>({ c: 0, v: 0, i: 0 });
   const [isSaving, setIsSaving] = useState(false);
   const [savePhase, setSavePhase] = useState<'saving' | 'reloading'>('saving');
   // Evita dobles guardados (doble clic o seguir editando mientras el PUT se refleja).
@@ -613,18 +698,28 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
     } else {
       setDraft(emptyDraft());
     }
-    setSel({ v: 0, i: initialForm ? (getIndicators(initialForm.sections[0] ?? ({} as FormSection)).length ? 0 : null) : 0 });
+    setSel({ c: 0, v: 0, i: 0 });
     setErrorMsg(null);
   }, [isOpen, initialForm]);
 
   const sections = draft.sections;
-  const safeV = Math.min(sel.v, Math.max(0, sections.length - 1));
-  const variable = sections[safeV];
+  const safeC = Math.min(sel.c, Math.max(0, sections.length - 1));
+  const component = sections[safeC];
+  const variables = component ? getVariables(component) : [];
+  const safeV = sel.v === null ? null : Math.min(sel.v, Math.max(0, variables.length - 1));
+  const variable = safeV !== null ? variables[safeV] : undefined;
   const indicators = variable ? getIndicators(variable) : [];
-  const safeI = sel.i === null ? null : Math.min(sel.i, Math.max(0, indicators.length - 1));
+  const safeI = safeV === null || sel.i === null ? null : Math.min(sel.i, Math.max(0, indicators.length - 1));
   const indicator = safeI !== null ? indicators[safeI] : undefined;
   const questions = indicator?.questions ?? [];
   const numbering = useMemo(() => numberQuestions(questions), [questions]);
+
+  const draftForm = useMemo(
+    () => ({ sections: draft.sections } as IIPForm),
+    [draft.sections]
+  );
+  const total = useMemo(() => formWeight(draftForm), [draftForm]);
+  const complete = weightIsComplete(total);
 
   if (!isOpen) return null;
 
@@ -632,6 +727,22 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
     setDraft((d) => {
       const copy = structuredClone(d.sections);
       fn(copy);
+      // Una pregunta eliminada deja sin efecto los vínculos que apuntaban a ella.
+      const ids = new Set<string>();
+      const loops: FormQuestion[] = [];
+      copy.forEach((c) =>
+        getVariables(c).forEach((v) =>
+          getIndicators(v).forEach((i) =>
+            (i.questions ?? []).forEach((q) => {
+              ids.add(q.id);
+              loops.push(q);
+            })
+          )
+        )
+      );
+      loops.forEach((q) => {
+        if (q.source_question_id && !ids.has(q.source_question_id)) q.source_question_id = null;
+      });
       return { ...d, sections: copy };
     });
 
@@ -642,39 +753,64 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
     return true;
   };
 
-  const moveVariable = (v: number, dir: 'up' | 'down') => {
-    mutate((s) => void move(s, v, dir));
-    setSel({ v: dir === 'up' ? v - 1 : v + 1, i: null });
+  // --- Componentes ---
+  const moveComponent = (c: number, dir: 'up' | 'down') => {
+    mutate((s) => void move(s, c, dir));
+    setSel({ c: dir === 'up' ? c - 1 : c + 1, v: null, i: null });
   };
-  const addVariable = () => {
-    mutate((s) => s.push(newVariable(s.length + 1)));
-    setSel({ v: sections.length, i: 0 });
+  const addComponent = () => {
+    mutate((s) => s.push(newComponent(s.length + 1)));
+    setSel({ c: sections.length, v: null, i: null });
   };
-  const removeVariable = (v: number) => {
-    if (sections.length <= 1) return alert('El formulario necesita al menos una variable.');
-    if (!confirm('¿Eliminar la variable con todos sus indicadores y preguntas?')) return;
-    mutate((s) => s.splice(v, 1));
-    setSel({ v: Math.max(0, v - 1), i: 0 });
-  };
-  const addIndicator = (v: number) => {
-    const n = getIndicators(sections[v]).length + 1;
-    mutate((s) => {
-      s[v].children = [...getIndicators(s[v]), newIndicator(s[v].code, n)];
-    });
-    setSel({ v, i: n - 1 });
-  };
-  const removeIndicator = (v: number, i: number) => {
-    if (getIndicators(sections[v]).length <= 1) return alert('La variable necesita al menos un indicador.');
-    if (!confirm('¿Eliminar el indicador con todas sus preguntas?')) return;
-    mutate((s) => s[v].children!.splice(i, 1));
-    setSel({ v, i: Math.max(0, i - 1) });
+  const removeComponent = (c: number) => {
+    if (sections.length <= 1) return alert('El formulario necesita al menos un componente.');
+    if (!confirm('¿Eliminar el componente con todas sus variables, indicadores y preguntas?')) return;
+    mutate((s) => s.splice(c, 1));
+    setSel({ c: Math.max(0, c - 1), v: null, i: null });
   };
 
-  const patchVariable = (updates: Partial<FormSection>) => mutate((s) => Object.assign(s[safeV], updates));
+  // --- Variables ---
+  const addVariable = (c: number) => {
+    const n = getVariables(sections[c]).length + 1;
+    mutate((s) => {
+      s[c].children = [...getVariables(s[c]), newVariable(s[c].code, n)];
+    });
+    setSel({ c, v: n - 1, i: 0 });
+  };
+  const removeVariable = (c: number, v: number) => {
+    if (getVariables(sections[c]).length <= 1) return alert('El componente necesita al menos una variable.');
+    if (!confirm('¿Eliminar la variable con todos sus indicadores y preguntas?')) return;
+    mutate((s) => s[c].children!.splice(v, 1));
+    setSel({ c, v: Math.max(0, v - 1), i: null });
+  };
+
+  // --- Indicadores ---
+  const addIndicator = (c: number, v: number) => {
+    const target = getVariables(sections[c])[v];
+    const n = getIndicators(target).length + 1;
+    mutate((s) => {
+      const tv = s[c].children![v];
+      tv.children = [...getIndicators(tv), newIndicator(tv.code, n)];
+    });
+    setSel({ c, v, i: n - 1 });
+  };
+  const removeIndicator = (c: number, v: number, i: number) => {
+    if (getIndicators(getVariables(sections[c])[v]).length <= 1)
+      return alert('La variable necesita al menos un indicador.');
+    if (!confirm('¿Eliminar el indicador con todas sus preguntas?')) return;
+    mutate((s) => s[c].children![v].children!.splice(i, 1));
+    setSel({ c, v, i: Math.max(0, i - 1) });
+  };
+
+  const patchComponent = (updates: Partial<FormSection>) => mutate((s) => Object.assign(s[safeC], updates));
+  const patchVariable = (updates: Partial<FormSection>) =>
+    safeV !== null && mutate((s) => Object.assign(s[safeC].children![safeV], updates));
   const patchIndicator = (updates: Partial<FormSection>) =>
-    safeI !== null && mutate((s) => Object.assign(s[safeV].children![safeI], updates));
+    safeV !== null && safeI !== null && mutate((s) => Object.assign(s[safeC].children![safeV].children![safeI], updates));
   const patchQuestions = (fn: (qs: FormQuestion[]) => void) =>
-    safeI !== null && mutate((s) => fn((s[safeV].children![safeI].questions ??= [])));
+    safeV !== null &&
+    safeI !== null &&
+    mutate((s) => fn((s[safeC].children![safeV].children![safeI].questions ??= [])));
 
   const addQuestion = (kind: QuestionKind) => {
     const q = newQuestion(kind, questions.length + 1);
@@ -684,6 +820,9 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
     }
     patchQuestions((qs) => qs.push(q));
   };
+
+  const applyWeights = (fn: (f: IIPForm) => IIPForm) =>
+    setDraft((d) => ({ ...d, sections: fn({ sections: d.sections } as IIPForm).sections }));
 
   const handleSave = async () => {
     if (savingRef.current) return;
@@ -706,7 +845,7 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
     const issue = findFormIssue(compiled);
     if (issue) {
       // Llevar al admin al lugar exacto del problema; un texto pequeño abajo pasa desapercibido.
-      setSel({ v: issue.v, i: issue.i });
+      setSel({ c: issue.c, v: issue.v, i: issue.i });
       setHighlightId(issue.questionId ?? null);
       setErrorMsg(issue.message);
       requestAnimationFrame(() =>
@@ -737,6 +876,17 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
     }
   };
 
+  const weightBadge = (w: number, light = false) => (
+    <span
+      className={`ml-auto shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+        light ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+      }`}
+      title="Suma de los pesos de sus preguntas"
+    >
+      {formatWeight(w)}
+    </span>
+  );
+
   return (
     <FileTypesCtx.Provider value={fileTypes}>
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6">
@@ -760,7 +910,7 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
               <h2 className="font-bold text-base leading-tight">
                 {base ? 'Editar formulario' : 'Nuevo formulario'}
               </h2>
-              <p className="text-[11px] text-slate-400">Variables → Indicadores → Preguntas</p>
+              <p className="text-[11px] text-slate-400">Componentes → Variables → Indicadores → Preguntas (con peso)</p>
             </div>
           </div>
           <button disabled={isSaving} onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl">
@@ -798,77 +948,129 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
           </div>
         </div>
 
+        {/* Pesos del formulario */}
+        <div
+          className={`px-6 py-2.5 border-b flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs ${
+            complete ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+          }`}
+        >
+          <div className="font-bold">
+            Pesos de las preguntas: <span className="font-mono">{formatWeight(total)}</span> / {TARGET_WEIGHT}
+            {!complete && <span className="font-normal"> — deben sumar exactamente {TARGET_WEIGHT} para poder guardar.</span>}
+          </div>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <button
+              type="button"
+              onClick={() => applyWeights(scaleWeightsTo100)}
+              className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 font-semibold text-slate-700 hover:border-slate-500"
+              title="Mantiene las proporciones actuales y ajusta para que sumen 100"
+            >
+              Escalar a {TARGET_WEIGHT}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Esto reemplaza los pesos de TODAS las preguntas por partes iguales. ¿Continuar?'))
+                  applyWeights(distributeWeightsEvenly);
+              }}
+              className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 font-semibold text-slate-700 hover:border-slate-500"
+            >
+              Repartir en partes iguales
+            </button>
+          </div>
+        </div>
+
         {/* Árbol + editor */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[18rem_1fr]">
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[19rem_1fr]">
           {/* Árbol */}
           <div className="border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50/60 overflow-y-auto p-3 space-y-2 max-h-64 md:max-h-none">
-            {sections.map((v, vi) => {
-              const inds = getIndicators(v);
-              const vSelected = safeV === vi && safeI === null;
+            {sections.map((c, ci) => {
+              const vars = getVariables(c);
+              const cSelected = safeC === ci && safeV === null;
               return (
-                <div key={v.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                  <div className={`flex items-center gap-1 pr-1 ${vSelected ? 'bg-slate-900 text-white' : ''}`}>
+                <div key={c.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  <div className={`flex items-center gap-1 pr-1 ${cSelected ? 'bg-slate-900 text-white' : ''}`}>
                     <button
                       type="button"
-                      onClick={() => setSel({ v: vi, i: null })}
+                      onClick={() => setSel({ c: ci, v: null, i: null })}
                       className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left"
                     >
-                      <FormIcon name={v.icon_name} className={`w-4 h-4 shrink-0 ${vSelected ? 'text-amber-400' : 'text-amber-600'}`} />
+                      <FormIcon name={c.icon_name} className={`w-4 h-4 shrink-0 ${cSelected ? 'text-amber-400' : 'text-amber-600'}`} />
                       <span className="text-xs font-bold truncate">
-                        {vi + 1}. {v.label || 'Variable sin nombre'}
+                        C{ci + 1}. {c.label || 'Componente sin nombre'}
                       </span>
+                      {weightBadge(sectionWeight(c), cSelected)}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => moveVariable(vi, 'up')}
-                      disabled={vi === 0}
-                      className="p-1 opacity-60 hover:opacity-100 disabled:opacity-20"
-                    >
+                    <button type="button" onClick={() => moveComponent(ci, 'up')} disabled={ci === 0} className="p-1 opacity-60 hover:opacity-100 disabled:opacity-20">
                       <ChevronUp className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => moveVariable(vi, 'down')}
-                      disabled={vi === sections.length - 1}
-                      className="p-1 opacity-60 hover:opacity-100 disabled:opacity-20"
-                    >
+                    <button type="button" onClick={() => moveComponent(ci, 'down')} disabled={ci === sections.length - 1} className="p-1 opacity-60 hover:opacity-100 disabled:opacity-20">
                       <ChevronDown className="w-3.5 h-3.5" />
                     </button>
-                    <button type="button" onClick={() => removeVariable(vi)} className="p-1 opacity-60 hover:text-rose-500 hover:opacity-100">
+                    <button type="button" onClick={() => removeComponent(ci)} className="p-1 opacity-60 hover:text-rose-500 hover:opacity-100">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+
                   <div className="border-t border-slate-100 py-1">
-                    {inds.map((ind, ii) => {
-                      const iSelected = safeV === vi && safeI === ii;
+                    {vars.map((v, vi) => {
+                      const inds = getIndicators(v);
+                      const vSelected = safeC === ci && safeV === vi && safeI === null;
                       return (
-                        <div key={ind.id} className={`flex items-center pr-1 ${iSelected ? 'bg-amber-50' : ''}`}>
+                        <div key={v.id}>
+                          <div className={`flex items-center pr-1 ${vSelected ? 'bg-amber-100' : ''}`}>
+                            <button
+                              type="button"
+                              onClick={() => setSel({ c: ci, v: vi, i: null })}
+                              className="flex-1 min-w-0 flex items-center gap-2 pl-5 pr-2 py-1.5 text-left"
+                            >
+                              <FormIcon name={v.icon_name} className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                              <span className={`text-[11px] truncate ${vSelected ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
+                                {ci + 1}.{vi + 1} {v.label || 'Variable sin nombre'}
+                              </span>
+                              {weightBadge(sectionWeight(v))}
+                            </button>
+                            <button type="button" onClick={() => removeVariable(ci, vi)} className="p-1 text-slate-300 hover:text-rose-500">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                          {inds.map((ind, ii) => {
+                            const iSelected = safeC === ci && safeV === vi && safeI === ii;
+                            return (
+                              <div key={ind.id} className={`flex items-center pr-1 ${iSelected ? 'bg-amber-50' : ''}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => setSel({ c: ci, v: vi, i: ii })}
+                                  className="flex-1 min-w-0 flex items-center gap-2 pl-9 pr-2 py-1 text-left"
+                                >
+                                  <FormIcon name={ind.icon_name} className="w-3 h-3 shrink-0 text-slate-400" />
+                                  <span className={`text-[11px] truncate ${iSelected ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
+                                    {ci + 1}.{vi + 1}.{ii + 1} {ind.label || 'Indicador sin nombre'}
+                                  </span>
+                                  {weightBadge(sectionWeight(ind))}
+                                </button>
+                                <button type="button" onClick={() => removeIndicator(ci, vi, ii)} className="p-1 text-slate-300 hover:text-rose-500">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            );
+                          })}
                           <button
                             type="button"
-                            onClick={() => setSel({ v: vi, i: ii })}
-                            className="flex-1 min-w-0 flex items-center gap-2 pl-6 pr-2 py-1.5 text-left"
+                            onClick={() => addIndicator(ci, vi)}
+                            className="w-full pl-9 pr-2 py-1 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-1"
                           >
-                            <FormIcon name={ind.icon_name} className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                            <span className={`text-[11px] truncate ${iSelected ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
-                              {vi + 1}.{ii + 1} {ind.label || 'Indicador sin nombre'}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeIndicator(vi, ii)}
-                            className="p-1 text-slate-300 hover:text-rose-500"
-                          >
-                            <Trash2 className="w-3 h-3" />
+                            <Plus className="w-3 h-3" /> Agregar indicador
                           </button>
                         </div>
                       );
                     })}
                     <button
                       type="button"
-                      onClick={() => addIndicator(vi)}
-                      className="w-full pl-6 pr-2 py-1.5 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-1"
+                      onClick={() => addVariable(ci)}
+                      className="w-full pl-5 pr-2 py-1.5 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-1"
                     >
-                      <Plus className="w-3 h-3" /> Agregar indicador
+                      <Plus className="w-3 h-3" /> Agregar variable
                     </button>
                   </div>
                 </div>
@@ -876,10 +1078,10 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
             })}
             <button
               type="button"
-              onClick={addVariable}
+              onClick={addComponent}
               className="w-full px-3 py-2 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:border-amber-500 hover:text-amber-700 flex items-center justify-center gap-1.5"
             >
-              <Plus className="w-3.5 h-3.5" /> Agregar variable
+              <Plus className="w-3.5 h-3.5" /> Agregar componente
             </button>
           </div>
 
@@ -891,28 +1093,50 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
                 <span>{errorMsg}</span>
               </div>
             )}
-            {variable && safeI === null && (
+
+            {component && safeV === null && (
               <>
-                <h3 className="text-sm font-bold text-slate-900">Variable {safeV + 1}</h3>
-                <SectionMeta kindLabel="Variable" section={variable} onChange={patchVariable} />
+                <h3 className="text-sm font-bold text-slate-900">Componente {safeC + 1}</h3>
+                <SectionMeta kindLabel="Componente" section={component} onChange={patchComponent} />
                 <p className="text-[11px] text-slate-500">
-                  Esta variable tiene {indicators.length} indicador(es). Selecciónelos en el árbol para editar sus preguntas.
+                  Este componente tiene {variables.length} variable(s) y pesa{' '}
+                  <strong className="font-mono">{formatWeight(sectionWeight(component))}</strong> de {TARGET_WEIGHT}. Selecciónelas en el árbol para editarlas.
                 </p>
               </>
             )}
 
-            {variable && indicator && (
+            {component && variable && safeI === null && (
               <>
                 <div className="text-[11px] text-slate-500">
-                  Variable {safeV + 1}: <strong className="text-slate-700">{variable.label || 'sin nombre'}</strong>
+                  Componente {safeC + 1}: <strong className="text-slate-700">{component.label || 'sin nombre'}</strong>
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  Indicador {safeV + 1}.{(safeI ?? 0) + 1}
+                  Variable {safeC + 1}.{(safeV ?? 0) + 1}
+                </h3>
+                <SectionMeta kindLabel="Variable" section={variable} onChange={patchVariable} />
+                <p className="text-[11px] text-slate-500">
+                  Esta variable tiene {indicators.length} indicador(es) y pesa{' '}
+                  <strong className="font-mono">{formatWeight(sectionWeight(variable))}</strong>. Selecciónelos en el árbol para editar sus preguntas.
+                </p>
+              </>
+            )}
+
+            {component && variable && indicator && (
+              <>
+                <div className="text-[11px] text-slate-500">
+                  Componente {safeC + 1}: <strong className="text-slate-700">{component.label || 'sin nombre'}</strong>
+                  {' › '}Variable {safeC + 1}.{(safeV ?? 0) + 1}: <strong className="text-slate-700">{variable.label || 'sin nombre'}</strong>
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Indicador {safeC + 1}.{(safeV ?? 0) + 1}.{(safeI ?? 0) + 1}
                 </h3>
                 <SectionMeta kindLabel="Indicador" section={indicator} onChange={patchIndicator} />
 
                 <div className="pt-2 border-t border-slate-200 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-900">Preguntas del indicador ({questions.length})</h4>
+                  <h4 className="text-xs font-bold text-slate-900">
+                    Preguntas del indicador ({questions.length}) · peso{' '}
+                    <span className="font-mono text-emerald-700">{formatWeight(sectionWeight(indicator))}</span>
+                  </h4>
                   {questions.map((q, qi) => (
                     <QuestionEditor
                       key={q.id}
@@ -922,6 +1146,7 @@ export const FormBuilderModal: React.FC<FormBuilderModalProps> = ({ isOpen, onCl
                       siblings={questions}
                       index={qi}
                       total={questions.length}
+                      sources={kindOf(q) === 'loop' ? sourceCandidates(draftForm, q) : []}
                       onChange={(next) => patchQuestions((qs) => void (qs[qi] = next))}
                       onMove={(dir) => patchQuestions((qs) => void move(qs, qi, dir))}
                       onRemove={() => {

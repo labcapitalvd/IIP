@@ -1,5 +1,7 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Optional, List
+from uuid import UUID
 from annotated_types import Len
 from pydantic import Field
 
@@ -151,6 +153,28 @@ class CreateQuestionRequest(BaseSchema):
         description="Si la pregunta captura tarjetas repetibles (usa card_template.field_groups en bucle)",
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
+    weight: Decimal = Field(
+        default=Decimal("0"),
+        ge=0,
+        le=100,
+        max_digits=5,
+        decimal_places=2,
+        description="Peso de la pregunta en la calificación manual (puntos sobre 100 en todo el "
+        "formulario). Se guarda como criterio de calificación (`grading.criteria`).",
+    )
+    grading_guide: str | None = Field(
+        default=None,
+        max_length=4096,
+        description="Guía para el calificador: qué debe verificar para puntuar esta pregunta.",
+    )
+    source_question_code: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=50,
+        description="Código de otra pregunta bucle del formulario (en cualquier componente) "
+        "de cuyas tarjetas cuelgan las de esta: cada tarjeta de esta pregunta se refiere a una "
+        "tarjeta de la pregunta origen (se muestra su nombre). Requiere `is_loop`.",
+    )
     depends_on: "QuestionDependencyRequest | None" = Field(
         default=None,
         description="Si se envía, la pregunta solo se muestra cuando la pregunta padre "
@@ -210,6 +234,9 @@ class CreateFormRequest(BaseSchema):
     description: str | None = Field(
         default=None, max_length=4096, description="Descripción del formulario"
     )
+    year: int | None = Field(default=None, ge=1900, le=2999, description="Vigencia")
+    version: str | None = Field(default=None, max_length=20, description="Versión")
+    is_active: bool = Field(default=True, description="Si el formulario está activo")
     sections: list["CreateSectionRequest"] = Field(
         ..., min_length=1, description="Secciones del formulario"
     )
@@ -238,6 +265,9 @@ class ResponseFormStatus(UuidSchema):
     label: str
     updated_at: datetime
     has_submissions: bool = Field(..., description="True si ya existen respuestas")
+    edition_closed_at: datetime | None = Field(
+        default=None, description="Fecha de cierre de la edición (la estructura ya no se puede modificar)."
+    )
 
 
 class ResponseFormCreate(UuidSchema):
@@ -248,6 +278,101 @@ class ResponseFormCreate(UuidSchema):
     code: str = Field(..., description="Código del formulario")
     label: str = Field(..., description="Nombre del formulario")
     description: str | None = Field(default=None, description="Descripción del formulario")
+
+
+class ResponseFormSummary(UuidSchema):
+    """Fila de la lista de formularios (GET /forms)."""
+
+    code: str
+    label: str
+    description: str | None = None
+    year: int | None = None
+    version: str | None = None
+    is_active: bool
+    updated_at: datetime
+    has_submissions: bool = Field(..., description="True si ya existen respuestas")
+    edition_closed_at: datetime | None = Field(
+        default=None,
+        description="Fecha en que se terminó la edición de la estructura (habilita las cargas históricas).",
+    )
+
+
+class ResponseFieldChoiceTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    display_order: int
+
+
+class ResponseFieldTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    required: bool
+    field_type_code: str
+    display_order: int
+    allowed_file_type_codes: list[str] = Field(default_factory=list)
+    max_file_size: int | None = None
+    field_choices: list[ResponseFieldChoiceTree] = Field(default_factory=list)
+
+
+class ResponseFieldGroupTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    display_order: int
+    fields: list[ResponseFieldTree] = Field(default_factory=list)
+
+
+class ResponseCardTemplateTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    helper: str | None = None
+    field_groups: list[ResponseFieldGroupTree] = Field(default_factory=list)
+
+
+class ResponseQuestionDependency(BaseSchema):
+    question_id: UUID = Field(..., description="Pregunta Sí/No (misma sección) de la que depende")
+    expected_value: bool
+
+
+class ResponseQuestionTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    helper: str | None = None
+    required: bool
+    is_loop: bool
+    display_order: int
+    weight: float = Field(default=0, description="Suma de los pesos de sus criterios de calificación")
+    grading_guide: str | None = None
+    source_question_id: UUID | None = Field(
+        default=None, description="Pregunta bucle de cuyas tarjetas cuelgan las de esta."
+    )
+    depends_on: ResponseQuestionDependency | None = None
+    card_template: ResponseCardTemplateTree | None = None
+
+
+class ResponseSectionTree(UuidSchema):
+    code: str
+    label: str
+    description: str | None = None
+    helper: str | None = None
+    display_order: int
+    section_type_code: str | None = None
+    icon: str | None = None
+    questions: list[ResponseQuestionTree] = Field(default_factory=list)
+    children: list["ResponseSectionTree"] = Field(default_factory=list)
+
+
+ResponseSectionTree.model_rebuild()
+
+
+class ResponseFormTree(ResponseFormSummary):
+    """Formulario completo (GET /forms/{form_id}), mismo árbol que CreateFormRequest más ids."""
+
+    sections: list[ResponseSectionTree] = Field(default_factory=list)
 
 
 class ResponseForm(UuidSchema):

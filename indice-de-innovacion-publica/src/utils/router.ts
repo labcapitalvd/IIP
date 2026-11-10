@@ -47,7 +47,9 @@ export const ROUTES = {
     users: '/admin/usuarios-entidades',
     assignments: '/admin/asignaciones',
     submissions: '/admin/monitor-radicados',
+    reopen: '/admin/solicitudes-modificacion',
     actors: '/admin/entidades',
+    historical: '/admin/cargas-historicas',
     parameters: '/admin/parametros',
   },
   entity: {

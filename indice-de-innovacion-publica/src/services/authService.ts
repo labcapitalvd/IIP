@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { AuthUser, LoginResponse, MeResponse, RegisterPayload } from '../types';
+import { AuthUser, LoginResponse, MeResponse, RegisterAdminPayload, RegisterPayload } from '../types';
 
 /**
  * Maps the backend's /auth/me response into the shape the UI renders.
@@ -23,7 +23,68 @@ export function mapMeToAuthUser(me: MeResponse): AuthUser {
   };
 }
 
+/** Elemento de GET /public/auth/users (solo admin). */
+export interface UserListItem {
+  id: string;
+  username: string;
+  email: string;
+  is_active: boolean;
+  updated_at?: string;
+  system_roles: string[];
+  actor_id?: string;
+  actor_label?: string;
+  actor_segment_label?: string;
+  contact_person?: string;
+  phone?: string;
+}
+
+export function mapListItemToAuthUser(u: UserListItem): AuthUser {
+  return {
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    role: u.system_roles.includes('admin') ? 'admin' : 'entity',
+    actor_id: u.actor_id,
+    actor_label: u.actor_label,
+    actor_segment_label: u.actor_segment_label,
+    is_active: u.is_active,
+    approval_status: u.is_active ? 'approved' : 'rejected',
+    created_at: u.updated_at,
+    contact_person: u.contact_person,
+    phone: u.phone,
+  };
+}
+
 export const authService = {
+  /** GET /public/auth/users — solo administradores. */
+  async listUsers(): Promise<AuthUser[]> {
+    const { data } = await apiClient.request<UserListItem[]>('auth', '/public/auth/users', {
+      method: 'GET',
+      requiresAuth: true,
+    });
+    return data.map(mapListItemToAuthUser);
+  },
+
+  /** PUT /public/auth/users/{id} — activar/desactivar o editar contacto. */
+  async updateUser(
+    id: string,
+    body: { is_active?: boolean; contact_person?: string; phone?: string }
+  ): Promise<void> {
+    await apiClient.request('auth', `/public/auth/users/${id}`, {
+      method: 'PUT',
+      body,
+      requiresAuth: true,
+    });
+  },
+
+  /** DELETE /public/auth/users/{id}. */
+  async deleteUser(id: string): Promise<void> {
+    await apiClient.request('auth', `/public/auth/users/${id}`, {
+      method: 'DELETE',
+      requiresAuth: true,
+    });
+  },
+
   /**
    * GET /public/auth/me
    */
@@ -61,6 +122,18 @@ export const authService = {
    */
   async register(payload: RegisterPayload): Promise<{ status: string; message: string }> {
     const { data } = await apiClient.request('auth', '/public/auth/register', {
+      method: 'POST',
+      body: payload,
+      isAuthAction: 'register',
+    });
+    return data;
+  },
+
+  /**
+   * POST /public/auth/register-admin
+   */
+  async registerAdmin(payload: RegisterAdminPayload): Promise<{ status: string; message: string }> {
+    const { data } = await apiClient.request('auth', '/public/auth/register-admin', {
       method: 'POST',
       body: payload,
       isAuthAction: 'register',

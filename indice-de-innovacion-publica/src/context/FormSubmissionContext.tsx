@@ -1,4 +1,5 @@
 import { flattenForEntity } from '../utils/formTree';
+import { isQuestionActive, selectedComponents } from '../utils/guidedForm';
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   CardEntryAnswer,
@@ -17,6 +18,8 @@ interface CardEntryItem {
   id: string;
   title: string;
   answers: Record<string, any>;
+  /** Tarjeta (de la pregunta origen) de la que cuelga esta. */
+  parent_id?: string | null;
 }
 
 interface FormSubmissionContextType {
@@ -34,8 +37,10 @@ interface FormSubmissionContextType {
   nextSection: () => void;
   prevSection: () => void;
   setFieldValue: (fieldId: string, value: any) => void;
-  addCardEntry: (questionId: string, templateId: string, initialTitle?: string) => string;
+  addCardEntry: (questionId: string, templateId: string, initialTitle?: string, parentId?: string | null) => string;
   removeCardEntry: (questionId: string, entryId: string) => void;
+  /** Cuántas tarjetas (directas e indirectas) se eliminarían junto con esta. */
+  countDependentCards: (entryId: string) => number;
   setCardEntryFieldValue: (questionId: string, entryId: string, fieldId: string, value: any) => void;
   setCardEntryTitle: (questionId: string, entryId: string, title: string) => void;
   validateCurrentSection: () => boolean;
@@ -44,6 +49,15 @@ interface FormSubmissionContextType {
   submitForm: () => Promise<EntitySubmission>;
   resetFormState: () => void;
   loadSubmissionForReview: (sub: EntitySubmission) => void;
+  /** Componentes elegidos por la entidad (null = aún no eligió: aplican todos). */
+  selectedComponentIds: string[] | null;
+  setSelectedComponentIds: (ids: string[] | null) => void;
+  /** Reemplaza los errores de validación mostrados (clave = field.id, `${card}_${field.id}` o question.id). */
+  setFormErrors: (errors: Record<string, string>) => void;
+  /** Guarda el borrador en el servidor (POST ?as_draft=true) y devuelve el id del radicado en borrador. */
+  saveDraft: () => Promise<string>;
+  isSavingDraft: boolean;
+  lastDraftSavedAt: Date | null;
 }
 
 const FormSubmissionContext = createContext<FormSubmissionContextType | undefined>(undefined);
@@ -58,8 +72,14 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     completeAssignmentSubmission,
   } = useApp();
   const { user } = useAuth();
-  // El portal de entidades aún usa el diseño anterior: Variable → preguntas planas.
-  const activeForm = useMemo(() => flattenForEntity(rawActiveForm), [rawActiveForm]);
+  const [selectedComponentIds, setSelectedComponentIds] = useState<string[] | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<Date | null>(null);
+  // Cada Variable agrupa las preguntas de sus Indicadores; solo cuentan los componentes elegidos.
+  const activeForm = useMemo(
+    () => flattenForEntity({ ...rawActiveForm, sections: selectedComponents(rawActiveForm, selectedComponentIds) }),
+    [rawActiveForm, selectedComponentIds]
+  );
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -83,10 +103,14 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         // start clean
       }
     } else {
+      // Sin borrador local: se parte limpio (no arrastrar respuestas de otro formulario).
+      setAnswers({});
+      setCardEntries({});
       // Seed an initial empty card for repeatable templates if none exists
       activeForm.sections.forEach((sec) => {
         sec.questions?.forEach((q) => {
-          if (q.card_template.is_repeatable) {
+          // Las tarjetas vinculadas a otra pregunta solo existen colgando de una tarjeta origen.
+          if (q.card_template.is_repeatable && !q.source_question_id) {
             setCardEntries((prev) => {
               if (!prev[q.id] || prev[q.id].length === 0) {
                 return {
@@ -183,7 +207,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     });
   }, []);
 
-  const addCardEntry = useCallback((questionId: string, _templateId: string, initialTitle?: string) => {
+  const addCardEntry = useCallback((questionId: string, _templateId: string, initialTitle?: string, parentId?: string | null) => {
     const newId = `card-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setCardEntries((prev) => {
       const current = prev[questionId] || [];
@@ -192,6 +216,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         id: newId,
         title: initialTitle || `Iniciativa de Innovación #${count}`,
         answers: {},
+        parent_id: parentId ?? null,
       };
       return {
         ...prev,
@@ -201,13 +226,37 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     return newId;
   }, []);
 
+  /** Ids de las tarjetas que cuelgan (directa o indirectamente) de `entryId`. */
+  const dependentsOf = (all: Record<string, CardEntryItem[]>, entryId: string): Set<string> => {
+    const found = new Set<string>();
+    let frontier = [entryId];
+    while (frontier.length) {
+      const next: string[] = [];
+      Object.values(all).forEach((list) =>
+        list.forEach((e) => {
+          if (e.parent_id && frontier.includes(e.parent_id) && !found.has(e.id)) {
+            found.add(e.id);
+            next.push(e.id);
+          }
+        })
+      );
+      frontier = next;
+    }
+    return found;
+  };
+
+  const countDependentCards = useCallback((entryId: string) => dependentsOf(cardEntries, entryId).size, [cardEntries]);
+
+  // Al quitar una tarjeta se quitan en cascada las que cuelgan de ella.
   const removeCardEntry = useCallback((questionId: string, entryId: string) => {
     setCardEntries((prev) => {
-      const current = prev[questionId] || [];
-      return {
-        ...prev,
-        [questionId]: current.filter((e) => e.id !== entryId),
-      };
+      const gone = dependentsOf(prev, entryId);
+      gone.add(entryId);
+      const next: Record<string, CardEntryItem[]> = {};
+      (Object.entries(prev) as [string, CardEntryItem[]][]).forEach(([qid, list]) => {
+        next[qid] = list.filter((e) => !gone.has(e.id));
+      });
+      return next;
     });
   }, []);
 
@@ -332,67 +381,59 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
   }, [activeForm, answers, cardEntries]);
 
   /**
-   * Compiles typed submission payload strictly adhering to backend specification:
-   * "boolean" -> { type: "boolean", field_id: "...", value: true }
-   * "text" -> { type: "text", field_id: "...", value: "string" }
-   * "numeric" -> { type: "numeric", field_id: "...", value: 12.5 }
-   * "date" -> { type: "date", field_id: "...", value: "2026-08-20" }
-   * "singlechoice" -> { type: "singlechoice", field_id: "...", value: "choice-id" }
-   * "card_entry" -> { type: "card_entry", field_id, question_id, card_template_id, title, card_index, answers: [...] }
+   * Compiles the typed payload for POST /submissions/forms/{id} (códigos = reference.field_types):
+   * boolean / text / numeric / date -> { type, field_id, value }
+   * single_choice -> { type, field_id, value: "choice-id" }
+   * multi_choice  -> { type, field_id, value: ["choice-id", ...] }
+   * file          -> { type, field_id, value: "file-id" }
+   * card_entry    -> { type, field_id, question_id, card_template_id, title, card_index, answers: [...] }
    */
   const compileSubmissionPayload = useCallback((): SubmissionItem[] => {
+    const toAnswer = (
+      field: { id: string; field_type_code: string },
+      rawVal: unknown
+    ): SubmissionValueAnswer | null => {
+      if (rawVal === undefined || rawVal === null || rawVal === '') return null;
+      if (Array.isArray(rawVal) && rawVal.length === 0) return null;
+      const field_id = field.id;
+      switch (field.field_type_code) {
+        case 'boolean':
+          return { type: 'boolean', field_id, value: Boolean(rawVal) };
+        case 'numeric':
+          return { type: 'numeric', field_id, value: Number(rawVal) };
+        case 'date':
+          return { type: 'date', field_id, value: String(rawVal) };
+        case 'singlechoice':
+        case 'single_choice':
+          return { type: 'single_choice', field_id, value: String(rawVal) };
+        case 'multichoice':
+        case 'multi_choice':
+          return {
+            type: 'multi_choice',
+            field_id,
+            value: (Array.isArray(rawVal) ? rawVal : [rawVal]).map(String),
+          };
+        case 'file':
+          return { type: 'file', field_id, value: String(rawVal) };
+        case 'text':
+        default:
+          return { type: 'text', field_id, value: String(rawVal) };
+      }
+    };
+
     const payload: SubmissionItem[] = [];
 
     activeForm.sections.forEach((sec) => {
       sec.questions?.forEach((q) => {
+        if (!isQuestionActive(q, sec.questions ?? [], answers)) return;
         if (q.card_template.is_repeatable) {
           const entries = cardEntries[q.id] || [];
           entries.forEach((entry, index) => {
             const nestedAnswers: SubmissionValueAnswer[] = [];
-
             q.card_template.field_groups.forEach((fg) => {
               fg.fields.forEach((field) => {
-                const rawVal = entry.answers[field.id];
-                if (rawVal === undefined || rawVal === null || rawVal === '') return;
-
-                switch (field.field_type_code) {
-                  case 'boolean':
-                    nestedAnswers.push({
-                      type: 'boolean',
-                      field_id: field.id,
-                      value: Boolean(rawVal),
-                    });
-                    break;
-                  case 'numeric':
-                    nestedAnswers.push({
-                      type: 'numeric',
-                      field_id: field.id,
-                      value: Number(rawVal),
-                    });
-                    break;
-                  case 'date':
-                    nestedAnswers.push({
-                      type: 'date',
-                      field_id: field.id,
-                      value: String(rawVal),
-                    });
-                    break;
-                  case 'singlechoice':
-                    nestedAnswers.push({
-                      type: 'singlechoice',
-                      field_id: field.id,
-                      value: String(rawVal),
-                    });
-                    break;
-                  case 'text':
-                  default:
-                    nestedAnswers.push({
-                      type: 'text',
-                      field_id: field.id,
-                      value: String(rawVal),
-                    });
-                    break;
-                }
+                const a = toAnswer(field, entry.answers[field.id]);
+                if (a) nestedAnswers.push(a);
               });
             });
 
@@ -403,56 +444,17 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
               card_template_id: q.card_template.id,
               title: entry.title || `Iniciativa #${index + 1}`,
               card_index: index,
+              ref: entry.id,
+              ...(entry.parent_id ? { parent_ref: entry.parent_id } : {}),
               answers: nestedAnswers,
             };
-
             payload.push(cardEntryPayload);
           });
         } else {
-          // Standard question / single card template fields
           q.card_template.field_groups.forEach((fg) => {
             fg.fields.forEach((field) => {
-              const rawVal = answers[field.id];
-              if (rawVal === undefined || rawVal === null || rawVal === '') return;
-
-              switch (field.field_type_code) {
-                case 'boolean':
-                  payload.push({
-                    type: 'boolean',
-                    field_id: field.id,
-                    value: Boolean(rawVal),
-                  });
-                  break;
-                case 'numeric':
-                  payload.push({
-                    type: 'numeric',
-                    field_id: field.id,
-                    value: Number(rawVal),
-                  });
-                  break;
-                case 'date':
-                  payload.push({
-                    type: 'date',
-                    field_id: field.id,
-                    value: String(rawVal),
-                  });
-                  break;
-                case 'singlechoice':
-                  payload.push({
-                    type: 'singlechoice',
-                    field_id: field.id,
-                    value: String(rawVal),
-                  });
-                  break;
-                case 'text':
-                default:
-                  payload.push({
-                    type: 'text',
-                    field_id: field.id,
-                    value: String(rawVal),
-                  });
-                  break;
-              }
+              const a = toAnswer(field, answers[field.id]);
+              if (a) payload.push(a);
             });
           });
         }
@@ -468,23 +470,21 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       const payload = compileSubmissionPayload();
 
       // Dispatch to the core service
-      await coreService.submitForm(activeForm.id, payload);
+      const saved = await coreService.submitForm(activeForm.id, payload);
 
       const targetActor = actors.find((a) => a.id === user?.actor_id) || actors[0];
       const targetSegment = segments.find((s) => s.id === targetActor?.actor_segment_id);
 
       const newSubmission: EntitySubmission = {
-        id: `sub-${Date.now()}`,
+        id: saved.submission_id,
         form_id: activeForm.id,
         form_code: activeForm.code,
         form_title: activeForm.label,
         actor_id: targetActor?.id || 'act-001',
         actor_label: targetActor?.label || user?.actor_label || 'Entidad Pública',
         actor_segment_label: targetSegment?.label || 'Nivel Central',
-        submitted_by: user?.username || 'usuario.entidad',
         submitted_at: new Date().toISOString(),
         status: 'submitted',
-        score: Math.min(100, Math.max(50, Math.round(progress * 0.95 + Math.random() * 5))),
         completion_percentage: 100,
         payload,
         raw_answers: { ...answers },
@@ -492,13 +492,14 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       };
 
       addSubmission(newSubmission);
-      const radNumber = `RAD-IIP-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      // El radicado es el id que asignó el servidor (no se inventa un número local).
+      const radNumber = `RAD-${newSubmission.id.slice(0, 8).toUpperCase()}`;
       completeAssignmentSubmission(
         newSubmission.actor_id,
         activeForm.id,
         newSubmission.id,
         radNumber,
-        newSubmission.score || 85
+        newSubmission.score
       );
 
       setLastSubmittedId(newSubmission.id);
@@ -507,6 +508,17 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       return newSubmission;
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const saveDraft = async (): Promise<string> => {
+    setIsSavingDraft(true);
+    try {
+      const saved = await coreService.submitForm(activeForm.id, compileSubmissionPayload(), true);
+      setLastDraftSavedAt(new Date());
+      return saved.submission_id;
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
@@ -559,6 +571,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         setFieldValue,
         addCardEntry,
         removeCardEntry,
+        countDependentCards,
         setCardEntryFieldValue,
         setCardEntryTitle,
         validateCurrentSection,
@@ -567,6 +580,12 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         submitForm,
         resetFormState,
         loadSubmissionForReview,
+        selectedComponentIds,
+        setSelectedComponentIds,
+        setFormErrors: setErrors,
+        saveDraft,
+        isSavingDraft,
+        lastDraftSavedAt,
       }}
     >
       {children}

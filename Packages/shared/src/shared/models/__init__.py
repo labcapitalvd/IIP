@@ -23,13 +23,14 @@ from .forms import (
     Section,
     SectionType,
 )
-from .grading import Criterion, Grade, Result
+from .grading import Criterion, FormResult, Grade, Result, SectionResult
 from .interactions import Comment, CommentType, Notification, NotificationType
 from .links import (
     MultiChoiceOptionLink,
     ResourceRolePermissionLink,
     SystemRolePermissionLink,
     UserActorLink,
+    SubmissionReopenRequest,
     UserFormAssignment,
     UserSystemRoleLink,
 )
@@ -85,12 +86,15 @@ __all__ = [
     "Criterion",
     "Grade",
     "Result",
+    "FormResult",
+    "SectionResult",
     # Links
     "SystemRolePermissionLink",
     "ResourceRolePermissionLink",
     "UserSystemRoleLink",
     "UserActorLink",
     "UserFormAssignment",
+    "SubmissionReopenRequest",
     "MultiChoiceOptionLink",
     # Reference
     "FieldType",
