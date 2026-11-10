@@ -2,10 +2,14 @@ from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path, Query, status
+from shared.schemas import ResponseMessageSchema
 from shared.utils import AccessContext, get_claims
 
-from application import SubmissionAppService
+from application import ReopenAppService, SubmissionAppService
 from schemas.submissions import (
+    RequestReopen,
+    RequestResolveReopen,
+    ResponseReopenRequest,
     ResponseSubmissionCreated,
     ResponseSubmissionDetail,
     ResponseSubmissionSummary,
@@ -32,6 +36,61 @@ async def list_submissions(
 ):
     claims = get_claims(ctx.access_token)
     return await service.list_submissions(requester_id=UUID(claims["sub"]))
+
+
+def get_reopen_service() -> ReopenAppService:
+    return ReopenAppService()
+
+
+@router.get(
+    "/reopen-requests",
+    response_model=List[ResponseReopenRequest],
+    response_model_exclude_none=True,
+    operation_id="list_reopen_requests",
+    summary="Solicitudes de modificación de formularios enviados (solo admin)",
+)
+async def list_reopen_requests(
+    status_filter: str | None = Query(None, alias="status", pattern="^(pending|approved|rejected)$"),
+    ctx: AccessContext = Depends(),
+    service: ReopenAppService = Depends(get_reopen_service),
+):
+    claims = get_claims(ctx.access_token)
+    return await service.list_all(requester_id=UUID(claims["sub"]), status=status_filter)
+
+
+@router.post(
+    "/reopen-requests/{request_id}/resolution",
+    response_model=ResponseMessageSchema,
+    operation_id="resolve_reopen_request",
+    summary="Aprobar (el envío vuelve a borrador) o rechazar una solicitud (solo admin)",
+)
+async def resolve_reopen_request(
+    data: RequestResolveReopen,
+    request_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: ReopenAppService = Depends(get_reopen_service),
+):
+    claims = get_claims(ctx.access_token)
+    await service.resolve(requester_id=UUID(claims["sub"]), request_id=request_id, data=data)
+    return ResponseMessageSchema(message="ok")
+
+
+@router.post(
+    "/forms/{form_id}/reopen-requests",
+    response_model=ResponseMessageSchema,
+    status_code=status.HTTP_201_CREATED,
+    operation_id="request_reopen",
+    summary="La entidad solicita modificar un formulario ya enviado",
+)
+async def request_reopen(
+    data: RequestReopen,
+    form_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: ReopenAppService = Depends(get_reopen_service),
+):
+    claims = get_claims(ctx.access_token)
+    await service.request(user_id=UUID(claims["sub"]), form_id=form_id, data=data)
+    return ResponseMessageSchema(message="ok")
 
 
 @router.get(

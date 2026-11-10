@@ -5,6 +5,8 @@ import {
   ActorSegment,
   ActorSegmentCreatePayload,
   EntityAssignment,
+  ReopenRequest,
+  ReopenStatus,
   FormAssignment,
   EntitySubmission,
   FileTypeInfo,
@@ -147,6 +149,43 @@ export const coreService = {
       requiresAuth: true,
     });
     return data;
+  },
+
+  /** PUT /public/forms/assignments/{id}/components — la entidad elige los componentes que responderá. */
+  async selectAssignmentComponents(assignmentId: string, componentIds: string[]): Promise<void> {
+    await apiClient.request('core', `/public/forms/assignments/${assignmentId}/components`, {
+      method: 'PUT',
+      body: { component_ids: componentIds },
+      requiresAuth: true,
+    });
+  },
+
+  /** POST /public/submissions/forms/{formId}/reopen-requests — la entidad pide modificar un envío. */
+  async requestReopen(formId: string, reason: string): Promise<void> {
+    await apiClient.request('core', `/public/submissions/forms/${formId}/reopen-requests`, {
+      method: 'POST',
+      body: { reason },
+      requiresAuth: true,
+    });
+  },
+
+  /** GET /public/submissions/reopen-requests — solicitudes de modificación (solo admin). */
+  async listReopenRequests(status?: ReopenStatus): Promise<ReopenRequest[]> {
+    const { data } = await apiClient.request<ReopenRequest[]>(
+      'core',
+      `/public/submissions/reopen-requests${status ? `?status=${status}` : ''}`,
+      { method: 'GET', requiresAuth: true }
+    );
+    return data;
+  },
+
+  /** POST /public/submissions/reopen-requests/{id}/resolution — aprobar (vuelve a borrador) o rechazar. */
+  async resolveReopenRequest(id: string, approve: boolean, note?: string): Promise<void> {
+    await apiClient.request('core', `/public/submissions/reopen-requests/${id}/resolution`, {
+      method: 'POST',
+      body: { approve, note: note || null },
+      requiresAuth: true,
+    });
   },
 
   /** GET /public/forms/assignments — todas las asignaciones con su avance (solo admin). */

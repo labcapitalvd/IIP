@@ -2,7 +2,8 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Index, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.db import Base, column_fk, column_updated_at
@@ -182,6 +183,47 @@ class UserFormAssignment(Base):
     )
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Componentes (secciones raíz del formulario) que la entidad eligió responder.
+    # NULL = aún no ha elegido.
+    selected_component_ids: Mapped[list[UUID] | None] = mapped_column(
+        ARRAY(Uuid), nullable=True
+    )
     assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class SubmissionReopenRequest(Base):
+    """
+    Solicitud de una entidad para modificar un formulario ya enviado.
+
+    Se ancla a (entidad, formulario) y no al radicado: guardar un borrador borra y recrea el
+    radicado, y el historial de solicitudes debe sobrevivir a eso.
+    Estados: pending → approved (el envío vuelve a borrador) | rejected.
+    """
+
+    __tablename__ = TargetTable.REOPEN_REQUESTS.table
+    __table_args__ = (
+        Index("idx_reopen_requests_actor_form", "actor_id", "form_id"),
+        {"schema": TargetTable.REOPEN_REQUESTS.schema},
+    )
+
+    actor_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ACTORS.fq_name}.id", ondelete="CASCADE"
+    )
+    form_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.FORMS.fq_name}.id", ondelete="CASCADE"
+    )
+    requested_by_id: Mapped[UUID | None] = column_fk(
+        target=f"{TargetTable.USERS.fq_name}.id", ondelete="SET NULL", nullable=True
+    )
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    resolved_by_id: Mapped[UUID | None] = column_fk(
+        target=f"{TargetTable.USERS.fq_name}.id", ondelete="SET NULL", nullable=True
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)

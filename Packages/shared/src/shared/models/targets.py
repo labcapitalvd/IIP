@@ -68,6 +68,7 @@ class TargetTable(CoreTargetTable):
 
     # --- Submissions & Grading Schemas ---
     SUBMISSIONS = TableInfo("submissions", "submissions")
+    REOPEN_REQUESTS = TableInfo("reopen_requests", "submissions")
     ASSIGNMENTS = TableInfo("assignments", "grading")
     CRITERIA = TableInfo("criteria", "grading")
     GRADES = TableInfo("grades", "grading")

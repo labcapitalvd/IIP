@@ -68,6 +68,29 @@ export interface EntityAssignment {
   status: 'pending' | 'in_progress' | 'submitted';
   completion_percentage: number;
   submission_id?: string;
+  /** Componentes que la entidad eligió responder (null/ausente = aún no ha elegido). */
+  selected_component_ids?: string[] | null;
+  /** Última solicitud de modificación de la entidad para este formulario ya enviado. */
+  reopen_status?: ReopenStatus | null;
+  reopen_note?: string | null;
+}
+
+export type ReopenStatus = 'pending' | 'approved' | 'rejected';
+
+/** Solicitud de una entidad para modificar un formulario ya enviado (GET /public/submissions/reopen-requests). */
+export interface ReopenRequest {
+  id: string;
+  form_id: string;
+  form_code: string;
+  form_label: string;
+  actor_id: string;
+  actor_label: string;
+  requested_by_name?: string;
+  reason: string;
+  status: ReopenStatus;
+  requested_at: string;
+  resolved_at?: string;
+  resolution_note?: string;
 }
 
 export interface CreateEntityUserPayload {
