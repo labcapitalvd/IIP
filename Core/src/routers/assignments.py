@@ -7,6 +7,7 @@ from shared.utils import AccessContext, get_claims
 from application import AssignmentAppService
 from schemas.assignments import (
     RequestAssignForm,
+    RequestSelectComponents,
     ResponseAssignment,
     ResponseAssignmentAdmin,
 )
@@ -46,6 +47,27 @@ async def list_assignments(
 ):
     claims = get_claims(token=ctx.access_token)
     return await service.list_all(requester_id=UUID(claims["sub"]))
+
+
+@router.put(
+    "/{assignment_id}/components",
+    response_model=ResponseMessageSchema,
+    operation_id="select_assignment_components",
+    summary="La entidad elige los componentes que va a responder",
+)
+async def select_assignment_components(
+    data: RequestSelectComponents,
+    assignment_id: UUID = Path(),
+    ctx: AccessContext = Depends(),
+    service: AssignmentAppService = Depends(get_assignment_service),
+):
+    claims = get_claims(token=ctx.access_token)
+    await service.select_components(
+        user_id=UUID(claims["sub"]),
+        assignment_id=assignment_id,
+        component_ids=data.component_ids,
+    )
+    return ResponseMessageSchema(message="ok")
 
 
 @router.delete(

@@ -30,6 +30,7 @@ from .links import (
     ResourceRolePermissionLink,
     SystemRolePermissionLink,
     UserActorLink,
+    SubmissionReopenRequest,
     UserFormAssignment,
     UserSystemRoleLink,
 )
@@ -93,6 +94,7 @@ __all__ = [
     "UserSystemRoleLink",
     "UserActorLink",
     "UserFormAssignment",
+    "SubmissionReopenRequest",
     "MultiChoiceOptionLink",
     # Reference
     "FieldType",

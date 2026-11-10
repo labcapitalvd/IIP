@@ -1,1 +1,73 @@
+
 @import "tailwindcss";
+
+/* Identidad visual IIP: negro + amarillo institucional. */
+@theme {
+  /* Escala de negros y grises */
+  --color-iip-navy: #171717;
+  --color-iip-navy-700: #262626;
+  --color-iip-navy-100: #e5e5e5;
+
+  /* Amarillo institucional */
+  --color-iip-yellow: #ffc400;
+  --color-iip-yellow-600: #e6b000;
+  --color-iip-yellow-50: #fff7d6;
+
+  /* Estados y superficies */
+  --color-iip-green: #1f9d55;
+  --color-iip-sky: #f0f0f0;
+  --color-iip-bg: #f7f7f7;
+  --color-iip-line: #dedede;
+
+  /* Textos */
+  --color-iip-ink: #171717;
+  --color-iip-muted: #666666;
+}
+
+/* Foco visible y consistente en toda la interfaz del asistente. */
+.iip-focus:focus-visible {
+  outline: 3px solid var(--color-iip-navy-700);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Exportar a PDF (imprimir → Guardar como PDF). */
+@media print {
+  #root {
+    display: none !important;
+  }
+
+  .iip-report-overlay {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .iip-report-panel {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .iip-no-print {
+    display: none !important;
+  }
+
+  .iip-avoid-break {
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

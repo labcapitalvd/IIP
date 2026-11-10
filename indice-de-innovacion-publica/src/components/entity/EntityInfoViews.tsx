@@ -5,9 +5,9 @@ import { coreService } from '../../services/coreService';
 import { Actor } from '../../types';
 
 const Row: React.FC<{ label: string; value?: string | null }> = ({ label, value }) => (
-  <div className="py-3 border-b border-gray-100 last:border-0">
-    <dt className="text-xs font-medium text-gray-500">{label}</dt>
-    <dd className="text-sm text-gray-800 mt-0.5 whitespace-pre-line">{value || '—'}</dd>
+  <div className="py-3 border-b border-iip-line last:border-0">
+    <dt className="text-xs font-medium text-iip-muted">{label}</dt>
+    <dd className="text-sm text-iip-ink mt-0.5 whitespace-pre-line">{value || '—'}</dd>
   </div>
 );
 
@@ -18,10 +18,10 @@ export const EntityAccountView: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-gray-800">Perfil</h2>
-        <p className="text-sm text-gray-500 mt-1">Datos de tu cuenta en la plataforma.</p>
+        <h2 className="text-2xl font-extrabold text-iip-ink">Perfil</h2>
+        <p className="text-sm text-iip-muted mt-1">Datos de tu cuenta en la plataforma.</p>
       </div>
-      <dl className="rounded-2xl border border-gray-200 px-5">
+      <dl className="rounded-2xl border border-iip-line px-5">
         <Row label="Usuario" value={user.username} />
         <Row label="Correo electrónico" value={user.email} />
         <Row label="Nombre" value={user.contact_person} />
@@ -54,15 +54,15 @@ export const EntityAssignedActorView: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-gray-800">Entidad asignada</h2>
-        <p className="text-sm text-gray-500 mt-1">Entidad distrital a la que perteneces.</p>
+        <h2 className="text-2xl font-extrabold text-iip-ink">Entidad asignada</h2>
+        <p className="text-sm text-iip-muted mt-1">Entidad distrital a la que perteneces.</p>
       </div>
 
       {!user?.actor_id ? (
-        <p className="py-10 text-center text-sm text-gray-500">Tu cuenta aún no tiene una entidad asignada.</p>
+        <p className="py-10 text-center text-sm text-iip-muted">Tu cuenta aún no tiene una entidad asignada.</p>
       ) : loading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-gray-500 text-sm">
-          <Loader2 className="w-5 h-5 animate-spin text-blue-600" /> Cargando entidad…
+        <div className="flex items-center justify-center gap-2 py-16 text-iip-muted text-sm">
+          <Loader2 className="w-5 h-5 animate-spin text-iip-navy-700" /> Cargando entidad…
         </div>
       ) : error ? (
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700 flex items-start gap-2.5">
@@ -71,14 +71,14 @@ export const EntityAssignedActorView: React.FC = () => {
         </div>
       ) : (
         actor && (
-          <div className="rounded-2xl border border-gray-200 p-5">
+          <div className="rounded-2xl border border-iip-line p-5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+              <div className="w-12 h-12 bg-iip-navy rounded-2xl flex items-center justify-center">
                 <Building2 className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-800 capitalize">{actor.label}</h3>
-                <span className="text-xs text-gray-500">{actor.actor_segment?.label || 'Sin segmento'}</span>
+                <h3 className="text-base font-bold text-iip-ink capitalize">{actor.label}</h3>
+                <span className="text-xs text-iip-muted">{actor.actor_segment?.label || 'Sin segmento'}</span>
               </div>
             </div>
             <dl>
