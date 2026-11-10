@@ -107,11 +107,11 @@ export const IndicatorForm: React.FC<{ indicator: FormSection }> = ({ indicator 
                       <div key={src.id} className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50/40 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm font-bold text-sky-900">{si + 1}. {src.title || 'Iniciativa sin nombre'} <span className="font-normal text-sky-700">· {linked.length} registro(s)</span></p>
-                          <button type="button" onClick={() => addCardEntry(q.id, q.card_template.id, undefined, src.id)} className="iip-focus flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-900 hover:bg-sky-100">
-                            <Plus className="h-4 w-4" aria-hidden="true" /> Registrar para esta iniciativa
-                          </button>
                         </div>
                         {linked.length > 0 && <ul className="space-y-3">{linked.map((e, i) => renderCard(q, e, i, true, src.title || undefined))}</ul>}
+                        <button type="button" onClick={() => addCardEntry(q.id, q.card_template.id, undefined, src.id)} className="iip-focus flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-900 hover:bg-sky-100">
+                          <Plus className="h-4 w-4" aria-hidden="true" /> Agregar ficha para esta iniciativa
+                        </button>
                       </div>
                     );
                   })
@@ -122,18 +122,16 @@ export const IndicatorForm: React.FC<{ indicator: FormSection }> = ({ indicator 
 
           return (
             <section key={q.id} className="space-y-3" aria-label={q.label}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">{statement}</div>
-                <button type="button" onClick={() => addCardEntry(q.id, q.card_template.id)} className="iip-focus flex items-center gap-1.5 rounded-xl bg-iip-yellow px-3.5 py-2 text-sm font-bold text-iip-ink hover:bg-iip-yellow-600">
-                  <Plus className="h-4 w-4" aria-hidden="true" /> Agregar ficha
-                </button>
-              </div>
+              {statement}
               {loopError(q)}
               {mine.length === 0 ? (
                 <p className="rounded-xl bg-iip-bg p-4 text-sm text-iip-muted">Aún no hay fichas. Use «Agregar ficha» para registrar la primera.</p>
               ) : (
                 <ul className="space-y-3">{mine.map((e, i) => renderCard(q, e, i, mine.length > 1))}</ul>
               )}
+              <button type="button" onClick={() => addCardEntry(q.id, q.card_template.id)} className="iip-focus flex items-center gap-1.5 rounded-xl bg-iip-yellow px-3.5 py-2 text-sm font-bold text-iip-ink hover:bg-iip-yellow-600">
+                <Plus className="h-4 w-4" aria-hidden="true" /> Agregar ficha
+              </button>
             </section>
           );
         }

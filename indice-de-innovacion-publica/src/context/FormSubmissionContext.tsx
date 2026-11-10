@@ -98,7 +98,18 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       try {
         const parsed = JSON.parse(saved);
         setAnswers(parsed.answers || {});
-        setCardEntries(parsed.cardEntries || {});
+        // Borradores antiguos pudieron guardar referencias de ficha repetidas: se regeneran.
+        const seen = new Set<string>();
+        const fixed: Record<string, any[]> = {};
+        Object.entries(parsed.cardEntries || {}).forEach(([qid, list]) => {
+          fixed[qid] = (list as any[]).map((e) => {
+            if (!seen.has(e.id)) { seen.add(e.id); return e; }
+            const id = `card-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+            seen.add(id);
+            return { ...e, id };
+          });
+        });
+        setCardEntries(fixed);
       } catch {
         // start clean
       }
@@ -117,7 +128,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
                   ...prev,
                   [q.id]: [
                     {
-                      id: `card-${Date.now()}-1`,
+                      id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
                       title: 'Proyecto de Innovación #1',
                       answers: {},
                     },
