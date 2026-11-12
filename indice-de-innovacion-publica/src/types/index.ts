@@ -375,6 +375,7 @@ export interface EntityResults {
   has_results: boolean;
   total?: number | null;
   sections: Array<{ section_id: string; score?: number | null }>;
+  questions: Array<{ question_id: string; score?: number | null }>;
   updated_at?: string | null;
 }
 
@@ -420,6 +421,9 @@ export interface FieldTree {
   display_order: number;
   allowed_file_type_codes: string[];
   max_file_size: number | null;
+  unit?: string | null;
+  min_value?: number | null;
+  max_value?: number | null;
   field_choices: FieldChoiceTree[];
 }
 

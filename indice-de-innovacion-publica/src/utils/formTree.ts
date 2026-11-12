@@ -65,6 +65,7 @@ export const newField = (n: number, type: FormField['field_type_code'], label = 
   is_required: true,
   choices: isChoiceType(type) ? [newChoice(1), newChoice(2)] : undefined,
   unit: undefined,
+  min_value: type === 'numeric' ? 0 : undefined,
   allowed_file_types: type === 'file' ? [] : undefined,
   max_file_size: type === 'file' ? DEFAULT_MAX_FILE_SIZE : undefined,
 });
@@ -423,6 +424,11 @@ export const findFormIssue = (form: IIPForm): FormIssue | null => {
               if (!f.allowed_file_types?.length) return at(`${qn}: seleccione al menos un tipo de archivo permitido.`, q.id);
               if (!f.max_file_size || f.max_file_size <= 0) return at(`${qn}: indique el tamaño máximo del archivo.`, q.id);
             }
+            if (f.field_type_code === 'numeric') {
+              if (!f.unit?.trim()) return at(`${qn}: indique la unidad de la pregunta numérica.`, q.id);
+              if (f.max_value != null && f.max_value < (f.min_value ?? 0))
+                return at(`${qn}: el máximo no puede ser menor que el mínimo.`, q.id);
+            }
             if (isChoiceType(f.field_type_code) && (f.choices?.length ?? 0) < 2)
               return at(`${qn}: la selección necesita al menos 2 opciones.`, q.id);
             if (isChoiceType(f.field_type_code) && f.choices!.some((c) => !labelOk(c.label)))
@@ -493,6 +499,9 @@ export const toCreateFormRequest = (form: IIPForm) => {
             display_order: fi,
             allowed_file_type_codes: f.field_type_code === 'file' ? (f.allowed_file_types ?? []) : [],
             max_file_size: f.field_type_code === 'file' ? (f.max_file_size ?? null) : null,
+            unit: f.field_type_code === 'numeric' ? (f.unit?.trim() || null) : null,
+            min_value: f.field_type_code === 'numeric' ? (f.min_value ?? 0) : null,
+            max_value: f.field_type_code === 'numeric' ? (f.max_value ?? null) : null,
             field_choices: (f.choices ?? []).map((c, ci) => ({
               code: c.code,
               label: c.label,
@@ -550,6 +559,9 @@ export const fromFormTree = (tree: FormTree): IIPForm => {
       choices: isChoiceType(type) ? f.field_choices.map((c) => ({ id: c.id, code: c.code, label: c.label })) : undefined,
       allowed_file_types: type === 'file' ? f.allowed_file_type_codes : undefined,
       max_file_size: type === 'file' ? (f.max_file_size ?? DEFAULT_MAX_FILE_SIZE) : undefined,
+      unit: type === 'numeric' ? (f.unit ?? undefined) : undefined,
+      min_value: type === 'numeric' ? (f.min_value ?? 0) : undefined,
+      max_value: type === 'numeric' ? (f.max_value ?? undefined) : undefined,
     };
   };
 

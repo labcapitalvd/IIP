@@ -395,7 +395,7 @@ export const coreService = {
       `/public/forms/${formId}/historical/results/${actorId}`,
       { method: 'GET', requiresAuth: true }
     );
-    return { ...data, sections: data.sections ?? [] };
+    return { ...data, sections: data.sections ?? [], questions: data.questions ?? [] };
   },
 
   /** POST /public/forms/{id}/edition/close — da por terminada la edición (habilita las plantillas). */
