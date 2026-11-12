@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import UUID, uuid4
 
+from shared.enums import RuleTypesEnum
 from shared.utils import getLogger
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +15,7 @@ from shared.models import (
     FieldDependency,
     FieldGroup,
     FieldRule,
+    RuleType,
     FileType,
     Form,
     FormResult,
@@ -42,6 +45,7 @@ from .errors import (
     FormHasSubmissionsError,
     FormNotFoundError,
     InvalidFileFieldError,
+    InvalidNumericFieldError,
     FormStructureConflictError,
     InvalidFieldTypeReferenceError,
     QuestionDependencyError,
@@ -457,6 +461,8 @@ class FormService:
 
         if field_type.code == "file":
             await self._build_file_rules(uow, field, field_data)
+        elif field_type.code == "numeric":
+            await self._build_numeric_rules(uow, field, field_data)
 
         return field
 
@@ -486,6 +492,42 @@ class FormService:
             rule_type = await uow.rule_types.get_by_code(code=rule_code)
             if not rule_type:
                 raise InvalidFileFieldError(f"Rule type '{rule_code}' is not seeded.")
+            field.field_rules.append(
+                FieldRule(rule_type_id=rule_type.id, rule_value=value, error_message=message)
+            )
+
+    async def _build_numeric_rules(
+        self, uow: FormDesignUoW, field: Field, field_data: CreateFieldRequest
+    ) -> None:
+        """Un campo `numeric` guarda su unidad (obligatoria), mínimo (def. 0) y máximo (opcional) como FieldRules."""
+        unit = (field_data.unit or "").strip()
+        if not unit:
+            raise InvalidNumericFieldError(f"Numeric field '{field_data.code}' needs a unit.")
+        min_value = field_data.min_value if field_data.min_value is not None else Decimal(0)
+        max_value = field_data.max_value
+        if max_value is not None and max_value < min_value:
+            raise InvalidNumericFieldError(
+                f"Numeric field '{field_data.code}': max ({max_value}) is lower than min ({min_value})."
+            )
+
+        rules = [
+            ("unit", unit, "Unidad de medida."),
+            ("min_value", format(min_value.normalize(), "f"), "El valor es menor al mínimo permitido."),
+        ]
+        if max_value is not None:
+            rules.append(
+                ("max_value", format(max_value.normalize(), "f"), "El valor supera el máximo permitido.")
+            )
+        for rule_code, value, message in rules:
+            rule_type = await uow.rule_types.get_by_code(code=rule_code)
+            if not rule_type:
+                # Base ya creada sin re-correr el seeder: se registra el tipo de regla del enum.
+                spec = next((t for t in RuleTypesEnum if t.code == rule_code), None)
+                if spec is None:
+                    raise InvalidNumericFieldError(f"Rule type '{rule_code}' is unknown.")
+                rule_type = RuleType(code=spec.code, label=spec.label, description=spec.description)
+                uow.session.add(rule_type)
+                await uow.session.flush()
             field.field_rules.append(
                 FieldRule(rule_type_id=rule_type.id, rule_value=value, error_message=message)
             )

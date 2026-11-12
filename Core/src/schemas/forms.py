@@ -70,6 +70,19 @@ class CreateFieldRequest(BaseSchema):
         gt=0,
         description="Solo para campos `file`: tamaño máximo en bytes (<= máximo de cada tipo)",
     )
+    unit: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Solo para campos `numeric`: unidad de medida (obligatoria)",
+    )
+    min_value: Decimal | None = Field(
+        default=None,
+        description="Solo para campos `numeric`: valor mínimo (por defecto 0)",
+    )
+    max_value: Decimal | None = Field(
+        default=None,
+        description="Solo para campos `numeric`: valor máximo (opcional)",
+    )
     field_choices: list["CreateFieldChoiceRequest"] = Field(
         default_factory=list,
         description="Opciones del campo (solo aplica a tipos de selección)",
@@ -313,6 +326,9 @@ class ResponseFieldTree(UuidSchema):
     display_order: int
     allowed_file_type_codes: list[str] = Field(default_factory=list)
     max_file_size: int | None = None
+    unit: str | None = None
+    min_value: float | None = None
+    max_value: float | None = None
     field_choices: list[ResponseFieldChoiceTree] = Field(default_factory=list)
 
 

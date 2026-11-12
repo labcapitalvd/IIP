@@ -72,6 +72,11 @@ class InvalidFileFieldError(FormError):
     message = "File fields need valid allowed file types and a maximum size within their limits."
 
 
+class InvalidNumericFieldError(FormError):
+    status_code = 422
+    message = "Numeric fields need a unit, and their maximum cannot be lower than their minimum."
+
+
 class InvalidFieldTypeReferenceError(FormError):
     status_code = 422
     message = "Each field needs `field_type_id` or `field_type_code`."

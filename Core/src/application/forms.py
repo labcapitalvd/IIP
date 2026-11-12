@@ -1,5 +1,6 @@
 from domain import FormService
 from infrastructure.uow import FormDesignUoW
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from shared.models import Form, Question, Section
@@ -133,6 +134,13 @@ def _summary(form: Form, has_submissions: bool) -> ResponseFormSummary:
     )
 
 
+def _decimal_or_none(value: str | None) -> float | None:
+    try:
+        return float(Decimal(value)) if value not in (None, "") else None
+    except InvalidOperation:
+        return None
+
+
 def _by_order(items):
     return sorted(items, key=lambda i: i.display_order)
 
@@ -209,6 +217,9 @@ def _section_tree(sections: list[Section]) -> list[ResponseSectionTree]:
             display_order=f.display_order,
             allowed_file_type_codes=[c for c in rules.get("file_types", "").split(",") if c],
             max_file_size=int(max_size) if max_size and max_size.isdigit() else None,
+            unit=rules.get("unit"),
+            min_value=_decimal_or_none(rules.get("min_value")),
+            max_value=_decimal_or_none(rules.get("max_value")),
             field_choices=[
                 ResponseFieldChoiceTree(
                     id=c.id,

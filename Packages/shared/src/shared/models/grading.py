@@ -126,6 +126,9 @@ class FormResult(Base):
     sections: Mapped[List["SectionResult"]] = relationship(
         "SectionResult", back_populates="form_result", cascade="all, delete-orphan"
     )
+    questions: Mapped[List["QuestionResult"]] = relationship(
+        "QuestionResult", back_populates="form_result", cascade="all, delete-orphan"
+    )
 
 
 class SectionResult(Base):
@@ -148,6 +151,28 @@ class SectionResult(Base):
     score: Mapped[Optional[Decimal]] = column_decimal(precision=14, scale=4, nullable=True)
 
     form_result: Mapped["FormResult"] = relationship("FormResult", back_populates="sections")
+
+
+class QuestionResult(Base):
+    """Puntaje de una entidad en una pregunta de un formulario (carga histórica)."""
+
+    __tablename__ = TargetTable.QUESTION_RESULTS.table
+    __table_args__ = (
+        UniqueConstraint(
+            "form_result_id", "question_id", name="uq_question_results_result_question"
+        ),
+        {"schema": TargetTable.QUESTION_RESULTS.schema},
+    )
+
+    form_result_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.FORM_RESULTS.fq_name}.id", ondelete="CASCADE", nullable=False
+    )
+    question_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.QUESTIONS.fq_name}.id", ondelete="CASCADE", nullable=False
+    )
+    score: Mapped[Optional[Decimal]] = column_decimal(precision=14, scale=4, nullable=True)
+
+    form_result: Mapped["FormResult"] = relationship("FormResult", back_populates="questions")
 
 
 class Result(Base):
