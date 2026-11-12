@@ -23,7 +23,7 @@ from .forms import (
     Section,
     SectionType,
 )
-from .grading import Criterion, FormResult, Grade, Result, SectionResult
+from .grading import Criterion, FormResult, Grade, QuestionResult, Result, SectionResult
 from .interactions import Comment, CommentType, Notification, NotificationType
 from .links import (
     MultiChoiceOptionLink,
@@ -87,6 +87,7 @@ __all__ = [
     "Grade",
     "Result",
     "FormResult",
+    "QuestionResult",
     "SectionResult",
     # Links
     "SystemRolePermissionLink",

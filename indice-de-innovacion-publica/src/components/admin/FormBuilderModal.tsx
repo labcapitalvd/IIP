@@ -272,7 +272,7 @@ const FieldTypeExtras: React.FC<{
     return (
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <label className={labelCls}>Unidad</label>
+          <label className={labelCls}>Unidad *</label>
           <input
             className={inputCls}
             value={field.unit ?? ''}
@@ -573,6 +573,7 @@ const QuestionEditor: React.FC<{
                               choices: isChoiceType(t) ? (f.choices?.length ? f.choices : [newChoice(1), newChoice(2)]) : undefined,
                               allowed_file_types: t === 'file' ? (f.allowed_file_types ?? []) : undefined,
                               max_file_size: t === 'file' ? (f.max_file_size ?? DEFAULT_MAX_FILE_SIZE) : undefined,
+                              min_value: t === 'numeric' ? (f.min_value ?? 0) : undefined,
                             });
                           }}
                         >

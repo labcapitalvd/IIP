@@ -75,6 +75,7 @@ class TargetTable(CoreTargetTable):
     RESULTS = TableInfo("results", "grading")
     FORM_RESULTS = TableInfo("form_results", "grading")
     SECTION_RESULTS = TableInfo("section_results", "grading")
+    QUESTION_RESULTS = TableInfo("question_results", "grading")
 
     # --- Answers & Form Links ---
     ANSWERS_CARD_ENTRY = TableInfo("answers_card_entry", "submissions")

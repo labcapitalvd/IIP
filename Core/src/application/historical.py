@@ -4,7 +4,7 @@ formulario con la edición cerrada:
 
 - Plantilla de respuestas: lo que cada entidad contestó en su época (una fila por entidad en la
   hoja «Respuestas» y una hoja por pregunta bucle con una fila por tarjeta).
-- Plantilla de resultados: el puntaje de cada entidad por componente, variable e indicador y el
+- Plantilla de resultados: el puntaje de cada entidad por componente, variable, indicador y pregunta y el
   total. NO se valida contra los pesos del formulario: son valores ya presentados en su época.
 
 La entidad se identifica por su `actor_id` (el de la base de datos). Antes de guardar se puede
@@ -32,6 +32,7 @@ from shared.models import (
     Form,
     FormResult,
     Grade,
+    QuestionResult,
     SectionResult,
     Submission,
     SubmissionStatusType,
@@ -52,6 +53,7 @@ from schemas.historical import (
     ResponseHistoricalForm,
     ResponseHistoricalIssue,
     ResponseHistoricalReport,
+    ResponseQuestionScore,
     ResponseRecord,
     ResponseSectionScore,
 )
@@ -76,7 +78,7 @@ _LISTS_SHEET = "_listas"
 _MAX_NUMERIC = Decimal("99999999999")  # numeric(14,4): 10 enteros
 _YES = {"si", "sí", "s", "yes", "y", "true", "verdadero", "1"}
 _NO = {"no", "n", "false", "falso", "0"}
-_LEVEL = {"C": "Componente", "V": "Variable", "I": "Indicador"}
+_LEVEL = {"C": "Componente", "V": "Variable", "I": "Indicador", "Q": "Pregunta"}
 
 _HEAD_FILL = PatternFill("solid", fgColor="E0E7FF")
 _BOLD = Font(bold=True)
@@ -124,6 +126,9 @@ class Structure:
     nodes: list[Node]
     questions: list[QInfo]
     skipped_files: int
+    # Orden de las columnas de la plantilla de resultados: componente → variable → indicador →
+    # sus preguntas. (clave = id, nivel «C»/«V»/«I» o «Q», código, etiqueta)
+    result_columns: list[tuple[UUID, str, str, str]] = dc_field(default_factory=list)
 
 
 def _build_structure(form: Form, sections: list) -> Structure:
@@ -135,12 +140,14 @@ def _build_structure(form: Form, sections: list) -> Structure:
 
     nodes: list[Node] = []
     questions: list[QInfo] = []
+    columns: list[tuple[UUID, str, str, str]] = []
     skipped = 0
 
     def walk(parent_id) -> None:
         nonlocal skipped
         for s in by_parent.get(parent_id, []):
             nodes.append(Node(s.id, s.code, s.label, s.type.code if s.type else "?"))
+            columns.append((s.id, s.type.code if s.type else "?", s.code, s.label))
             for q in sorted(s.questions, key=lambda q: (q.display_order, q.code)):
                 ct = q.card_template
                 fields: list[QField] = []
@@ -161,6 +168,7 @@ def _build_structure(form: Form, sections: list) -> Structure:
                                     ],
                                 )
                             )
+                columns.append((q.id, "Q", q.code, q.label))
                 questions.append(
                     QInfo(
                         len(questions) + 1,
@@ -177,7 +185,7 @@ def _build_structure(form: Form, sections: list) -> Structure:
             walk(s.id)
 
     walk(None)
-    return Structure(form, nodes, questions, skipped)
+    return Structure(form, nodes, questions, skipped, columns)
 
 
 # ---------------------------------------------------------------------------- utilidades Excel
@@ -458,12 +466,23 @@ class HistoricalAppService:
                     )
                 )
             ).all()
+            q_rows = (
+                await s.execute(
+                    select(QuestionResult.question_id, QuestionResult.score).where(
+                        QuestionResult.form_result_id == fr.id
+                    )
+                )
+            ).all()
             return ResponseEntityResults(
                 has_results=True,
                 total=float(fr.total) if fr.total is not None else None,
                 sections=[
                     ResponseSectionScore(section_id=sid, score=float(sc) if sc is not None else None)
                     for sid, sc in rows
+                ],
+                questions=[
+                    ResponseQuestionScore(question_id=qid, score=float(sc) if sc is not None else None)
+                    for qid, sc in q_rows
                 ],
                 updated_at=fr.updated_at,
             )
@@ -676,9 +695,9 @@ class HistoricalAppService:
         meta.sheet_state = "hidden"
 
         labels, keys = ["actor_id (ID de la entidad)"], ["actor_id"]
-        for n in st.nodes:
-            labels.append(f"{_LEVEL.get(n.level, n.level)} {n.code}\n{n.label}")
-            keys.append(str(n.id))
+        for cid, level, code, label in st.result_columns:
+            labels.append(f"{_LEVEL.get(level, level)} {code}\n{label}")
+            keys.append(str(cid))
         labels.append("TOTAL")
         keys.append("TOTAL")
         _header(ws, labels, keys)
@@ -687,7 +706,8 @@ class HistoricalAppService:
             f"Plantilla de RESULTADOS históricos — formulario {form.code} · {form.label}",
             "",
             "1. Una fila por entidad: en la columna A el actor_id (ID de la entidad en la base de datos).",
-            "2. Escriba el puntaje de la entidad en cada componente, variable e indicador y el TOTAL, tal como se presentó en su época.",
+            "2. Escriba el puntaje de la entidad en cada componente, variable, indicador y pregunta, y el TOTAL, tal como se presentó en su época.",
+            "   Las columnas siguen el orden del formulario: componente, variable, indicador y, a continuación, las preguntas de ese indicador.",
             "3. No se valida contra los pesos del formulario ni se exige que los niveles sumen: se guarda tal cual.",
             "4. Deje en blanco lo que no tenga resultado. Admite decimales con punto o coma.",
             "5. Si la entidad ya tiene resultados para este formulario, la carga los reemplaza por completo.",
@@ -921,6 +941,7 @@ class HistoricalAppService:
 
             issues = _Issues()
             node_ids = {str(n.id) for n in st.nodes}
+            question_ids = {str(q.id) for q in st.questions}
             known = {row[0] for row in (await s.execute(select(Actor.id))).all()}
             labels, keys, rows = _read_table(wb[_RESULTS_SHEET])
             if "actor_id" not in keys:
@@ -943,7 +964,7 @@ class HistoricalAppService:
                 seen_rows[aid] = rownum
                 values: dict[str, Decimal | None] = {}
                 for ci, key in enumerate(keys):
-                    if key == "actor_id" or not key or (key != "TOTAL" and key not in node_ids):
+                    if key == "actor_id" or not key or (key != "TOTAL" and key not in node_ids and key not in question_ids):
                         continue
                     raw = cells[ci] if ci < len(cells) else None
                     if _blank(raw):
@@ -984,7 +1005,14 @@ class HistoricalAppService:
             for aid, values in parsed.items():
                 fr = FormResult(form_id=form.id, actor_id=aid, total=values.get("TOTAL"))
                 fr.sections = [
-                    SectionResult(section_id=UUID(k), score=v) for k, v in values.items() if k != "TOTAL"
+                    SectionResult(section_id=UUID(k), score=v)
+                    for k, v in values.items()
+                    if k in node_ids
+                ]
+                fr.questions = [
+                    QuestionResult(question_id=UUID(k), score=v)
+                    for k, v in values.items()
+                    if k in question_ids
                 ]
                 s.add(fr)
             await s.flush()

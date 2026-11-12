@@ -44,12 +44,18 @@ class ResponseSectionScore(BaseSchema):
     score: float | None = None
 
 
+class ResponseQuestionScore(BaseSchema):
+    question_id: UUID
+    score: float | None = None
+
+
 class ResponseEntityResults(BaseSchema):
     """Resultado estadístico (el que se subió) de una entidad en un formulario."""
 
     has_results: bool
     total: float | None = None
     sections: list[ResponseSectionScore] = Field(default_factory=list)
+    questions: list[ResponseQuestionScore] = Field(default_factory=list)
     updated_at: datetime | None = None
 
 

@@ -55,6 +55,10 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'visual' | 'json'>('visual');
+  // El esquema JSON no se expone para la vigencia 2026.
+  const HIDE_JSON_YEAR = 2026;
+  const showJson = activeForm.year !== HIDE_JSON_YEAR;
+  const currentTab = showJson ? activeTab : 'visual';
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     [activeForm.sections[0]?.id || '']: true,
   });
@@ -337,17 +341,19 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
                     >
                       <CopyIcon className="w-4 h-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownloadJson(form);
-                      }}
-                      className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                      title="Descargar esquema JSON"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
+                    {form.year !== HIDE_JSON_YEAR && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadJson(form);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                        title="Descargar esquema JSON"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    )}
                     {forms.length > 1 && (
                       <button
                         type="button"
@@ -425,7 +431,7 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
           <button
             onClick={() => setActiveTab('visual')}
             className={`py-2.5 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'visual'
+              currentTab === 'visual'
                 ? 'border-amber-500 text-slate-900'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
@@ -433,10 +439,11 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
             <Layers className="w-4 h-4 text-amber-500" />
             <span>Explorador de Variables, Indicadores y Preguntas</span>
           </button>
+          {showJson && (
           <button
             onClick={() => setActiveTab('json')}
             className={`py-2.5 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors ${
-              activeTab === 'json'
+              currentTab === 'json'
                 ? 'border-amber-500 text-slate-900'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
@@ -444,11 +451,12 @@ export const FormsManager: React.FC<FormsManagerProps> = ({ onGoToAssign }) => {
             <Code2 className="w-4 h-4 text-amber-500" />
             <span>Esquema JSON (POST/PUT /forms)</span>
           </button>
+          )}
         </div>
 
         {/* Tab Content */}
         <div className="p-6">
-          {activeTab === 'visual' ? (
+          {currentTab === 'visual' ? (
             <div className="space-y-4">
               <FormTreeView form={activeForm} />
             </div>

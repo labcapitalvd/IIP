@@ -143,6 +143,11 @@ class RuleTypesEnum(Enum):
         "Maximum Numeric Value",
         "Enforces a ceiling for numeric entries.",
     )
+    UNIT = (
+        "unit",
+        "Unit of Measure",
+        "Unit in which a numeric field is expressed (e.g. personas, COP).",
+    )
     FILE_TYPES = (
         "file_types",
         "Allowed File Types",

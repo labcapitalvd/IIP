@@ -83,6 +83,8 @@ export const RecordInspector: React.FC<{ formId: string; actorId: string }> = ({
 
   const { form, record, results, submission } = data;
   const scores = new Map(results.sections.map((s) => [s.section_id, s.score ?? null]));
+  const qScores = new Map((results.questions ?? []).map((q) => [q.question_id, q.score ?? null]));
+  const scoreOfQ = (q: FormQuestion) => (qScores.has(q.id) ? qScores.get(q.id) ?? null : undefined);
   const scoreOf = (s: FormSection) => (scores.has(s.id) ? scores.get(s.id) ?? null : undefined);
 
   return (
@@ -166,7 +168,12 @@ export const RecordInspector: React.FC<{ formId: string; actorId: string }> = ({
                     <div key={v.id}>
                       <ScoreRow depth={1} kind="Variable" section={v} score={scoreOf(v)} />
                       {getIndicators(v).map((i) => (
-                        <ScoreRow key={i.id} depth={2} kind="Indicador" section={i} score={scoreOf(i)} />
+                        <div key={i.id}>
+                          <ScoreRow depth={2} kind="Indicador" section={i} score={scoreOf(i)} />
+                          {(i.questions ?? []).map((q) => (
+                            <ScoreRow key={q.id} depth={3} kind="Pregunta" section={{ label: `${q.code ? q.code + '. ' : ''}${q.label}` }} score={scoreOfQ(q)} />
+                          ))}
+                        </div>
                       ))}
                     </div>
                   ))}
@@ -242,7 +249,7 @@ const Shell: React.FC<{ onBack: () => void; children: React.ReactNode }> = ({ on
 const ScoreRow: React.FC<{
   depth: number;
   kind: string;
-  section: FormSection;
+  section: { label: string };
   score: number | null | undefined;
 }> = ({ depth, kind, section, score }) => (
   <div
