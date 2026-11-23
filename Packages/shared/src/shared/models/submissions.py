@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from sqlalchemy import Index
+from sqlalchemy import Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, relationship
 
 from shared.db import (
@@ -69,6 +69,11 @@ class Answer(Base):
         foreign_keys=[card_entry_id],
         back_populates="child_answers",
         post_update=True,
+    )
+    choice_texts: Mapped[List["AnswerChoiceText"]] = relationship(
+        "AnswerChoiceText",
+        back_populates="answer",
+        cascade="all, delete-orphan",
     )
 
 
@@ -205,6 +210,33 @@ class AnswerText(Answer):
         target=f"{TargetTable.ANSWERS.fq_name}.id", primary_key=True, ondelete="CASCADE"
     )
     value: Mapped[str] = column_long_text()
+
+
+class AnswerChoiceText(Base):
+    """
+    Texto libre ingresado por el usuario para opciones seleccionadas con text_input habilitado
+    (aplica tanto a AnswerSingleChoice como a AnswerMultiChoice vía answers.id).
+    """
+
+    __tablename__ = TargetTable.ANSWERS_CHOICE_TEXTS.table
+    __table_args__ = (
+        UniqueConstraint(
+            "answer_id", "choice_id", name="uq_answers_choice_texts_answer_choice"
+        ),
+        {"schema": TargetTable.ANSWERS_CHOICE_TEXTS.schema},
+    )
+
+    answer_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.ANSWERS.fq_name}.id", ondelete="CASCADE"
+    )
+    choice_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.FIELD_CHOICES.fq_name}.id", ondelete="CASCADE"
+    )
+    text: Mapped[str] = column_long_text()
+    updated_at: Mapped[datetime] = column_updated_at()
+
+    answer: Mapped["Answer"] = relationship("Answer", back_populates="choice_texts")
+    choice: Mapped["FieldChoice"] = relationship("FieldChoice")
 
 
 class Submission(Base):

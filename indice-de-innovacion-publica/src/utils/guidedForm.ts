@@ -1,5 +1,5 @@
 import { FormField, FormQuestion, FormSection, IIPForm } from '../types';
-import { getIndicators, getVariables, kindOf, questionFields } from './formTree';
+import { getIndicators, getVariables, kindOf, questionFields, unpackMultiChoice, unpackSingleChoice } from './formTree';
 
 /**
  * Lógica pura del asistente de diligenciamiento (sin React):
@@ -23,6 +23,28 @@ export interface IndicatorRef {
 
 export const isFilled = (v: unknown): boolean =>
   v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
+
+/**
+ * Como `isFilled`, pero considera incompleta una opción de selección cuya caja de
+ * texto libre sea obligatoria (`text_input.is_required`) y esté vacía.
+ */
+export const isFieldFilled = (f: FormField, v: unknown): boolean => {
+  if (!isFilled(v)) return false;
+  if (f.field_type_code === 'singlechoice') {
+    const { choiceId, otherText } = unpackSingleChoice(v);
+    if (!choiceId) return false;
+    const ch = f.choices?.find((c) => c.id === choiceId || c.code === choiceId);
+    if (ch?.text_input?.is_required && !otherText.trim()) return false;
+  } else if (f.field_type_code === 'multichoice') {
+    const { choiceIds, otherTexts } = unpackMultiChoice(v);
+    if (choiceIds.length === 0) return false;
+    for (const cid of choiceIds) {
+      const ch = f.choices?.find((c) => c.id === cid || c.code === cid);
+      if (ch?.text_input?.is_required && !(otherTexts[cid] ?? '').trim()) return false;
+    }
+  }
+  return true;
+};
 
 /** Componentes que la entidad debe responder (todos si aún no eligió). */
 export const selectedComponents = (form: IIPForm, selectedIds: string[] | null): FormSection[] =>
@@ -76,13 +98,16 @@ export const validateIndicator = (indicator: FormSection, state: AnswerState): R
       if (entries.length < min) errors[q.id] = `Debe registrar al menos ${min} ficha(s).`;
       entries.forEach((entry, i) => {
         visibleFields(q).forEach((f) => {
-          if (f.is_required && !isFilled(entry.answers[f.id]))
+          const val = entry.answers[f.id];
+          if ((f.is_required || isFilled(val)) && !isFieldFilled(f, val))
             errors[`${entry.id}_${f.id}`] = `«${f.label}» es obligatorio en la ficha #${i + 1}.`;
         });
       });
     } else {
       visibleFields(q).forEach((f) => {
-        if (f.is_required && !isFilled(state.answers[f.id])) errors[f.id] = `«${f.label}» es obligatorio.`;
+        const val = state.answers[f.id];
+        if ((f.is_required || isFilled(val)) && !isFieldFilled(f, val))
+          errors[f.id] = `«${f.label}» es obligatorio.`;
       });
     }
   }
@@ -109,7 +134,7 @@ export const indicatorProgress = (indicator: FormSection, state: AnswerState): I
     } else {
       visibleFields(q).forEach((f) => {
         total += 1;
-        if (isFilled(state.answers[f.id])) answered += 1;
+        if (isFieldFilled(f, state.answers[f.id])) answered += 1;
       });
     }
   }

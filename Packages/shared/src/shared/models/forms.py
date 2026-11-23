@@ -145,6 +145,43 @@ class FieldChoice(Base):
         "AnswerSingleChoice", back_populates="choice"
     )
     field: Mapped["Field"] = relationship("Field", back_populates="field_choices")
+    text_input: Mapped[Optional["FieldChoiceTextInput"]] = relationship(
+        "FieldChoiceTextInput",
+        back_populates="choice",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class FieldChoiceTextInput(Base):
+    """
+    Configuración opcional 1:1 para opciones de selección que habilitan un cuadro de texto libre.
+    """
+
+    __tablename__ = TargetTable.FIELD_CHOICE_TEXT_INPUTS.table
+    __table_args__ = (
+        UniqueConstraint(
+            "choice_id", name="uq_field_choice_text_inputs_choice_id"
+        ),
+        {"schema": TargetTable.FIELD_CHOICE_TEXT_INPUTS.schema},
+    )
+
+    choice_id: Mapped[UUID] = column_fk(
+        target=f"{TargetTable.FIELD_CHOICES.fq_name}.id",
+        ondelete="CASCADE",
+        unique=True,
+    )
+
+    is_required: Mapped[bool] = column_bool(
+        default=False, server_default=text("false")
+    )
+    placeholder: Mapped[str | None] = column_short_text(length=255, nullable=True)
+    max_length: Mapped[int | None] = column_integer(nullable=True)
+    updated_at: Mapped[datetime] = column_updated_at()
+
+    choice: Mapped["FieldChoice"] = relationship(
+        "FieldChoice", back_populates="text_input"
+    )
 
 
 class FieldGroup(Base):

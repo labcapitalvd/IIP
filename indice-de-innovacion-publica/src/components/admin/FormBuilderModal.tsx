@@ -157,28 +157,78 @@ const ChoicesEditor: React.FC<{
       <div className="text-[11px] font-semibold text-slate-600">
         Opciones ({field.field_type_code === 'multichoice' ? 'se puede marcar más de una' : 'se elige una'})
       </div>
-      {choices.map((c, idx) => (
-        <div key={c.id} className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400 w-4 text-right">{idx + 1}.</span>
-          <input
-            className={inputCls}
-            value={c.label}
-            placeholder={`Opción ${idx + 1}`}
-            onChange={(e) =>
-              onChange({ choices: choices.map((x) => (x.id === c.id ? { ...x, label: e.target.value } : x)) })
-            }
-          />
-          <button
-            type="button"
-            disabled={choices.length <= 2}
-            onClick={() => onChange({ choices: choices.filter((x) => x.id !== c.id) })}
-            className="p-1.5 text-slate-400 hover:text-rose-600 disabled:opacity-30"
-            title="Quitar opción"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
+      {choices.map((c, idx) => {
+        const updateChoice = (patch: Partial<typeof c>) =>
+          onChange({ choices: choices.map((x) => (x.id === c.id ? { ...x, ...patch } : x)) });
+        const hasText = Boolean(c.text_input);
+        return (
+          <div key={c.id} className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-400 w-4 text-right">{idx + 1}.</span>
+              <input
+                className={inputCls}
+                value={c.label}
+                placeholder={`Opción ${idx + 1}`}
+                onChange={(e) => updateChoice({ label: e.target.value })}
+              />
+              <label
+                className="flex items-center gap-1 text-[11px] text-slate-600 shrink-0 cursor-pointer select-none px-1.5 py-1 rounded-lg hover:bg-slate-100"
+                title="Permite al usuario escribir texto libre al elegir esta opción"
+              >
+                <input
+                  type="checkbox"
+                  checked={hasText}
+                  onChange={(e) =>
+                    updateChoice({
+                      text_input: e.target.checked
+                        ? { is_required: false, placeholder: '¿Cuál?' }
+                        : null,
+                    })
+                  }
+                  className="accent-amber-500"
+                />
+                Añadir texto
+              </label>
+              <button
+                type="button"
+                disabled={choices.length <= 2}
+                onClick={() => onChange({ choices: choices.filter((x) => x.id !== c.id) })}
+                className="p-1.5 text-slate-400 hover:text-rose-600 disabled:opacity-30"
+                title="Quitar opción"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {hasText && c.text_input && (
+              <div className="ml-5.5 p-2 rounded-lg border border-amber-200/80 bg-amber-50/40 flex flex-wrap items-center gap-2">
+                <input
+                  className={`${inputCls} flex-1 min-w-[160px]`}
+                  value={c.text_input.placeholder ?? ''}
+                  placeholder="Placeholder (ej. ¿Cuál?)"
+                  onChange={(e) =>
+                    updateChoice({
+                      text_input: { ...c.text_input!, placeholder: e.target.value },
+                    })
+                  }
+                />
+                <label className="flex items-center gap-1 text-[11px] font-medium text-slate-700 shrink-0 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(c.text_input.is_required)}
+                    onChange={(e) =>
+                      updateChoice({
+                        text_input: { ...c.text_input!, is_required: e.target.checked },
+                      })
+                    }
+                    className="accent-amber-500"
+                  />
+                  Obligatorio
+                </label>
+              </div>
+            )}
+          </div>
+        );
+      })}
       <button
         type="button"
         onClick={() => onChange({ choices: [...choices, newChoice(choices.length + 1)] })}

@@ -1,6 +1,7 @@
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from shared.enums import SubmissionStatusesEnum
 from shared.models import (
@@ -57,7 +58,7 @@ class SubmissionService:
         if not status:
             raise ValueError(f"Submission status '{status_code}' not found in database.")
 
-        await self._validate(uow, form_id, items)
+        await self._validate(uow, form_id, items, as_draft=as_draft)
 
         # Un borrador previo se reemplaza; un envío definitivo no se puede pisar.
         for previous, previous_code in await uow.submissions.list_for_actor_form(
@@ -120,7 +121,11 @@ class SubmissionService:
     # ------------------------------------------------------------------ validation
 
     async def _validate(
-        self, uow: SubmissionUoW, form_id: UUID, items: list[SubmissionItemIn]
+        self,
+        uow: SubmissionUoW,
+        form_id: UUID,
+        items: list[SubmissionItemIn],
+        as_draft: bool = False,
     ) -> None:
         """Todos los ids deben existir y pertenecer al formulario; el tipo debe coincidir."""
         session = uow.session
@@ -185,30 +190,70 @@ class SubmissionService:
                     )
 
         if choice_ids:
-            valid = {
-                (cid, fid)
-                for cid, fid in (
-                    await session.execute(
-                        select(FieldChoice.id, FieldChoice.field_id).where(
-                            FieldChoice.id.in_(choice_ids)
-                        )
-                    )
-                ).all()
-            }
-            valid_by_choice = {cid: fid for cid, fid in valid}
-            for it in flat:
-                chosen = (
-                    [it.value]
-                    if getattr(it, "type", None) == "single_choice"
-                    else it.value
-                    if getattr(it, "type", None) == "multi_choice"
-                    else []
+            loaded_choices = (
+                await session.execute(
+                    select(FieldChoice)
+                    .options(selectinload(FieldChoice.text_input))
+                    .where(FieldChoice.id.in_(choice_ids))
                 )
-                for cid in chosen:
-                    if valid_by_choice.get(cid) != it.field_id:
+            ).scalars().all()
+            choice_map = {c.id: c for c in loaded_choices}
+            for it in flat:
+                item_type = getattr(it, "type", None)
+                if item_type == "single_choice":
+                    choice = choice_map.get(it.value)
+                    if choice is None or choice.field_id != it.field_id:
                         raise SubmissionInvalidError(
-                            f"Choice {cid} is not an option of field {it.field_id}."
+                            f"Choice {it.value} is not an option of field {it.field_id}."
                         )
+                    txt = (it.other_text or "").strip()
+                    if txt and choice.text_input is None:
+                        raise SubmissionInvalidError(
+                            f"Choice {it.value} does not allow free text."
+                        )
+                    if txt and choice.text_input and choice.text_input.max_length is not None:
+                        if len(txt) > choice.text_input.max_length:
+                            raise SubmissionInvalidError(
+                                f"Text for choice {it.value} exceeds max length of {choice.text_input.max_length}."
+                            )
+                    if not as_draft and choice.text_input and choice.text_input.is_required and not txt:
+                        raise SubmissionInvalidError(
+                            f"Choice '{choice.label}' requires specifying text."
+                        )
+                elif item_type == "multi_choice":
+                    chosen_set = set(it.value)
+                    for cid in chosen_set:
+                        choice = choice_map.get(cid)
+                        if choice is None or choice.field_id != it.field_id:
+                            raise SubmissionInvalidError(
+                                f"Choice {cid} is not an option of field {it.field_id}."
+                            )
+                    other_texts = it.other_texts or {}
+                    for cid, raw_txt in other_texts.items():
+                        if cid not in chosen_set:
+                            raise SubmissionInvalidError(
+                                f"Text provided for unselected choice {cid}."
+                            )
+                        txt = (raw_txt or "").strip()
+                        if not txt:
+                            continue
+                        choice = choice_map[cid]
+                        if choice.text_input is None:
+                            raise SubmissionInvalidError(
+                                f"Choice {cid} does not allow free text."
+                            )
+                        if choice.text_input.max_length is not None and len(txt) > choice.text_input.max_length:
+                            raise SubmissionInvalidError(
+                                f"Text for choice {cid} exceeds max length of {choice.text_input.max_length}."
+                            )
+                    if not as_draft:
+                        for cid in chosen_set:
+                            choice = choice_map[cid]
+                            if choice.text_input and choice.text_input.is_required:
+                                if not (other_texts.get(cid) or "").strip():
+                                    raise SubmissionInvalidError(
+                                        f"Choice '{choice.label}' requires specifying text."
+                                    )
 
         if file_ids:
             found = set(

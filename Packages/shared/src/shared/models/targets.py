@@ -60,6 +60,7 @@ class TargetTable(CoreTargetTable):
     FIELD_GROUPS = TableInfo("field_groups", "forms")
     FIELDS = TableInfo("fields", "forms")
     FIELD_CHOICES = TableInfo("field_choices", "forms")
+    FIELD_CHOICE_TEXT_INPUTS = TableInfo("field_choice_text_inputs", "forms")
 
     # --- Rules Schema ---
     SECTION_DEPENDENCIES = TableInfo("section_dependencies", "rules")
@@ -87,4 +88,5 @@ class TargetTable(CoreTargetTable):
     ANSWERS_NUMERIC = TableInfo("answers_numeric", "submissions")
     ANSWERS_SINGLE_CHOICE = TableInfo("answers_single_choice", "submissions")
     ANSWERS_TEXT = TableInfo("answers_texts", "submissions")
+    ANSWERS_CHOICE_TEXTS = TableInfo("answers_choice_texts", "submissions")
     LINK_CHOICE_MULTICHOICE = TableInfo("choice_multichoice_links", "links")
