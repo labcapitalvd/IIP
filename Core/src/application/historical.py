@@ -20,6 +20,7 @@ from typing import Any
 from uuid import UUID
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -75,7 +76,8 @@ _RESPONSES_SHEET = "Respuestas"
 _RESULTS_SHEET = "Resultados"
 _META_SHEET = "_meta"
 _LISTS_SHEET = "_listas"
-_MAX_NUMERIC = Decimal("99999999999")  # numeric(14,4): 10 enteros
+_MAX_ANSWER_NUMERIC = Decimal("99999999999999.9999")  # numeric(18,4): 14 enteros
+_MAX_RESULT_NUMERIC = Decimal("9999999999.9999")  # numeric(14,4): 10 enteros
 _YES = {"si", "sí", "s", "yes", "y", "true", "verdadero", "1"}
 _NO = {"no", "n", "false", "falso", "0"}
 _LEVEL = {"C": "Componente", "V": "Variable", "I": "Indicador", "Q": "Pregunta"}
@@ -92,7 +94,7 @@ class QField:
     id: UUID
     label: str
     type: str
-    choices: list = dc_field(default_factory=list)  # [(id, code, label)]
+    choices: list = dc_field(default_factory=list)  # [(id, code, label, text_input)]
 
 
 @dataclass
@@ -163,7 +165,7 @@ def _build_structure(form: Form, sections: list) -> Structure:
                                     f.label,
                                     f.field_type.code,
                                     [
-                                        (c.id, c.code, c.label)
+                                        (c.id, c.code, c.label, c.text_input)
                                         for c in sorted(f.field_choices, key=lambda c: c.display_order)
                                     ],
                                 )
@@ -197,6 +199,45 @@ def _norm(value: Any) -> str:
 
 def _blank(value: Any) -> bool:
     return value is None or (isinstance(value, str) and not value.strip())
+
+
+def _append_entities_sheet(wb: Workbook, actors) -> None:
+    ent = wb.create_sheet("Entidades")
+    ent.append(["actor_id", "código", "nombre"])
+    for a in actors:
+        ent.append([str(a.id), a.code, a.label])
+    for c in ent[1]:
+        c.font = _BOLD
+    ent.column_dimensions["A"].width = 40
+    ent.column_dimensions["C"].width = 60
+
+
+def _choice_text_key(field_id: UUID, choice_id: UUID) -> str:
+    return f"choice_text:{field_id}:{choice_id}"
+
+
+def _parse_choice_text_key(key: str) -> tuple[str, UUID] | None:
+    if not key.startswith("choice_text:"):
+        return None
+    parts = key.split(":")
+    if len(parts) != 3:
+        return None
+    try:
+        return parts[1], UUID(parts[2])
+    except ValueError:
+        return None
+
+
+def _multi_choice_comment(f: QField) -> Comment | None:
+    if f.type != "multi_choice" or not f.choices:
+        return None
+    lines = ["Opciones válidas (separe varias con «;»):"]
+    for _, _, lab, ti in f.choices:
+        lines.append(f"• {lab}" + (" [texto adicional al lado]" if ti else ""))
+    comment = Comment("\n".join(lines), "IIP")
+    comment.width = 320
+    comment.height = max(80, 22 * len(lines))
+    return comment
 
 
 def _header(ws, labels: list[str], keys: list[str]) -> None:
@@ -270,7 +311,7 @@ def _actor_id(raw: Any) -> UUID | None:
 # ---------------------------------------------------------------------------- conversión de valores
 
 
-def _to_decimal(raw: Any) -> Decimal:
+def _to_decimal(raw: Any, max_abs: Decimal = _MAX_ANSWER_NUMERIC) -> Decimal:
     if isinstance(raw, bool):
         raise InvalidOperation
     if isinstance(raw, (int, float)):
@@ -286,7 +327,7 @@ def _to_decimal(raw: Any) -> Decimal:
         else:
             text = text.replace(",", ".")
         value = Decimal(text)
-    if not value.is_finite() or abs(value) > _MAX_NUMERIC:
+    if not value.is_finite() or abs(value) > max_abs:
         raise InvalidOperation
     return value
 
@@ -331,7 +372,7 @@ def _convert(f: QField, raw: Any):
             return None, "Fecha no válida (use AAAA-MM-DD o DD/MM/AAAA)."
     if t in ("single_choice", "multi_choice"):
         lookup = {}
-        for cid, code, label in f.choices:
+        for cid, code, label, _ in f.choices:
             lookup[_norm(label)] = cid
             lookup.setdefault(_norm(code), cid)
         parts = [str(raw).strip()] if t == "single_choice" else [
@@ -347,7 +388,7 @@ def _convert(f: QField, raw: Any):
     return None, f"Tipo de campo no soportado: {t}."
 
 
-def _answer_item(f: QField, value: Any):
+def _answer_item(f: QField, value: Any, choice_texts: dict[UUID, str] | None = None):
     base = {"field_id": f.id}
     if f.type == "boolean":
         return BooleanAnswerIn(type="boolean", value=value, **base)
@@ -356,9 +397,11 @@ def _answer_item(f: QField, value: Any):
     if f.type == "date":
         return DateAnswerIn(type="date", value=value, **base)
     if f.type == "single_choice":
-        return SingleChoiceAnswerIn(type="single_choice", value=value, **base)
+        other_text = (choice_texts or {}).get(value)
+        return SingleChoiceAnswerIn(type="single_choice", value=value, other_text=other_text, **base)
     if f.type == "multi_choice":
-        return MultiChoiceAnswerIn(type="multi_choice", value=value, **base)
+        other_texts = {cid: txt for cid, txt in (choice_texts or {}).items() if cid in value} or None
+        return MultiChoiceAnswerIn(type="multi_choice", value=value, other_texts=other_texts, **base)
     return TextAnswerIn(type="text", value=value, **base)
 
 
@@ -589,13 +632,18 @@ class HistoricalAppService:
                 list_col += 1
                 letter = get_column_letter(list_col)
                 lists.cell(row=1, column=list_col, value=f.label)
-                for i, (_, _, lab) in enumerate(f.choices, start=2):
+                for i, (_, _, lab, _) in enumerate(f.choices, start=2):
                     lists.cell(row=i, column=list_col, value=lab)
                 dv = DataValidation(
                     type="list",
                     formula1=f"={_LISTS_SHEET}!${letter}$2:${letter}${len(f.choices) + 1}",
                     allow_blank=True,
                 )
+            elif f.type == "multi_choice":
+                comment = _multi_choice_comment(f)
+                if comment:
+                    sheet.cell(row=1, column=col_idx).comment = comment
+                return
             else:
                 return
             dv.error = "Valor fuera de la lista"
@@ -607,14 +655,19 @@ class HistoricalAppService:
             for f in q.fields:
                 extra = f" — {f.label}" if len(q.fields) > 1 else ""
                 hint = {"multi_choice": " (varias opciones separadas por «;»)", "date": " (AAAA-MM-DD)"}.get(f.type, "")
-                labels.append(f"P{q.n} · {q.label}{extra}{hint}\n[{q.indicator_label}]")
+                base_hdr = f"P{q.n} · {q.label}{extra}"
+                labels.append(f"{base_hdr}{hint}\n[{q.indicator_label}]")
                 keys.append(str(f.id))
+                for cid, _, clab, ti in f.choices:
+                    if ti is not None:
+                        labels.append(f"{base_hdr} — Texto «{clab}»\n[{q.indicator_label}]")
+                        keys.append(_choice_text_key(f.id, cid))
         _header(ws, labels, keys)
         col = 2
         for q in simple:
             for f in q.fields:
                 validation(ws, f, col)
-                col += 1
+                col += 1 + sum(1 for _, _, _, ti in f.choices if ti is not None)
 
         # --- una hoja por pregunta bucle
         mapping: list[tuple[str, str]] = []
@@ -628,29 +681,45 @@ class HistoricalAppService:
                 lkeys.append("parent_ref")
             llabels.append("Nombre de la tarjeta *")
             lkeys.append("title")
+            field_cols: list[tuple[QField, int]] = []
             for f in q.fields:
                 hint = {"multi_choice": " (varias separadas por «;»)", "date": " (AAAA-MM-DD)"}.get(f.type, "")
+                field_cols.append((f, len(llabels) + 1))
                 llabels.append(f"{f.label}{hint}")
                 lkeys.append(str(f.id))
+                for cid, _, clab, ti in f.choices:
+                    if ti is not None:
+                        llabels.append(f"{f.label} — Texto «{clab}»")
+                        lkeys.append(_choice_text_key(f.id, cid))
             _header(lws, llabels, lkeys)
-            base = 2 + (1 if src else 0) + 1
-            for i, f in enumerate(q.fields):
-                validation(lws, f, base + i + 1)
+            for f, c_idx in field_cols:
+                validation(lws, f, c_idx)
             mapping.append((q.sheet, f"P{q.n} · {q.label}" + (f"  (cuelga de {src.sheet})" if src else "")))
             meta.append(["sheet", q.sheet, str(q.id)])
 
         for sh in (lists, meta):
             sh.sheet_state = "hidden"
 
-        # --- entidades de referencia
-        ent = wb.create_sheet("Entidades")
-        ent.append(["actor_id", "código", "nombre"])
-        for a in actors:
-            ent.append([str(a.id), a.code, a.label])
-        for c in ent[1]:
+        # --- catálogo de opciones (referencia para multi_choice y single_choice)
+        opts = wb.create_sheet("Opciones")
+        opts.append(["hoja", "pregunta", "campo", "tipo", "opción válida", "texto adicional"])
+        for c in opts[1]:
             c.font = _BOLD
-        ent.column_dimensions["A"].width = 40
-        ent.column_dimensions["C"].width = 60
+            c.fill = _HEAD_FILL
+        for q in st.questions:
+            sheet_name = q.sheet if q.is_loop else _RESPONSES_SHEET
+            for f in q.fields:
+                if f.type not in ("single_choice", "multi_choice") or not f.choices:
+                    continue
+                tlabel = "Selección única" if f.type == "single_choice" else "Selección múltiple (separar con «;»)"
+                for _, _, clab, ti in f.choices:
+                    extra_txt = "Obligatorio (al lado)" if (ti and ti.is_required) else ("Opcional (al lado)" if ti else "")
+                    opts.append([sheet_name, f"P{q.n} · {q.label}", f.label, tlabel, clab, extra_txt])
+        for ci, w in enumerate((14, 42, 32, 32, 38, 22), start=1):
+            opts.column_dimensions[get_column_letter(ci)].width = w
+
+        # --- entidades de referencia
+        _append_entities_sheet(wb, actors)
 
         # --- instrucciones
         lines = [
@@ -684,6 +753,7 @@ class HistoricalAppService:
             await self._admin(s, requester_id)
             form = await self._form(s, form_id)
             st = await self._structure(s, form)
+            actors = (await s.execute(select(Actor.id, Actor.code, Actor.label).order_by(Actor.label))).all()
 
         wb = Workbook()
         info = wb.active
@@ -701,6 +771,7 @@ class HistoricalAppService:
         labels.append("TOTAL")
         keys.append("TOTAL")
         _header(ws, labels, keys)
+        _append_entities_sheet(wb, actors)
 
         for ln in [
             f"Plantilla de RESULTADOS históricos — formulario {form.code} · {form.label}",
@@ -765,6 +836,73 @@ class HistoricalAppService:
                 first_seen.setdefault(aid, (sheet, row))
                 return aid
 
+            def extract_row_answers(sheet_name: str, rownum: int, row_keys: list[str], cells: list[Any], scope_q_id: UUID | None = None) -> list:
+                row_choice_texts: dict[str, list[tuple[UUID, int, str]]] = {}
+                for ci, key in enumerate(row_keys):
+                    parsed_ct = _parse_choice_text_key(key)
+                    if not parsed_ct:
+                        continue
+                    fid_str, cid = parsed_ct
+                    raw_txt = cells[ci] if ci < len(cells) else None
+                    if not _blank(raw_txt):
+                        row_choice_texts.setdefault(fid_str, []).append((cid, ci, str(raw_txt).strip()))
+
+                row_items = []
+                seen_fields: set[str] = set()
+                for ci, key in enumerate(row_keys):
+                    raw = cells[ci] if ci < len(cells) else None
+                    hit = field_of.get(key)
+                    if hit is None:
+                        continue
+                    if scope_q_id is not None and hit[0].id != scope_q_id:
+                        continue
+                    seen_fields.add(key)
+                    if _blank(raw):
+                        for cid, tcol, _ in row_choice_texts.get(key, []):
+                            issues.error(
+                                sheet_name,
+                                rownum,
+                                get_column_letter(tcol + 1),
+                                "Escribió texto adicional pero no seleccionó la opción correspondiente.",
+                            )
+                        continue
+                    value, err = _convert(hit[1], raw)
+                    if err:
+                        issues.error(sheet_name, rownum, get_column_letter(ci + 1), err)
+                        continue
+                    chosen_ids = {value} if hit[1].type == "single_choice" else (set(value) if hit[1].type == "multi_choice" else set())
+                    ti_by_cid = {c_id: ti for c_id, _, _, ti in hit[1].choices if ti is not None}
+                    valid_texts: dict[UUID, str] = {}
+                    for cid, tcol, txt in row_choice_texts.get(key, []):
+                        if cid not in chosen_ids:
+                            issues.error(
+                                sheet_name,
+                                rownum,
+                                get_column_letter(tcol + 1),
+                                "Escribió texto adicional para una opción que no fue seleccionada.",
+                            )
+                            continue
+                        ti = ti_by_cid.get(cid)
+                        if ti is None:
+                            issues.error(
+                                sheet_name,
+                                rownum,
+                                get_column_letter(tcol + 1),
+                                "Esta opción no admite texto adicional.",
+                            )
+                            continue
+                        if ti.max_length is not None and len(txt) > ti.max_length:
+                            issues.error(
+                                sheet_name,
+                                rownum,
+                                get_column_letter(tcol + 1),
+                                f"El texto adicional supera el máximo de {ti.max_length} caracteres.",
+                            )
+                            continue
+                        valid_texts[cid] = txt
+                    row_items.append(_answer_item(hit[1], value, valid_texts or None))
+                return row_items
+
             # --- hoja Respuestas
             if _RESPONSES_SHEET not in wb.sheetnames:
                 raise HistoricalFileError(f"Falta la hoja «{_RESPONSES_SHEET}».")
@@ -782,19 +920,9 @@ class HistoricalAppService:
                     continue
                 seen_rows[aid] = rownum
                 items = items_by_actor.setdefault(aid, [])
-                for ci in range(1, len(keys)):
-                    raw = cells[ci] if ci < len(cells) else None
-                    hit = field_of.get(keys[ci])
-                    if hit is None:
-                        continue
-                    if _blank(raw):
-                        continue
-                    value, err = _convert(hit[1], raw)
-                    if err:
-                        issues.error(_RESPONSES_SHEET, rownum, get_column_letter(ci + 1), err)
-                        continue
-                    items.append(_answer_item(hit[1], value))
-                    counters["answers"] += 1
+                built = extract_row_answers(_RESPONSES_SHEET, rownum, keys, cells)
+                items.extend(built)
+                counters["answers"] += len(built)
 
             # --- hojas de bucles
             refs: dict[tuple[UUID, str], str] = {}  # (actor, "P8:ref") -> ref único
@@ -836,17 +964,7 @@ class HistoricalAppService:
                             continue
                         parent = f"{src.sheet}:{str(p_raw).strip()}"
                         pending_links.append((aid, parent, rownum, q, sheet))
-                    answers = []
-                    for ci, key in enumerate(keys):
-                        hit = field_of.get(key)
-                        raw = cells[ci] if ci < len(cells) else None
-                        if hit is None or hit[0].id != q.id or _blank(raw):
-                            continue
-                        value, err = _convert(hit[1], raw)
-                        if err:
-                            issues.error(sheet, rownum, get_column_letter(ci + 1), err)
-                            continue
-                        answers.append(_answer_item(hit[1], value))
+                    answers = extract_row_answers(sheet, rownum, keys, cells, scope_q_id=q.id)
                     own = f"{sheet}:{ref}"
                     refs[(aid, own)] = own
                     cards.setdefault(aid, []).append(
@@ -970,7 +1088,7 @@ class HistoricalAppService:
                     if _blank(raw):
                         continue
                     try:
-                        values[key] = _to_decimal(raw)
+                        values[key] = _to_decimal(raw, max_abs=_MAX_RESULT_NUMERIC)
                     except (InvalidOperation, ValueError):
                         issues.error(_RESULTS_SHEET, rownum, get_column_letter(ci + 1), "Número no válido o fuera de rango.")
                 parsed[aid] = values
