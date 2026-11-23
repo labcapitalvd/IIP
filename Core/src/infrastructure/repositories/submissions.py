@@ -4,6 +4,7 @@ from shared.db import BaseRepository
 from shared.models import (
     Answer,
     AnswerCardEntry,
+    AnswerChoiceText,
     Submission,
     SubmissionStatusType,
 )
@@ -16,6 +17,26 @@ class AnswerRepository(BaseRepository[Answer]):
         stmt = select(Answer).where(Answer.id == id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_choice_texts(
+        self, answer_ids: list[UUID]
+    ) -> dict[UUID, dict[UUID, str]]:
+        """Devuelve {answer_id: {choice_id: text}} para respuestas de selección."""
+        if not answer_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(
+                    AnswerChoiceText.answer_id,
+                    AnswerChoiceText.choice_id,
+                    AnswerChoiceText.text,
+                ).where(AnswerChoiceText.answer_id.in_(answer_ids))
+            )
+        ).all()
+        out: dict[UUID, dict[UUID, str]] = {}
+        for aid, cid, txt in rows:
+            out.setdefault(aid, {})[cid] = txt
+        return out
 
 
 class SubmissionRepository(BaseRepository[Submission]):

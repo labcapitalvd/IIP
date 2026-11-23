@@ -12,6 +12,7 @@ from domain.services.errors import (
     SubmissionHasGradesError,
     SubmissionNotFoundError,
 )
+from infrastructure.repositories import AnswerRepository
 from infrastructure.uow import SubmissionUoW
 from schemas.submissions import (
     ResponseAnswerOut,
@@ -281,10 +282,21 @@ class SubmissionAppService:
                 else {}
             )
 
+            choice_answer_ids = [
+                a.id
+                for a in answers
+                if isinstance(a, (AnswerSingleChoice, AnswerMultiChoice))
+            ]
+            choice_texts = await AnswerRepository(session).list_choice_texts(
+                choice_answer_ids
+            )
+
             def convert(a: Answer) -> ResponseAnswerOut:
                 code, label, qid, qlabel = fields[a.field_id]
                 value: Any
                 display: str
+                other_text: str | None = None
+                other_texts: dict[UUID, str] | None = None
                 if isinstance(a, AnswerBoolean):
                     value, display = a.value, "Sí" if a.value else "No"
                 elif isinstance(a, AnswerNumeric):
@@ -294,10 +306,19 @@ class SubmissionAppService:
                     value = a.value.isoformat() if isinstance(a.value, date) else a.value
                     display = str(value or "")
                 elif isinstance(a, AnswerSingleChoice):
-                    value, display = a.value_id, choices.get(a.value_id, "")
+                    value = a.value_id
+                    base_label = choices.get(a.value_id, "")
+                    other_text = choice_texts.get(a.id, {}).get(a.value_id)
+                    display = f"{base_label}: {other_text}" if other_text else base_label
                 elif isinstance(a, AnswerMultiChoice):
                     ids = multi.get(a.id, [])
-                    value, display = ids, ", ".join(choices.get(i, "") for i in ids)
+                    txts = choice_texts.get(a.id, {})
+                    other_texts = txts or None
+                    value = ids
+                    display = ", ".join(
+                        f"{choices.get(i, '')}: {txts[i]}" if i in txts else choices.get(i, "")
+                        for i in ids
+                    )
                 elif isinstance(a, AnswerFile):
                     value, display = a.value_id, files.get(a.value_id, "") if a.value_id else ""
                 elif isinstance(a, AnswerText):
@@ -313,6 +334,8 @@ class SubmissionAppService:
                     type=a.discriminator,
                     value=value,
                     display=display,
+                    other_text=other_text,
+                    other_texts=other_texts,
                 )
 
             top = [

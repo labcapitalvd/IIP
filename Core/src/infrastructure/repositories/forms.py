@@ -81,7 +81,7 @@ class FormRepository(BaseRepository[Form]):
                 selectinload(Section.type),
                 selectinload(Section.questions).selectinload(Question.criteria),
                 fields.selectinload(Field.field_type),
-                fields.selectinload(Field.field_choices),
+                fields.selectinload(Field.field_choices).selectinload(FieldChoice.text_input),
                 fields.selectinload(Field.field_rules).selectinload(FieldRule.rule),
                 fields.selectinload(Field.dependencies_triggered_by_others),
             )

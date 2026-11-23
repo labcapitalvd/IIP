@@ -507,6 +507,13 @@ export const toCreateFormRequest = (form: IIPForm) => {
               label: c.label,
               description: null,
               display_order: ci,
+              text_input: c.text_input
+                ? {
+                    is_required: Boolean(c.text_input.is_required),
+                    placeholder: c.text_input.placeholder?.trim() || null,
+                    max_length: c.text_input.max_length ?? null,
+                  }
+                : null,
             })),
           })),
         })),
@@ -556,7 +563,14 @@ export const fromFormTree = (tree: FormTree): IIPForm => {
       field_type_code: type,
       is_required: f.required,
       help_text: f.description ?? undefined,
-      choices: isChoiceType(type) ? f.field_choices.map((c) => ({ id: c.id, code: c.code, label: c.label })) : undefined,
+      choices: isChoiceType(type)
+        ? f.field_choices.map((c: any) => ({
+            id: c.id,
+            code: c.code,
+            label: c.label,
+            text_input: c.text_input ?? undefined,
+          }))
+        : undefined,
       allowed_file_types: type === 'file' ? f.allowed_file_type_codes : undefined,
       max_file_size: type === 'file' ? (f.max_file_size ?? DEFAULT_MAX_FILE_SIZE) : undefined,
       unit: type === 'numeric' ? (f.unit ?? undefined) : undefined,
@@ -615,6 +629,32 @@ export const fromFormTree = (tree: FormTree): IIPForm => {
     is_synced_to_backend: true,
     updated_at: tree.updated_at,
   });
+};
+
+export const unpackSingleChoice = (v: unknown): { choiceId: string; otherText: string } => {
+  if (v && typeof v === 'object' && !Array.isArray(v) && 'choice_id' in v) {
+    const obj = v as { choice_id?: unknown; other_text?: unknown };
+    return {
+      choiceId: obj.choice_id ? String(obj.choice_id) : '',
+      otherText: typeof obj.other_text === 'string' ? obj.other_text : '',
+    };
+  }
+  return { choiceId: v === undefined || v === null ? '' : String(v), otherText: '' };
+};
+
+export const unpackMultiChoice = (v: unknown): { choiceIds: string[]; otherTexts: Record<string, string> } => {
+  if (v && typeof v === 'object' && !Array.isArray(v) && 'choice_ids' in v) {
+    const obj = v as { choice_ids?: unknown; other_texts?: unknown };
+    const ids = Array.isArray(obj.choice_ids) ? obj.choice_ids.map(String) : [];
+    const texts =
+      obj.other_texts && typeof obj.other_texts === 'object'
+        ? (obj.other_texts as Record<string, string>)
+        : {};
+    return { choiceIds: ids, otherTexts: texts };
+  }
+  if (Array.isArray(v)) return { choiceIds: v.map(String), otherTexts: {} };
+  if (v === undefined || v === null || v === '') return { choiceIds: [], otherTexts: {} };
+  return { choiceIds: [String(v)], otherTexts: {} };
 };
 
 /**

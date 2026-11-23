@@ -1,4 +1,4 @@
-import { flattenForEntity } from '../utils/formTree';
+import { flattenForEntity, unpackMultiChoice, unpackSingleChoice } from '../utils/formTree';
 import { isQuestionActive, selectedComponents } from '../utils/guidedForm';
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
@@ -59,6 +59,26 @@ interface FormSubmissionContextType {
   isSavingDraft: boolean;
   lastDraftSavedAt: Date | null;
 }
+
+const validateChoiceTextRequired = (f: FormField, rawVal: unknown): string | null => {
+  if (f.field_type_code === 'singlechoice') {
+    const { choiceId, otherText } = unpackSingleChoice(rawVal);
+    if (!choiceId) return null;
+    const ch = f.choices?.find((c) => c.id === choiceId || c.code === choiceId);
+    if (ch?.text_input?.is_required && !otherText.trim()) {
+      return `Debe especificar el texto para "${ch.label}".`;
+    }
+  } else if (f.field_type_code === 'multichoice') {
+    const { choiceIds, otherTexts } = unpackMultiChoice(rawVal);
+    for (const cid of choiceIds) {
+      const ch = f.choices?.find((c) => c.id === cid || c.code === cid);
+      if (ch?.text_input?.is_required && !(otherTexts[cid] ?? '').trim()) {
+        return `Debe especificar el texto para "${ch.label}".`;
+      }
+    }
+  }
+  return null;
+};
 
 const FormSubmissionContext = createContext<FormSubmissionContextType | undefined>(undefined);
 
@@ -329,6 +349,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
                   newErrors[`${entry.id}_${f.id}`] = `El campo "${f.label}" en la iniciativa #${idx + 1} es obligatorio.`;
                 }
               }
+              const choiceErr = validateChoiceTextRequired(f, entry.answers[f.id]);
+              if (choiceErr) newErrors[`${entry.id}_${f.id}`] = choiceErr;
             });
           });
         });
@@ -341,6 +363,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
                 newErrors[f.id] = `El campo "${f.label}" es obligatorio.`;
               }
             }
+            const choiceErr = validateChoiceTextRequired(f, answers[f.id]);
+            if (choiceErr) newErrors[f.id] = choiceErr;
           });
         });
       }
@@ -369,6 +393,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
                     newErrors[`${entry.id}_${f.id}`] = `Iniciativa #${idx + 1}: ${f.label} es obligatorio.`;
                   }
                 }
+                const choiceErr = validateChoiceTextRequired(f, entry.answers[f.id]);
+                if (choiceErr) newErrors[`${entry.id}_${f.id}`] = `Iniciativa #${idx + 1}: ${choiceErr}`;
               });
             });
           });
@@ -381,6 +407,8 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
                   newErrors[f.id] = `${f.label} es obligatorio.`;
                 }
               }
+              const choiceErr = validateChoiceTextRequired(f, answers[f.id]);
+              if (choiceErr) newErrors[f.id] = choiceErr;
             });
           });
         }
@@ -415,15 +443,32 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         case 'date':
           return { type: 'date', field_id, value: String(rawVal) };
         case 'singlechoice':
-        case 'single_choice':
-          return { type: 'single_choice', field_id, value: String(rawVal) };
+        case 'single_choice': {
+          const { choiceId, otherText } = unpackSingleChoice(rawVal);
+          if (!choiceId) return null;
+          return {
+            type: 'single_choice',
+            field_id,
+            value: choiceId,
+            ...(otherText.trim() ? { other_text: otherText.trim() } : {}),
+          };
+        }
         case 'multichoice':
-        case 'multi_choice':
+        case 'multi_choice': {
+          const { choiceIds, otherTexts } = unpackMultiChoice(rawVal);
+          if (choiceIds.length === 0) return null;
+          const cleanedTexts: Record<string, string> = {};
+          choiceIds.forEach((cid) => {
+            const t = (otherTexts[cid] ?? '').trim();
+            if (t) cleanedTexts[cid] = t;
+          });
           return {
             type: 'multi_choice',
             field_id,
-            value: (Array.isArray(rawVal) ? rawVal : [rawVal]).map(String),
+            value: choiceIds,
+            ...(Object.keys(cleanedTexts).length > 0 ? { other_texts: cleanedTexts } : {}),
           };
+        }
         case 'file':
           return { type: 'file', field_id, value: String(rawVal) };
         case 'text':

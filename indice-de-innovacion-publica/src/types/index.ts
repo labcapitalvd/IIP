@@ -203,11 +203,18 @@ export interface ActorSegmentCreatePayload {
 // Form Hierarchy Types (as defined in Core Service POST /forms)
 export type FieldTypeCode = 'boolean' | 'text' | 'numeric' | 'date' | 'singlechoice' | 'single_choice' | 'multichoice' | 'multi_choice' | 'file';
 
+export interface ChoiceTextInputConfig {
+  is_required: boolean;
+  placeholder?: string | null;
+  max_length?: number | null;
+}
+
 export interface FieldChoice {
   id: string;
   code: string;
   label: string;
   score_weight?: number;
+  text_input?: ChoiceTextInputConfig | null;
 }
 
 export interface FormField {
@@ -502,12 +509,14 @@ export interface SingleChoiceAnswer {
   type: 'single_choice';
   field_id: string;
   value: string; // UUID of chosen field_choice
+  other_text?: string | null;
 }
 
 export interface MultiChoiceAnswer {
   type: 'multi_choice';
   field_id: string;
   value: string[]; // UUIDs of the checked field_choices
+  other_texts?: Record<string, string> | null;
 }
 
 export interface FileAnswer {

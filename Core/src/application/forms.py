@@ -6,6 +6,7 @@ from uuid import UUID
 from shared.models import Form, Question, Section
 
 from schemas.forms import (
+    ChoiceTextInputSchema,
     CreateFormRequest,
     ResponseCardTemplateTree,
     ResponseFieldChoiceTree,
@@ -227,6 +228,15 @@ def _section_tree(sections: list[Section]) -> list[ResponseSectionTree]:
                     label=c.label,
                     description=c.description,
                     display_order=c.display_order,
+                    text_input=(
+                        ChoiceTextInputSchema(
+                            is_required=c.text_input.is_required,
+                            placeholder=c.text_input.placeholder,
+                            max_length=c.text_input.max_length,
+                        )
+                        if c.text_input
+                        else None
+                    ),
                 )
                 for c in _by_order(f.field_choices)
             ],

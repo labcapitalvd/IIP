@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
 import { FormField } from '../../../types';
+import { unpackMultiChoice, unpackSingleChoice } from '../../../utils/formTree';
 
 interface FieldInputProps {
   field: FormField;
@@ -71,28 +72,81 @@ export const FieldInput: React.FC<FieldInputProps> = ({ field, value, onChange, 
       </div>
     );
   } else if (type === 'singlechoice') {
+    const { choiceId, otherText } = unpackSingleChoice(value);
     control = (
       <div role="radiogroup" aria-label={field.label} className="space-y-2" {...a11y}>
-        {(field.choices ?? []).map((c) => (
-          <Option key={c.id} type="radio" name={domId} checked={value === c.id || value === c.code} label={c.label} onChange={() => onChange(c.id)} />
-        ))}
+        {(field.choices ?? []).map((c) => {
+          const checked = choiceId === c.id || choiceId === c.code;
+          return (
+            <div key={c.id} className="space-y-1.5">
+              <Option
+                type="radio"
+                name={domId}
+                checked={checked}
+                label={c.label}
+                onChange={() =>
+                  onChange(c.text_input ? { choice_id: c.id, other_text: checked ? otherText : '' } : c.id)
+                }
+              />
+              {checked && c.text_input && (
+                <div className="pl-7">
+                  <input
+                    type="text"
+                    value={otherText}
+                    maxLength={c.text_input.max_length ?? undefined}
+                    placeholder={c.text_input.placeholder || 'Especifique…'}
+                    onChange={(e) => onChange({ choice_id: c.id, other_text: e.target.value })}
+                    className={`${inputBase} ${borderCls}`}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   } else if (type === 'multichoice') {
-    const selected: string[] = Array.isArray(value) ? value : [];
+    const { choiceIds: selected, otherTexts } = unpackMultiChoice(value);
+    const emitMulti = (nextIds: string[], nextTexts: Record<string, string>) => {
+      if (nextIds.length === 0) {
+        onChange([]);
+        return;
+      }
+      const cleaned: Record<string, string> = {};
+      nextIds.forEach((id) => {
+        if (nextTexts[id]) cleaned[id] = nextTexts[id];
+      });
+      onChange(Object.keys(cleaned).length > 0 ? { choice_ids: nextIds, other_texts: cleaned } : nextIds);
+    };
     control = (
       <div role="group" aria-label={field.label} className="space-y-2" {...a11y}>
         {(field.choices ?? []).map((c) => {
           const on = selected.includes(c.id);
           return (
-            <Option
-              key={c.id}
-              type="checkbox"
-              name={`${domId}-${c.id}`}
-              checked={on}
-              label={c.label}
-              onChange={() => onChange(on ? selected.filter((x) => x !== c.id) : [...selected, c.id])}
-            />
+            <div key={c.id} className="space-y-1.5">
+              <Option
+                type="checkbox"
+                name={`${domId}-${c.id}`}
+                checked={on}
+                label={c.label}
+                onChange={() => {
+                  const nextIds = on ? selected.filter((x) => x !== c.id) : [...selected, c.id];
+                  emitMulti(nextIds, otherTexts);
+                }}
+              />
+              {on && c.text_input && (
+                <div className="pl-7">
+                  <input
+                    type="text"
+                    value={otherTexts[c.id] ?? ''}
+                    maxLength={c.text_input.max_length ?? undefined}
+                    placeholder={c.text_input.placeholder || 'Especifique…'}
+                    onChange={(e) => emitMulti(selected, { ...otherTexts, [c.id]: e.target.value })}
+                    className={`${inputBase} ${borderCls}`}
+                  />
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

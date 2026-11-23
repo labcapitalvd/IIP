@@ -21,6 +21,20 @@ class RequestForm(UuidSchema):
     )
 
 
+class ChoiceTextInputSchema(BaseSchema):
+    """Configuración opcional de texto libre asociado a una opción de selección."""
+
+    is_required: bool = Field(
+        default=False, description="Si el texto es obligatorio al elegir esta opción"
+    )
+    placeholder: str | None = Field(
+        default=None, max_length=255, description="Texto de ayuda en el input"
+    )
+    max_length: int | None = Field(
+        default=None, ge=1, le=10000, description="Longitud máxima permitida"
+    )
+
+
 class CreateFieldChoiceRequest(BaseSchema):
     """Modelo para crear opciones de campo (tabla `forms.field_choices`)."""
 
@@ -34,6 +48,10 @@ class CreateFieldChoiceRequest(BaseSchema):
         default=None, max_length=4096, description="Descripción de la opción"
     )
     display_order: int = Field(default=0, ge=0, description="Orden de visualización")
+    text_input: ChoiceTextInputSchema | None = Field(
+        default=None,
+        description="Si se envía, habilita un cuadro de texto libre al elegir esta opción",
+    )
 
 
 class CreateFieldRequest(BaseSchema):
@@ -315,6 +333,7 @@ class ResponseFieldChoiceTree(UuidSchema):
     label: str
     description: str | None = None
     display_order: int
+    text_input: ChoiceTextInputSchema | None = None
 
 
 class ResponseFieldTree(UuidSchema):

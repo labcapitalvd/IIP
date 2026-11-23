@@ -12,6 +12,7 @@ from shared.models import (
     Criterion,
     Field,
     FieldChoice,
+    FieldChoiceTextInput,
     FieldDependency,
     FieldGroup,
     FieldRule,
@@ -576,9 +577,16 @@ class FormService:
                     )
 
     def _build_field_choice(self, choice_data: CreateFieldChoiceRequest) -> FieldChoice:
-        return FieldChoice(
+        choice = FieldChoice(
             code=choice_data.code,
             label=choice_data.label,
             description=choice_data.description,
             display_order=choice_data.display_order,
         )
+        if choice_data.text_input is not None:
+            choice.text_input = FieldChoiceTextInput(
+                is_required=choice_data.text_input.is_required,
+                placeholder=choice_data.text_input.placeholder,
+                max_length=choice_data.text_input.max_length,
+            )
+        return choice

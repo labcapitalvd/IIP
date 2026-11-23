@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Download, X } from 'lucide-react';
 import { FormField, IIPForm } from '../../../types';
 import { AnswerState, activeQuestions, buildIndicatorRefs, isFilled, visibleFields } from '../../../utils/guidedForm';
-import { numberQuestions } from '../../../utils/formTree';
+import { numberQuestions, unpackMultiChoice, unpackSingleChoice } from '../../../utils/formTree';
 
 /** Texto legible de una respuesta (etiquetas de opciones en lugar de ids). */
 export const answerText = (f: FormField, v: any): string => {
@@ -12,10 +12,21 @@ export const answerText = (f: FormField, v: any): string => {
   switch (f.field_type_code) {
     case 'boolean':
       return v === true || v === 'true' ? 'Sí' : 'No';
-    case 'singlechoice':
-      return label(v);
-    case 'multichoice':
-      return (Array.isArray(v) ? v : [v]).map(label).join(', ');
+    case 'singlechoice': {
+      const { choiceId, otherText } = unpackSingleChoice(v);
+      const base = label(choiceId);
+      return otherText.trim() ? `${base}: ${otherText.trim()}` : base;
+    }
+    case 'multichoice': {
+      const { choiceIds, otherTexts } = unpackMultiChoice(v);
+      return choiceIds
+        .map((id) => {
+          const base = label(id);
+          const txt = (otherTexts[id] ?? '').trim();
+          return txt ? `${base}: ${txt}` : base;
+        })
+        .join(', ');
+    }
     case 'numeric':
       return `${v}${f.unit ? ` ${f.unit}` : ''}`;
     case 'date':

@@ -51,11 +51,19 @@ class DateAnswerIn(_AnswerIn):
 class SingleChoiceAnswerIn(_AnswerIn):
     type: Literal["single_choice"]
     value: UUID = Field(description="Id de la opción (`field_choice`) elegida.")
+    other_text: str | None = Field(
+        default=None,
+        description="Texto libre cuando la opción elegida tiene `text_input` habilitado.",
+    )
 
 
 class MultiChoiceAnswerIn(_AnswerIn):
     type: Literal["multi_choice"]
     value: list[UUID] = Field(description="Ids de las opciones (`field_choice`) marcadas.")
+    other_texts: dict[UUID, str] | None = Field(
+        default=None,
+        description="Mapa {choice_id: texto} para opciones marcadas con `text_input` habilitado.",
+    )
 
 
 class FileAnswerIn(_AnswerIn):
@@ -171,6 +179,12 @@ class ResponseAnswerOut(BaseSchema):
         description="Valor crudo: bool, str, número, fecha ISO, id de opción, lista de ids o id de archivo.",
     )
     display: str = Field(description="Valor legible (etiqueta de la opción, nombre del archivo, Sí/No…).")
+    other_text: str | None = Field(
+        default=None, description="Texto libre de selección única (si aplica)."
+    )
+    other_texts: dict[UUID, str] | None = Field(
+        default=None, description="Textos libres por opción en multiselección (si aplica)."
+    )
 
 
 class ResponseCardOut(BaseSchema):
