@@ -11,6 +11,7 @@ La entidad se identifica por su `actor_id` (el de la base de datos). Antes de gu
 validar el archivo (`dry_run`): devuelve el reporte de errores sin escribir nada.
 """
 
+import hashlib
 import io
 import re
 from dataclasses import dataclass, field as dc_field
@@ -299,6 +300,54 @@ class _Issues:
 
     def warn(self, sheet: str, row: int | None, column: str | None, message: str) -> None:
         self.warnings.append(ResponseHistoricalIssue(sheet=sheet, row=row, column=column, message=message))
+
+
+def _structure_hash(st: Structure, kind: str) -> str:
+    h = hashlib.sha256()
+    h.update(kind.encode())
+    if kind == "responses":
+        for q in st.questions:
+            if not q.fields or (q.is_loop and not q.template_id):
+                continue
+            h.update(f"|Q:{q.id}:{int(q.is_loop)}:{q.source_id or ''}".encode())
+            for f in q.fields:
+                h.update(f"|F:{f.id}:{f.type}".encode())
+                for cid, _, _, ti in f.choices:
+                    if ti is not None:
+                        h.update(f"|CT:{cid}".encode())
+    else:
+        for cid, level, _, _ in st.result_columns:
+            h.update(f"|R:{cid}:{level}".encode())
+    return h.hexdigest()[:16]
+
+
+def _validate_sheet_columns(
+    issues: _Issues,
+    sheet: str,
+    labels: list[str],
+    keys: list[str],
+    expected: dict[str, str],
+    fixed: set[str],
+) -> None:
+    present = set(keys)
+    for ci, key in enumerate(keys):
+        if not key or key in fixed or key in expected:
+            continue
+        col_label = (labels[ci] if ci < len(labels) else "").splitlines()[0].strip() or key
+        issues.error(
+            sheet,
+            1,
+            get_column_letter(ci + 1),
+            f"La columna «{col_label}» ya no existe en el formulario actual.",
+        )
+    for exp_key, exp_label in expected.items():
+        if exp_key not in present:
+            issues.error(
+                sheet,
+                1,
+                None,
+                f"Falta la columna «{exp_label}» del formulario actual.",
+            )
 
 
 def _actor_id(raw: Any) -> UUID | None:
@@ -614,6 +663,9 @@ class HistoricalAppService:
         meta = wb.create_sheet(_META_SHEET)
         meta.append(["form_id", str(form.id)])
         meta.append(["kind", "responses"])
+        meta.append(["structure_hash", _structure_hash(st, "responses")])
+        if form.edition_closed_at:
+            meta.append(["edition_closed_at", form.edition_closed_at.isoformat()])
 
         simple = [q for q in st.questions if not q.is_loop and q.fields]
         loops = [q for q in st.questions if q.is_loop and q.fields and q.template_id]
@@ -762,6 +814,9 @@ class HistoricalAppService:
         meta = wb.create_sheet(_META_SHEET)
         meta.append(["form_id", str(form.id)])
         meta.append(["kind", "results"])
+        meta.append(["structure_hash", _structure_hash(st, "results")])
+        if form.edition_closed_at:
+            meta.append(["edition_closed_at", form.edition_closed_at.isoformat()])
         meta.sheet_state = "hidden"
 
         labels, keys = ["actor_id (ID de la entidad)"], ["actor_id"]
@@ -812,6 +867,14 @@ class HistoricalAppService:
                 raise HistoricalFileError("Este archivo es la plantilla de resultados, no la de respuestas.")
 
             issues = _Issues()
+            expected_hash = _structure_hash(st, "responses")
+            if meta.get("structure_hash") and meta.get("structure_hash") != expected_hash:
+                issues.error(
+                    _META_SHEET,
+                    None,
+                    None,
+                    "El formulario cambió desde la última generación de esta plantilla; descárguela nuevamente.",
+                )
             by_sheet = {q.sheet: q for q in st.questions if q.is_loop and q.fields and q.template_id}
             by_id = {q.id: q for q in st.questions}
             simple = [q for q in st.questions if not q.is_loop and q.fields]
@@ -907,6 +970,14 @@ class HistoricalAppService:
             if _RESPONSES_SHEET not in wb.sheetnames:
                 raise HistoricalFileError(f"Falta la hoja «{_RESPONSES_SHEET}».")
             labels, keys, rows = _read_table(wb[_RESPONSES_SHEET])
+            expected_simple: dict[str, str] = {}
+            for q in simple:
+                for f in q.fields:
+                    expected_simple[str(f.id)] = f"P{q.n} · {q.label}"
+                    for cid, _, clab, ti in f.choices:
+                        if ti is not None:
+                            expected_simple[_choice_text_key(f.id, cid)] = f"P{q.n} · {q.label} — Texto «{clab}»"
+            _validate_sheet_columns(issues, _RESPONSES_SHEET, labels, keys, expected_simple, {"actor_id"})
             seen_rows: dict[UUID, int] = {}
             for rownum, cells in rows:
                 aid = actor_of(_RESPONSES_SHEET, rownum, cells[0] if cells else None)
@@ -934,6 +1005,14 @@ class HistoricalAppService:
                     continue
                 labels, keys, rows = _read_table(wb[sheet])
                 src = by_id.get(q.source_id) if q.source_id else None
+                expected_loop: dict[str, str] = {}
+                for f in q.fields:
+                    expected_loop[str(f.id)] = f.label
+                    for cid, _, clab, ti in f.choices:
+                        if ti is not None:
+                            expected_loop[_choice_text_key(f.id, cid)] = f"{f.label} — Texto «{clab}»"
+                fixed_loop = {"actor_id", "ref", "title"} | ({"parent_ref"} if src else set())
+                _validate_sheet_columns(issues, sheet, labels, keys, expected_loop, fixed_loop)
                 col = {k: i for i, k in enumerate(keys) if k}
                 if "actor_id" not in col or "title" not in col:
                     raise HistoricalFileError(f"La hoja {sheet} no tiene las columnas esperadas de la plantilla.")
@@ -1058,12 +1137,26 @@ class HistoricalAppService:
                 raise HistoricalFileError(f"Falta la hoja «{_RESULTS_SHEET}».")
 
             issues = _Issues()
+            expected_hash = _structure_hash(st, "results")
+            if meta.get("structure_hash") and meta.get("structure_hash") != expected_hash:
+                issues.error(
+                    _META_SHEET,
+                    None,
+                    None,
+                    "El formulario cambió desde la última generación de esta plantilla; descárguela nuevamente.",
+                )
             node_ids = {str(n.id) for n in st.nodes}
             question_ids = {str(q.id) for q in st.questions}
             known = {row[0] for row in (await s.execute(select(Actor.id))).all()}
             labels, keys, rows = _read_table(wb[_RESULTS_SHEET])
             if "actor_id" not in keys:
                 raise HistoricalFileError("La hoja de resultados no tiene la columna actor_id.")
+            expected_results = {
+                str(cid): f"{_LEVEL.get(level, level)} {code} · {lab}"
+                for cid, level, code, lab in st.result_columns
+            }
+            expected_results["TOTAL"] = "TOTAL"
+            _validate_sheet_columns(issues, _RESULTS_SHEET, labels, keys, expected_results, {"actor_id"})
             a_col = keys.index("actor_id")
 
             parsed: dict[UUID, dict[str, Decimal | None]] = {}
