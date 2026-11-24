@@ -22,7 +22,7 @@ from uuid import UUID
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.comments import Comment
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from sqlalchemy import delete, func, or_, select
@@ -84,6 +84,7 @@ _NO = {"no", "n", "false", "falso", "0"}
 _LEVEL = {"C": "Componente", "V": "Variable", "I": "Indicador", "Q": "Pregunta"}
 
 _HEAD_FILL = PatternFill("solid", fgColor="E0E7FF")
+_TEXT_HEAD_FILL = PatternFill("solid", fgColor="FEF3C7")
 _BOLD = Font(bold=True)
 
 
@@ -245,9 +246,9 @@ def _header(ws, labels: list[str], keys: list[str]) -> None:
     ws.append(labels)
     ws.append(keys)
     ws.row_dimensions[2].hidden = True
-    for cell in ws[1]:
+    for idx, cell in enumerate(ws[1]):
         cell.font = _BOLD
-        cell.fill = _HEAD_FILL
+        cell.fill = _TEXT_HEAD_FILL if idx < len(keys) and keys[idx].startswith("choice_text:") else _HEAD_FILL
         cell.alignment = Alignment(wrap_text=True, vertical="top")
     ws.row_dimensions[1].height = 60
     ws.freeze_panes = "B3"
@@ -424,16 +425,42 @@ def _convert(f: QField, raw: Any):
         for cid, code, label, _ in f.choices:
             lookup[_norm(label)] = cid
             lookup.setdefault(_norm(code), cid)
-        parts = [str(raw).strip()] if t == "single_choice" else [
-            p for p in re.split(r"[;\n|]", str(raw)) if p.strip()
-        ]
+        if t == "single_choice":
+            cid = lookup.get(_norm(str(raw)))
+            if not cid:
+                return None, f"Opción no válida: {str(raw).strip()}."
+            return cid, None
+
         ids, unknown = [], []
-        for p in parts:
-            cid = lookup.get(_norm(p))
-            (ids if cid else unknown).append(cid or p.strip())
+        for line in str(raw).splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            direct = lookup.get(_norm(line))
+            if direct:
+                ids.append(direct)
+                continue
+            segments = [s.strip() for s in line.split(";") if s.strip()]
+            i = 0
+            while i < len(segments):
+                matched_cid = None
+                matched_end = i + 1
+                for j in range(len(segments), i, -1):
+                    cand = "; ".join(segments[i:j])
+                    cid = lookup.get(_norm(cand)) or lookup.get(_norm(";".join(segments[i:j])))
+                    if cid:
+                        matched_cid = cid
+                        matched_end = j
+                        break
+                if matched_cid:
+                    ids.append(matched_cid)
+                    i = matched_end
+                else:
+                    unknown.append(segments[i])
+                    i += 1
         if unknown:
             return None, f"Opción no válida: {', '.join(unknown)}."
-        return (ids[0] if t == "single_choice" else list(dict.fromkeys(ids))), None
+        return list(dict.fromkeys(ids)), None
     return None, f"Tipo de campo no soportado: {t}."
 
 
@@ -712,13 +739,17 @@ class HistoricalAppService:
                 keys.append(str(f.id))
                 for cid, _, clab, ti in f.choices:
                     if ti is not None:
-                        labels.append(f"{base_hdr} — Texto «{clab}»\n[{q.indicator_label}]")
+                        labels.append(f"[Texto «{clab}»] {base_hdr}\n[{q.indicator_label}]")
                         keys.append(_choice_text_key(f.id, cid))
         _header(ws, labels, keys)
+        multi_cols: list[tuple[str, str, str, QField]] = []
         col = 2
         for q in simple:
             for f in q.fields:
                 validation(ws, f, col)
+                if f.type == "multi_choice" and f.choices:
+                    extra = f" — {f.label}" if len(q.fields) > 1 else ""
+                    multi_cols.append((_RESPONSES_SHEET, get_column_letter(col), f"P{q.n} · {q.label}{extra}", f))
                 col += 1 + sum(1 for _, _, _, ti in f.choices if ti is not None)
 
         # --- una hoja por pregunta bucle
@@ -741,33 +772,55 @@ class HistoricalAppService:
                 lkeys.append(str(f.id))
                 for cid, _, clab, ti in f.choices:
                     if ti is not None:
-                        llabels.append(f"{f.label} — Texto «{clab}»")
+                        llabels.append(f"[Texto «{clab}»] {f.label}")
                         lkeys.append(_choice_text_key(f.id, cid))
             _header(lws, llabels, lkeys)
             for f, c_idx in field_cols:
                 validation(lws, f, c_idx)
+                if f.type == "multi_choice" and f.choices:
+                    multi_cols.append((q.sheet, get_column_letter(c_idx), f"P{q.n} · {q.label} — {f.label}", f))
             mapping.append((q.sheet, f"P{q.n} · {q.label}" + (f"  (cuelga de {src.sheet})" if src else "")))
             meta.append(["sheet", q.sheet, str(q.id)])
 
         for sh in (lists, meta):
             sh.sheet_state = "hidden"
 
-        # --- catálogo de opciones (referencia para multi_choice y single_choice)
+        # --- catálogo de opciones (solo multi_choice, agrupado por pregunta/columna)
         opts = wb.create_sheet("Opciones")
-        opts.append(["hoja", "pregunta", "campo", "tipo", "opción válida", "texto adicional"])
+        opts.append(["Hoja", "Col.", "Pregunta / Campo", "Opción válida (separar con «;»)", "Texto al lado"])
         for c in opts[1]:
             c.font = _BOLD
             c.fill = _HEAD_FILL
-        for q in st.questions:
-            sheet_name = q.sheet if q.is_loop else _RESPONSES_SHEET
-            for f in q.fields:
-                if f.type not in ("single_choice", "multi_choice") or not f.choices:
-                    continue
-                tlabel = "Selección única" if f.type == "single_choice" else "Selección múltiple (separar con «;»)"
-                for _, _, clab, ti in f.choices:
-                    extra_txt = "Obligatorio (al lado)" if (ti and ti.is_required) else ("Opcional (al lado)" if ti else "")
-                    opts.append([sheet_name, f"P{q.n} · {q.label}", f.label, tlabel, clab, extra_txt])
-        for ci, w in enumerate((14, 42, 32, 32, 38, 22), start=1):
+            c.alignment = Alignment(wrap_text=True, vertical="center")
+        opts.freeze_panes = "A2"
+        alt_fill = PatternFill("solid", fgColor="F8FAFC")
+        top_align = Alignment(wrap_text=True, vertical="top")
+        thick_side = Side(style="medium", color="94A3B8")
+        thin_side = Side(style="thin", color="E2E8F0")
+        for b_idx, (sh_name, col_let, hdr_text, f) in enumerate(multi_cols):
+            use_fill = alt_fill if b_idx % 2 == 1 else None
+            n_opts = len(f.choices)
+            for o_idx, (_, _, clab, ti) in enumerate(f.choices):
+                extra_txt = "Obligatorio (al lado)" if (ti and ti.is_required) else ("Opcional (al lado)" if ti else "")
+                opts.append([
+                    sh_name if o_idx == 0 else "",
+                    col_let if o_idx == 0 else "",
+                    hdr_text if o_idx == 0 else "",
+                    clab,
+                    extra_txt,
+                ])
+                row_border = Border(
+                    top=thick_side if o_idx == 0 else thin_side,
+                    bottom=thick_side if o_idx == n_opts - 1 else thin_side,
+                    left=thin_side,
+                    right=thin_side,
+                )
+                for cell in opts[opts.max_row]:
+                    cell.alignment = top_align
+                    cell.border = row_border
+                    if use_fill:
+                        cell.fill = use_fill
+        for ci, w in enumerate((13, 7, 52, 42, 22), start=1):
             opts.column_dimensions[get_column_letter(ci)].width = w
 
         # --- entidades de referencia
