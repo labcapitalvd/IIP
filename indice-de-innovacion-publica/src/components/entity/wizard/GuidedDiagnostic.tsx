@@ -44,7 +44,7 @@ const Centered: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export const GuidedDiagnostic: React.FC<Props> = ({ assignment, onExit, onSelectionSaved, onProgressChanged }) => {
   const { activeForm: rawForm, setActiveFormById, isLoadingData } = useApp();
   const ctx = useFormSubmission();
-  const { answers, cardEntries, selectedComponentIds, setSelectedComponentIds } = ctx;
+  const { answers, cardEntries, localUpdatedAt, selectedComponentIds, setSelectedComponentIds } = ctx;
 
   const ready = rawForm.id === assignment.form_id;
   const [synced, setSynced] = useState(false);
@@ -56,8 +56,8 @@ export const GuidedDiagnostic: React.FC<Props> = ({ assignment, onExit, onSelect
   const [showAnswers, setShowAnswers] = useState(false);
   const { user } = useAuth();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const latest = useRef({ answers, cardEntries });
-  latest.current = { answers, cardEntries };
+  const latest = useRef({ localUpdatedAt });
+  latest.current = { localUpdatedAt };
 
   // 1) Activar el formulario asignado.
   useEffect(() => {
@@ -75,7 +75,7 @@ export const GuidedDiagnostic: React.FC<Props> = ({ assignment, onExit, onSelect
     setSynced(true);
   }, [ready, synced, assignment, rawForm, setSelectedComponentIds]);
 
-  // 3) Borrador del servidor: si no hay nada local (otro navegador/equipo), se restaura.
+  // 3) Borrador del servidor: gana si no hay fecha de sincronización local o si el servidor es más reciente.
   useEffect(() => {
     if (!synced || assignment.status === 'pending' || !assignment.submission_id) return;
     let alive = true;
@@ -83,8 +83,11 @@ export const GuidedDiagnostic: React.FC<Props> = ({ assignment, onExit, onSelect
     coreService
       .getSubmission(assignment.submission_id)
       .then((sub) => {
-        const empty = Object.keys(latest.current.answers).length === 0 && Object.keys(latest.current.cardEntries).length === 0;
-        if (alive && empty) ctx.loadSubmissionForReview(sub);
+        if (!alive) return;
+        const localTs = latest.current.localUpdatedAt ? Date.parse(latest.current.localUpdatedAt) : NaN;
+        const serverTs = sub.submitted_at ? Date.parse(sub.submitted_at) : NaN;
+        const serverIsNewer = Number.isNaN(localTs) || (!Number.isNaN(serverTs) && serverTs > localTs);
+        if (serverIsNewer) ctx.loadSubmissionForReview(sub);
       })
       .catch(() => undefined) // sin borrador remoto se empieza limpio
       .finally(() => alive && setRestoring(false));

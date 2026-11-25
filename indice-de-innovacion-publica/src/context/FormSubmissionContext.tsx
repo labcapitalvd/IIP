@@ -58,6 +58,8 @@ interface FormSubmissionContextType {
   saveDraft: () => Promise<string>;
   isSavingDraft: boolean;
   lastDraftSavedAt: Date | null;
+  /** Marca ISO de la última sincronización con el servidor (guardar borrador o cargar desde servidor). */
+  localUpdatedAt: string | null;
 }
 
 const validateChoiceTextRequired = (f: FormField, rawVal: unknown): string | null => {
@@ -94,7 +96,12 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
   const { user } = useAuth();
   const [selectedComponentIds, setSelectedComponentIds] = useState<string[] | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<Date | null>(null);
+  const [localUpdatedAt, setLocalUpdatedAt] = useState<string | null>(null);
+  const lastDraftSavedAt = useMemo(() => {
+    if (!localUpdatedAt) return null;
+    const ts = Date.parse(localUpdatedAt);
+    return Number.isNaN(ts) ? null : new Date(ts);
+  }, [localUpdatedAt]);
   // Cada Variable agrupa las preguntas de sus Indicadores; solo cuentan los componentes elegidos.
   const activeForm = useMemo(
     () => flattenForEntity({ ...rawActiveForm, sections: selectedComponents(rawActiveForm, selectedComponentIds) }),
@@ -118,6 +125,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
       try {
         const parsed = JSON.parse(saved);
         setAnswers(parsed.answers || {});
+        setLocalUpdatedAt(typeof parsed.updatedAt === 'string' ? parsed.updatedAt : null);
         // Borradores antiguos pudieron guardar referencias de ficha repetidas: se regeneran.
         const seen = new Set<string>();
         const fixed: Record<string, any[]> = {};
@@ -131,12 +139,13 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         });
         setCardEntries(fixed);
       } catch {
-        // start clean
+        setLocalUpdatedAt(null);
       }
     } else {
       // Sin borrador local: se parte limpio (no arrastrar respuestas de otro formulario).
       setAnswers({});
       setCardEntries({});
+      setLocalUpdatedAt(null);
       // Seed an initial empty card for repeatable templates if none exists
       activeForm.sections.forEach((sec) => {
         sec.questions?.forEach((q) => {
@@ -163,12 +172,12 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     }
   }, [storageKey, activeForm.id]);
 
-  // Autosave draft
+  // Autosave draft (localUpdatedAt solo cambia al sincronizar con el servidor, no en cada tecla)
   useEffect(() => {
     if (Object.keys(answers).length > 0 || Object.keys(cardEntries).length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify({ answers, cardEntries }));
+      localStorage.setItem(storageKey, JSON.stringify({ answers, cardEntries, updatedAt: localUpdatedAt }));
     }
-  }, [answers, cardEntries, storageKey]);
+  }, [answers, cardEntries, localUpdatedAt, storageKey]);
 
   const activeSection = useMemo(() => {
     return activeForm.sections[activeSectionIndex] || activeForm.sections[0] || null;
@@ -560,6 +569,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
 
       setLastSubmittedId(newSubmission.id);
       setSubmitSuccess(true);
+      setLocalUpdatedAt(null);
       localStorage.removeItem(storageKey);
       return newSubmission;
     } finally {
@@ -571,7 +581,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     setIsSavingDraft(true);
     try {
       const saved = await coreService.submitForm(activeForm.id, compileSubmissionPayload(), true);
-      setLastDraftSavedAt(new Date());
+      setLocalUpdatedAt(new Date().toISOString());
       return saved.submission_id;
     } finally {
       setIsSavingDraft(false);
@@ -597,14 +607,14 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
     setSubmitSuccess(false);
     setLastSubmittedId(null);
     setActiveSectionIndex(0);
+    setLocalUpdatedAt(null);
     localStorage.removeItem(storageKey);
   };
 
   const loadSubmissionForReview = (sub: EntitySubmission) => {
     setAnswers(sub.raw_answers || {});
-    if (sub.card_entries) {
-      setCardEntries(sub.card_entries);
-    }
+    setCardEntries(sub.card_entries || {});
+    setLocalUpdatedAt(sub.submitted_at || new Date().toISOString());
     setActiveSectionIndex(0);
   };
 
@@ -642,6 +652,7 @@ export const FormSubmissionProvider: React.FC<{ children: React.ReactNode }> = (
         saveDraft,
         isSavingDraft,
         lastDraftSavedAt,
+        localUpdatedAt,
       }}
     >
       {children}
