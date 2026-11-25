@@ -39,9 +39,22 @@ interface SubmissionSummaryApi {
 interface AnswerApi {
   field_id: string;
   field_label: string;
+  type?: string;
   value?: unknown;
   display: string;
+  other_text?: string | null;
+  other_texts?: Record<string, string> | null;
 }
+
+const rawAnswerValue = (a: AnswerApi): any => {
+  if (a.other_text && a.value != null) {
+    return { choice_id: String(a.value), other_text: a.other_text };
+  }
+  if (a.other_texts && Object.keys(a.other_texts).length > 0 && Array.isArray(a.value)) {
+    return { choice_ids: a.value.map(String), other_texts: a.other_texts };
+  }
+  return a.value;
+};
 
 interface SubmissionDetailApi extends SubmissionSummaryApi {
   answers: AnswerApi[];
@@ -86,7 +99,7 @@ const mapSubmissionDetail = (d: SubmissionDetailApi): EntitySubmission => {
   d.answers.forEach((a) => {
     field_labels[a.field_id] = a.field_label;
     display_values[a.field_id] = a.display;
-    raw_answers[a.field_id] = a.value;
+    raw_answers[a.field_id] = rawAnswerValue(a);
   });
   const card_entries: NonNullable<EntitySubmission['card_entries']> = {};
   d.cards.forEach((c) => {
@@ -94,7 +107,7 @@ const mapSubmissionDetail = (d: SubmissionDetailApi): EntitySubmission => {
     const display: Record<string, string> = {};
     c.answers.forEach((a) => {
       field_labels[a.field_id] = a.field_label;
-      answers[a.field_id] = a.value;
+      answers[a.field_id] = rawAnswerValue(a);
       display[a.field_id] = a.display;
     });
     (card_entries[c.question_id] ??= []).push({
